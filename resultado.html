@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pesquisa por ID</title>
+</head>
+<body>
+
+<h1>Consulta Transformador</h1>
+
+<label for="idInput">Insere o ID do transformador:</label>
+<input type="text" id="idInput" />
+<button onclick="buscarDados()">Procurar</button>
+
+<div id="resultado" style="margin-top:20px;"></div>
+
+<script>
+  let dadosCSV = [];
+
+  // Carregar o CSV quando a página abre
+  fetch('dados.csv')
+    .then(res => res.text())
+    .then(texto => {
+      const linhas = texto.trim().split('\n');
+      const header = linhas[0].split(',');
+
+      // Transformar o CSV em array de objetos para facilitar a pesquisa
+      dadosCSV = linhas.slice(1).map(linha => {
+        const colunas = linha.split(',');
+        let obj = {};
+        colunas.forEach((valor, i) => {
+          obj[header[i]] = valor;
+        });
+        return obj;
+      });
+    });
+
+  function buscarDados() {
+    const idProcurado = document.getElementById('idInput').value.trim();
+    const resultadoDiv = document.getElementById('resultado');
+
+    if (!idProcurado) {
+      resultadoDiv.textContent = 'Por favor, insere um ID.';
+      return;
+    }
+
+    const encontrado = dadosCSV.find(item => item.ID === idProcurado);
+
+    if (encontrado) {
+      resultadoDiv.innerHTML = `
+        <h2>Resultados para ID: ${idProcurado}</h2>
+        <p><strong>Nome:</strong> ${encontrado.Nome}</p>
+        <p><strong>Valor:</strong> ${encontrado.Valor}</p>
+      `;
+    } else {
+      resultadoDiv.textContent = 'ID não encontrado.';
+    }
+  }
+</script>
+
+</body>
+</html>
+
