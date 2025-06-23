@@ -41,6 +41,9 @@
     const file = fileInput.files[0];
     const reader = new FileReader();
     
+    console.log("Ficheiro selecionado:", file.name);
+
+    
     reader.onload = function(e) {
       const text = e.target.result;
       const rows = text.split('\n').filter(r => r.trim() !== '');
