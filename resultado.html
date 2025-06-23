@@ -8,23 +8,22 @@
 
 <h1>Consulta Transformador</h1>
 
-<label for="idInput">Insere o ID do transformador:</label>
+<label for="idInput">Insere o ID do transformador (id_secagenscore):</label>
 <input type="text" id="idInput" />
 <button onclick="buscarDados()">Procurar</button>
 
 <div id="resultado" style="margin-top:20px;"></div>
 
 <script>
-  let parcialcoreCSV = [];
+  let dadosCSV = [];
 
-  // Carregar o CSV ao abrir a página
-  fetch('parcialcore.csv')
+  fetch('parcialcores.csv')
     .then(res => res.text())
     .then(texto => {
       const linhas = texto.trim().split('\n');
       const header = linhas[0].split(',');
 
-      parcialcoreCSV = linhas.slice(1).map(linha => {
+      dadosCSV = linhas.slice(1).map(linha => {
         const colunas = linha.split(',');
         let obj = {};
         colunas.forEach((valor, i) => {
@@ -43,12 +42,11 @@
       return;
     }
 
-    const encontrado = dadosCSV.find(item => item.ID === idProcurado);
+    const encontrado = dadosCSV.find(item => item.id_secagenscore === idProcurado);
 
     if (encontrado) {
       resultadoDiv.innerHTML = `
         <h2>Resultados para ID: ${idProcurado}</h2>
-        <p><strong>Nome:</strong> ${encontrado.Nome}</p>
         <p><strong>Potência:</strong> ${encontrado.Potencia}</p>
         <p><strong>Tensão:</strong> ${encontrado.Tensao}</p>
         <p><strong>Massat:</strong> ${encontrado.Massat}</p>
