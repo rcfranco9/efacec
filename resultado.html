@@ -18,7 +18,7 @@
   let parcialcoreCSV = [];
 
   // Carregar o CSV quando a página abre
-  fetch('dados.csv')
+  fetch('parcialcore.csv')
     .then(res => res.text())
     .then(texto => {
       const linhas = texto.trim().split('\n');
