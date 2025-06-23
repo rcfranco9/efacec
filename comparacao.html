@@ -1,89 +1,138 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Comparar Transformadores</title>
+<meta charset="UTF-8" />
+<title>Comparar Transformadores</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  #resultado {
+    margin-top: 20px;
+    padding: 15px;
+    border: 2px solid #333;
+    max-width: 400px;
+    background: #f9f9f9;
+  }
+  input, button {
+    padding: 6px 10px;
+    margin: 5px 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 10px;
+  }
+  th, td {
+    border: 1px solid #666;
+    padding: 6px;
+    text-align: center;
+  }
+  th {
+    background-color: #ddd;
+  }
+</style>
 </head>
 <body>
-  <h2>Comparar Transformadores</h2>
 
-  <input type="file" id="csvFile" accept=".csv"><br><br>
+<h1>Comparar Transformadores</h1>
 
-  <label>ID 1: <input type="text" id="id1"></label><br><br>
-  <label>ID 2: <input type="text" id="id2"></label><br><br>
+<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
+<input type="file" id="csvFile" accept=".csv" /><br><br>
 
-  <button id="botaoComparar">Comparar</button>
+<label for="id1Input">ID Transformador 1 (id_secagenscore):</label><br>
+<input type="text" id="id1Input" disabled placeholder="Insere o primeiro ID" /><br><br>
 
-  <p id="erro" style="color: red;"></p>
-  <div id="resultado"></div>
+<label for="id2Input">ID Transformador 2 (id_secagenscore):</label><br>
+<input type="text" id="id2Input" disabled placeholder="Insere o segundo ID" /><br><br>
 
-  <script>
-    document.getElementById("botaoComparar").addEventListener("click", comparar);
+<button onclick="comparar()" disabled id="btnComparar">Comparar</button>
 
-    function comparar() {
-      const fileInput = document.getElementById('csvFile');
-      const id1 = document.getElementById('id1').value.trim().toLowerCase();
-      const id2 = document.getElementById('id2').value.trim().toLowerCase();
-      const erro = document.getElementById('erro');
-      const resultado = document.getElementById('resultado');
+<div id="resultado">Por favor, carrega o ficheiro CSV antes de comparar.</div>
 
-      erro.textContent = '';
-      resultado.innerHTML = '';
+<script>
+  let dadosCSV = [];
 
-      if (!fileInput.files.length) {
-        erro.textContent = 'Carrega o ficheiro CSV.';
-        return;
-      }
+  document.getElementById('csvFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      const ficheiro = fileInput.files[0];
-      const leitor = new FileReader();
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const texto = event.target.result;
 
-      leitor.onload = function(e) {
-        const texto = e.target.result;
-        const linhas = texto.split('\n').filter(l => l.trim() !== '');
-        const cabecalho = linhas[0].split(',').map(h => h.trim().toLowerCase());
-
-        const dados = linhas.slice(1).map(linha => {
-          const valores = linha.split(',');
-          const obj = {};
-          cabecalho.forEach((h, i) => obj[h] = valores[i] ? valores[i].trim() : '');
-          return obj;
-        });
-
-        // DEBUG: mostra os IDs que foram lidos
-        console.log("IDs lidos do CSV:");
-        dados.forEach(d => console.log(d['id_secagenscore']));
-
-        const colId = 'id_secagenscore';
-        const d1 = dados.find(d => d[colId]?.toLowerCase() === id1);
-        const d2 = dados.find(d => d[colId]?.toLowerCase() === id2);
-
-        console.log("ID 1 procurado:", id1);
-        console.log("ID 2 procurado:", id2);
-        console.log("Encontrado d1:", d1);
-        console.log("Encontrado d2:", d2);
-
-        if (!d1 || !d2) {
-          erro.textContent = 'Não encontrei um ou ambos os IDs no ficheiro.';
-          return;
+      Papa.parse(texto, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(resultado) {
+          dadosCSV = resultado.data;
+          console.log("CSV carregado!", dadosCSV);
+          document.getElementById('resultado').textContent = 'CSV carregado. Insere os dois IDs e clica em Comparar.';
+          document.getElementById('id1Input').disabled = false;
+          document.getElementById('id2Input').disabled = false;
+          document.getElementById('btnComparar').disabled = false;
+        },
+        error: function(err) {
+          document.getElementById('resultado').textContent = 'Erro ao ler CSV: ' + err.message;
         }
+      });
+    };
+    reader.readAsText(file);
+  });
 
-        const campos = ['potencia', 'tensao', 'massat', 'massai'];
-        let html = '<table border="1" cellpadding="5"><tr><th>Parâmetro</th><th>ID 1</th><th>ID 2</th><th>Diferença</th></tr>';
+  function comparar() {
+    const id1 = document.getElementById('id1Input').value.trim();
+    const id2 = document.getElementById('id2Input').value.trim();
+    const resultadoDiv = document.getElementById('resultado');
 
-        campos.forEach(campo => {
-          const v1 = parseFloat((d1[campo] || '0').replace(',', '.'));
-          const v2 = parseFloat((d2[campo] || '0').replace(',', '.'));
-          const diff = (!isNaN(v1) && !isNaN(v2)) ? (v1 - v2).toFixed(2) : 'N/A';
-          html += `<tr><td>${campo}</td><td>${d1[campo]}</td><td>${d2[campo]}</td><td>${diff}</td></tr>`;
-        });
-
-        html += '</table>';
-        resultado.innerHTML = html;
-      };
-
-      leitor.readAsText(ficheiro);
+    if (dadosCSV.length === 0) {
+      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
+      return;
     }
-  </script>
+
+    if (!id1 || !id2) {
+      resultadoDiv.textContent = 'Por favor, insere os dois IDs.';
+      return;
+    }
+
+    // procura os dois objetos pelo id_secagenscore (ignorando espaços)
+    const d1 = dadosCSV.find(linha => linha.id_secagenscore && linha.id_secagenscore.trim() === id1);
+    const d2 = dadosCSV.find(linha => linha.id_secagenscore && linha.id_secagenscore.trim() === id2);
+
+    if (!d1 || !d2) {
+      resultadoDiv.textContent = 'Não encontrei um ou ambos os IDs no ficheiro.';
+      return;
+    }
+
+    // Campos a comparar
+    const campos = ['potencia', 'tensao', 'massat', 'massai'];
+
+    // Cria tabela com comparação
+    let html = `<h2>Comparação dos IDs ${id1} e ${id2}</h2>`;
+    html += '<table><tr><th>Parâmetro</th><th>ID 1</th><th>ID 2</th><th>Diferença (ID1 - ID2)</th></tr>';
+
+    campos.forEach(campo => {
+      const val1 = d1[campo] ? d1[campo].trim().replace(',', '.') : '0';
+      const val2 = d2[campo] ? d2[campo].trim().replace(',', '.') : '0';
+
+      const num1 = parseFloat(val1);
+      const num2 = parseFloat(val2);
+      const diff = (!isNaN(num1) && !isNaN(num2)) ? (num1 - num2).toFixed(2) : 'N/A';
+
+      html += `<tr>
+        <td>${campo}</td>
+        <td>${val1}</td>
+        <td>${val2}</td>
+        <td>${diff}</td>
+      </tr>`;
+    });
+
+    html += '</table>';
+    resultadoDiv.innerHTML = html;
+  }
+</script>
+
 </body>
 </html>
