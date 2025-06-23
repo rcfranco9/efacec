@@ -12,10 +12,10 @@
 <input type="file" id="csvFile" accept=".csv" />
 <br><br>
 <label for="idInput">Insere o ID do transformador (id_secagenscore):</label>
-<input type="text" id="idInput" disabled />
-<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
+<input type="text" id="idInput" placeholder="Insere o ID">
+<button onclick="buscarDados()">Procurar</button>
+<div id="resultado"></div>
 
-<div id="resultado" style="margin-top:20px;"></div>
 
 <script>
   let dadosCSV = [];
@@ -51,21 +51,19 @@
       return obj;
     });
   }
-
 function buscarDados() {
-  const idInputRaw = document.getElementById('idInput').value.trim();
+  const idInput = document.getElementById('idInput').value.trim();
   const resultadoDiv = document.getElementById('resultado');
 
-  if (!idInputRaw) {
+  if (!idInput) {
     resultadoDiv.textContent = 'Por favor, insere um ID.';
     return;
   }
 
-  const idInput = idInputRaw; // Mantemos como string
+  // DEBUG: imprime todos os IDs do CSV
+  console.log('IDs existentes:', dadosCSV.map(l => l.id_secagenscore));
 
-  const encontrado = dadosCSV.find(item => {
-    return item.id_secagenscore.trim() === idInput;
-  });
+  const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
 
   if (encontrado) {
     resultadoDiv.innerHTML = `
@@ -79,6 +77,7 @@ function buscarDados() {
     resultadoDiv.textContent = 'ID não encontrado.';
   }
 }
+
 
 </script>
 
