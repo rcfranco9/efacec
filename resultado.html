@@ -35,22 +35,26 @@
     reader.readAsText(file);
   });
 
-  function processaCSV(texto) {
-    const linhas = texto.trim().split('\n');
-    let separador = ',';
-    if (linhas[0].includes(';')) separador = ';';
+function processaCSV(ficheiro) {
+  const leitor = new FileReader();
 
-    const header = linhas[0].split(separador).map(h => h.trim());
+  leitor.onload = function(e) {
+    const conteudo = e.target.result;
 
-    dadosCSV = linhas.slice(1).map(linha => {
-      const colunas = linha.split(separador).map(c => c.trim());
-      let obj = {};
-      colunas.forEach((valor, i) => {
-        obj[header[i]] = valor;
-      });
-      return obj;
+    Papa.parse(conteudo, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function(resultado) {
+        dadosCSV = resultado.data;
+        console.log("CSV carregado!"); // <-- este
+        console.log(dadosCSV);         // <-- e este
+      }
     });
-  }
+  };
+
+  leitor.readAsText(ficheiro);
+}
+
 function buscarDados() {
   const idInput = document.getElementById('idInput').value.trim();
   const resultadoDiv = document.getElementById('resultado');
