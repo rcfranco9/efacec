@@ -5,7 +5,6 @@
   <title>Comparar Transformadores</title>
 </head>
 <body>
-  
   <h2>Comparar Transformadores</h2>
 
   <input type="file" id="csvFile" accept=".csv"><br><br>
@@ -13,12 +12,15 @@
   <label>ID 1: <input type="text" id="id1"></label><br><br>
   <label>ID 2: <input type="text" id="id2"></label><br><br>
 
-  <button onclick="comparar()">Comparar</button>
+  <button id="botaoComparar">Comparar</button>
 
   <p id="erro" style="color: red;"></p>
   <div id="resultado"></div>
 
+  <!-- SÓ AQUI ENTRA O SCRIPT: -->
   <script>
+    document.getElementById("botaoComparar").addEventListener("click", comparar);
+
     function comparar() {
       const fileInput = document.getElementById('csvFile');
       const id1 = document.getElementById('id1').value.trim().toLowerCase();
@@ -51,9 +53,6 @@
 
         const colId = 'id_secagenscore';
 
-        console.log("IDs encontrados no CSV:");
-        dados.forEach(d => console.log(d[colId]));
-
         const d1 = dados.find(d => d[colId]?.toLowerCase() === id1);
         const d2 = dados.find(d => d[colId]?.toLowerCase() === id2);
 
@@ -78,8 +77,6 @@
 
       leitor.readAsText(ficheiro);
     }
-    
   </script>
 </body>
 </html>
-
