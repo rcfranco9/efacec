@@ -12,52 +12,18 @@
 <input type="text" id="idInput" />
 <button onclick="buscarDados()">Procurar</button>
 
-<div id="resultado" style="margin-top:20px;"></div>
+<div id="resultado" style="margin-top:20px; white-space: pre-wrap;"></div>
 
 <script>
   let dadosCSV = [];
+  let dadosCarregados = false;
 
-  fetch('parcialcore.csv')
-    .then(res => res.text())
+  fetch('parcialcores.csv')
+    .then(res => {
+      if (!res.ok) throw new Error('Erro ao carregar CSV: ' + res.status);
+      return res.text();
+    })
     .then(texto => {
       const linhas = texto.trim().split('\n');
-      const header = linhas[0].split(',');
-
-      dadosCSV = linhas.slice(1).map(linha => {
-        const colunas = linha.split(',');
-        let obj = {};
-        colunas.forEach((valor, i) => {
-          obj[header[i]] = valor;
-        });
-        return obj;
-      });
-    });
-
-  function buscarDados() {
-    const idProcurado = Number(document.getElementById('idInput').value.trim());
-    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idProcurado);
-
-    if (!idProcurado) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
-      return;
-    }
-
-    const encontrado = dadosCSV.find(item => item.id_secagenscore === idProcurado);
-
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idProcurado}</h2>
-        <p><strong>Potência:</strong> ${encontrado.Potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.Tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.Massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.Massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
-    }
-  }
-</script>
-
-</body>
-</html>
+      let separador = ',';
 
