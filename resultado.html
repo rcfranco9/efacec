@@ -26,4 +26,62 @@
     .then(texto => {
       const linhas = texto.trim().split('\n');
       let separador = ',';
+      if (linhas[0].includes(';')) separador = ';';
+
+      const header = linhas[0].split(separador).map(h => h.trim());
+      
+      dadosCSV = linhas.slice(1).map(linha => {
+        const colunas = linha.split(separador).map(c => c.trim());
+        let obj = {};
+        colunas.forEach((valor, i) => {
+          obj[header[i]] = valor;
+        });
+        return obj;
+      });
+
+      dadosCarregados = true;
+      document.getElementById('resultado').textContent = 'CSV carregado com sucesso. Pode procurar IDs.';
+    })
+    .catch(erro => {
+      document.getElementById('resultado').textContent = erro.message;
+    });
+
+  function buscarDados() {
+    const resultadoDiv = document.getElementById('resultado');
+
+    if (!dadosCarregados) {
+      resultadoDiv.textContent = 'Ainda estou a carregar os dados, espera um pouco...';
+      return;
+    }
+
+    const idProcuradoTexto = document.getElementById('idInput').value.trim();
+    if (!idProcuradoTexto) {
+      resultadoDiv.textContent = 'Por favor, insere um ID válido.';
+      return;
+    }
+
+    const idProcurado = Number(idProcuradoTexto);
+    if (isNaN(idProcurado)) {
+      resultadoDiv.textContent = 'O ID deve ser um número.';
+      return;
+    }
+
+    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idProcurado);
+
+    if (encontrado) {
+      resultadoDiv.innerHTML = `
+        <h2>Resultados para ID: ${idProcurado}</h2>
+        <p><strong>Potência:</strong> ${encontrado.Potencia}</p>
+        <p><strong>Tensão:</strong> ${encontrado.Tensao}</p>
+        <p><strong>Massat:</strong> ${encontrado.Massat}</p>
+        <p><strong>Massai:</strong> ${encontrado.Massai}</p>
+      `;
+    } else {
+      resultadoDiv.textContent = 'ID não encontrado.';
+    }
+  }
+</script>
+
+</body>
+</html>
 
