@@ -15,7 +15,7 @@
 <div id="resultado" style="margin-top:20px;"></div>
 
 <script>
-  let dadosCSV = [];
+  let parcialcoreCSV = [];
 
   // Carregar o CSV quando a página abre
   fetch('dados.csv')
@@ -25,7 +25,7 @@
       const header = linhas[0].split(',');
 
       // Transformar o CSV em array de objetos para facilitar a pesquisa
-      dadosCSV = linhas.slice(1).map(linha => {
+        parcialcoreCSV = linhas.slice(1).map(linha => {
         const colunas = linha.split(',');
         let obj = {};
         colunas.forEach((valor, i) => {
@@ -44,7 +44,7 @@
       return;
     }
 
-    const encontrado = dadosCSV.find(item => item.ID === idProcurado);
+    const encontrado = parcialcoreCSV.find(item => item.ID === idProcurado);
 
     if (encontrado) {
       resultadoDiv.innerHTML = `
