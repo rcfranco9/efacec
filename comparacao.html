@@ -2,24 +2,71 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8" />
-<title>Debug Comparar Transformadores</title>
+<title>Comparar Transformadores</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    max-width: 600px;
+  }
+  input, button {
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  button {
+    cursor: pointer;
+  }
+  #resultado {
+    margin-top: 25px;
+    padding: 15px;
+    border: 2px solid #444;
+    background: #f1f1f1;
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  th, td {
+    border: 1px solid #666;
+    padding: 8px;
+    text-align: center;
+  }
+  th {
+    background-color: #ddd;
+  }
+</style>
 </head>
 <body>
 
-<input type="file" id="csvFile" accept=".csv" /><br><br>
-ID 1: <input type="text" id="id1Input" disabled><br><br>
-ID 2: <input type="text" id="id2Input" disabled><br><br>
+<h1>Comparar Transformadores</h1>
+
+<label for="csvFile">Escolhe o ficheiro CSV:</label>
+<input type="file" id="csvFile" accept=".csv" />
+
+<label for="id1Input">ID Transformador 1 (id_secagenscore):</label>
+<input type="text" id="id1Input" disabled placeholder="Insere o primeiro ID" />
+
+<label for="id2Input">ID Transformador 2 (id_secagenscore):</label>
+<input type="text" id="id2Input" disabled placeholder="Insere o segundo ID" />
+
 <button id="btnComparar" disabled>Comparar</button>
 
-<div id="resultado"></div>
+<div id="resultado">Por favor, carrega o ficheiro CSV antes de comparar.</div>
 
 <script>
   let dadosCSV = [];
 
+  // Carregar CSV
   document.getElementById('csvFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = function(event) {
       Papa.parse(event.target.result, {
@@ -27,17 +74,29 @@ ID 2: <input type="text" id="id2Input" disabled><br><br>
         skipEmptyLines: true,
         complete: function(res) {
           dadosCSV = res.data;
-          console.log("Dados CSV:", dadosCSV);
+          console.log("CSV carregado:", dadosCSV);
+          document.getElementById('resultado').textContent = 'CSV carregado. Insere os dois IDs para comparar.';
           document.getElementById('id1Input').disabled = false;
           document.getElementById('id2Input').disabled = false;
           document.getElementById('btnComparar').disabled = false;
-          document.getElementById('resultado').innerHTML = 'CSV carregado, insere IDs para comparar.';
+        },
+        error: function(err) {
+          document.getElementById('resultado').textContent = 'Erro ao ler CSV: ' + err.message;
         }
       });
     };
     reader.readAsText(file);
   });
 
+  // Função para formatar número (ou texto se não for número)
+  function formataNumero(val) {
+    if (!val) return 'N/A';
+    const num = parseFloat(val.toString().replace(',', '.').trim());
+    if (isNaN(num)) return val.trim();
+    return num.toFixed(2);
+  }
+
+  // Comparar e mostrar tabela
   document.getElementById('btnComparar').addEventListener('click', function() {
     const id1 = document.getElementById('id1Input').value.trim();
     const id2 = document.getElementById('id2Input').value.trim();
@@ -48,31 +107,50 @@ ID 2: <input type="text" id="id2Input" disabled><br><br>
       return;
     }
 
-    console.log('Procurando ID 1:', id1);
-    console.log('Procurando ID 2:', id2);
-
-    const d1 = dadosCSV.find(item => {
-      const id = (item.id_secagenscore || '').trim();
-      console.log('Comparar ID1:', id);
-      return id === id1;
-    });
-
-    const d2 = dadosCSV.find(item => {
-      const id = (item.id_secagenscore || '').trim();
-      console.log('Comparar ID2:', id);
-      return id === id2;
-    });
+    const d1 = dadosCSV.find(item => (item.id_secagenscore || '').trim() === id1);
+    const d2 = dadosCSV.find(item => (item.id_secagenscore || '').trim() === id2);
 
     if (!d1 || !d2) {
       resultadoDiv.textContent = 'Não encontrei um ou ambos os IDs no ficheiro.';
       return;
     }
 
-    resultadoDiv.innerHTML = `
-      <h3>Comparação</h3>
-      <p><strong>ID 1 (${id1}):</strong> Potência=${d1.potencia}, Tensão=${d1.tensao}, Massat=${d1.massat}, Massai=${d1.massai}</p>
-      <p><strong>ID 2 (${id2}):</strong> Potência=${d2.potencia}, Tensão=${d2.tensao}, Massat=${d2.massat}, Massai=${d2.massai}</p>
-    `;
+    const campos = ['potencia', 'tensao', 'massat', 'massai'];
+
+    let html = `<h2>Comparação entre ID ${id1} e ID ${id2}</h2>`;
+    html += `<table>
+      <thead>
+        <tr>
+          <th>Parâmetro</th>
+          <th>ID ${id1}</th>
+          <th>ID ${id2}</th>
+          <th>Diferença (ID1 - ID2)</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    campos.forEach(campo => {
+      const val1 = d1[campo] || 'N/A';
+      const val2 = d2[campo] || 'N/A';
+
+      const num1 = parseFloat(val1.toString().replace(',', '.').trim());
+      const num2 = parseFloat(val2.toString().replace(',', '.').trim());
+
+      let diff = 'N/A';
+      if (!isNaN(num1) && !isNaN(num2)) {
+        diff = (num1 - num2).toFixed(2);
+      }
+
+      html += `<tr>
+        <td>${campo}</td>
+        <td>${formataNumero(val1)}</td>
+        <td>${formataNumero(val2)}</td>
+        <td>${diff}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    resultadoDiv.innerHTML = html;
   });
 </script>
 
