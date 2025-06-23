@@ -52,35 +52,34 @@
     });
   }
 
-  function buscarDados() {
-    const idInput = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+function buscarDados() {
+  const idInputRaw = document.getElementById('idInput').value.trim();
+  const resultadoDiv = document.getElementById('resultado');
 
-    if (!idInput) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
-      return;
-    }
-
-    const idNum = Number(idInput);
-    if (isNaN(idNum)) {
-      resultadoDiv.textContent = 'O ID deve ser um número.';
-      return;
-    }
-
-    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idNum);
-
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idNum}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
-    }
+  if (!idInputRaw) {
+    resultadoDiv.textContent = 'Por favor, insere um ID.';
+    return;
   }
+
+  const idInput = idInputRaw; // Mantemos como string
+
+  const encontrado = dadosCSV.find(item => {
+    return item.id_secagenscore.trim() === idInput;
+  });
+
+  if (encontrado) {
+    resultadoDiv.innerHTML = `
+      <h2>Resultados para ID: ${idInput}</h2>
+      <p><strong>Potência:</strong> ${encontrado.potencia}</p>
+      <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
+      <p><strong>Massat:</strong> ${encontrado.massat}</p>
+      <p><strong>Massai:</strong> ${encontrado.massai}</p>
+    `;
+  } else {
+    resultadoDiv.textContent = 'ID não encontrado.';
+  }
+}
+
 </script>
 
 </body>
