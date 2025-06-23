@@ -1,58 +1,32 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8" />
-<title>Consulta CSV via Upload</title>
-</head>
-<body>
-
-<h1>Consulta Transformador</h1>
-
-<label for="csvFile">Escolhe o ficheiro CSV:</label>
-<input type="file" id="csvFile" accept=".csv" />
-<br><br>
-<label for="idInput">Insere o ID do transformador (id_secagenscore):</label>
-<input type="text" id="idInput" placeholder="Insere o ID">
-<button onclick="buscarDados()">Procurar</button>
-<div id="resultado"></div>
 
 
-<script>
-  let dadosCSV = [];
+let dadosCSV = [];
 
-  document.getElementById('csvFile').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+document.getElementById('csvFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const texto = event.target.result;
-      processaCSV(texto);
-      document.getElementById('idInput').disabled = false;
-      document.getElementById('btnBuscar').disabled = false;
-      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
-    };
-    reader.readAsText(file);
-  });
-
-function processaCSV(ficheiro) {
-  const leitor = new FileReader();
-
-  leitor.onload = function(e) {
-    const conteudo = e.target.result;
-
-    Papa.parse(conteudo, {
-      header: true,
-      skipEmptyLines: true,
-      complete: function(resultado) {
-        dadosCSV = resultado.data;
-        console.log("CSV carregado!"); // <-- este
-        console.log(dadosCSV);         // <-- e este
-      }
-    });
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const texto = event.target.result;
+    processaCSV(texto);
+    document.getElementById('idInput').disabled = false;
+    // corrige aqui para o botão que tens (o teu botão não tem id 'btnBuscar' no HTML)
+    document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
   };
+  reader.readAsText(file);
+});
 
-  leitor.readAsText(ficheiro);
+function processaCSV(texto) {
+  Papa.parse(texto, {
+    header: true,
+    skipEmptyLines: true,
+    complete: function(resultado) {
+      dadosCSV = resultado.data;
+      console.log("CSV carregado!");
+      console.log(dadosCSV);
+    }
+  });
 }
 
 function buscarDados() {
@@ -81,10 +55,4 @@ function buscarDados() {
     resultadoDiv.textContent = 'ID não encontrado.';
   }
 }
-
-
-</script>
-
-</body>
-</html>
 
