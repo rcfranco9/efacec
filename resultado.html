@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Pesquisa por ID</title>
+  <title>Consulta Transformador</title>
 </head>
 <body>
 
@@ -15,17 +15,16 @@
 <div id="resultado" style="margin-top:20px;"></div>
 
 <script>
-  let parcialcoreCSV = [];
+  let dadosCSV = [];
 
-  // Carregar o CSV quando a página abre
-  fetch('parcialcore.csv')
+  // Carregar o CSV ao abrir a página
+  fetch('dados.csv')
     .then(res => res.text())
     .then(texto => {
       const linhas = texto.trim().split('\n');
       const header = linhas[0].split(',');
 
-      // Transformar o CSV em array de objetos para facilitar a pesquisa
-        parcialcoreCSV = linhas.slice(1).map(linha => {
+      dadosCSV = linhas.slice(1).map(linha => {
         const colunas = linha.split(',');
         let obj = {};
         colunas.forEach((valor, i) => {
@@ -44,13 +43,16 @@
       return;
     }
 
-    const encontrado = parcialcoreCSV.find(item => item.ID === idProcurado);
+    const encontrado = dadosCSV.find(item => item.ID === idProcurado);
 
     if (encontrado) {
       resultadoDiv.innerHTML = `
         <h2>Resultados para ID: ${idProcurado}</h2>
         <p><strong>Nome:</strong> ${encontrado.Nome}</p>
-        <p><strong>Valor:</strong> ${encontrado.Valor}</p>
+        <p><strong>Potência:</strong> ${encontrado.Potencia}</p>
+        <p><strong>Tensão:</strong> ${encontrado.Tensao}</p>
+        <p><strong>Massat:</strong> ${encontrado.Massat}</p>
+        <p><strong>Massai:</strong> ${encontrado.Massai}</p>
       `;
     } else {
       resultadoDiv.textContent = 'ID não encontrado.';
