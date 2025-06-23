@@ -5,6 +5,7 @@
   <title>Comparar Transformadores</title>
 </head>
 <body>
+  
   <h2>Comparar Transformadores</h2>
 
   <input type="file" id="csvFile" accept=".csv"><br><br>
@@ -57,4 +58,28 @@
         const d2 = dados.find(d => d[colId]?.toLowerCase() === id2);
 
         if (!d1 || !d2) {
-          erro.textContent = 'Não encontrei um o
+          erro.textContent = 'Não encontrei um ou ambos os IDs no ficheiro.';
+          return;
+        }
+
+        const campos = ['potencia', 'tensao', 'massat', 'massai'];
+        let html = '<table border="1" cellpadding="5"><tr><th>Parâmetro</th><th>ID 1</th><th>ID 2</th><th>Diferença</th></tr>';
+
+        campos.forEach(campo => {
+          const v1 = parseFloat((d1[campo] || '0').replace(',', '.'));
+          const v2 = parseFloat((d2[campo] || '0').replace(',', '.'));
+          const diff = (!isNaN(v1) && !isNaN(v2)) ? (v1 - v2).toFixed(2) : 'N/A';
+          html += `<tr><td>${campo}</td><td>${d1[campo]}</td><td>${d2[campo]}</td><td>${diff}</td></tr>`;
+        });
+
+        html += '</table>';
+        resultado.innerHTML = html;
+      };
+
+      leitor.readAsText(ficheiro);
+    }
+    
+  </script>
+</body>
+</html>
+
