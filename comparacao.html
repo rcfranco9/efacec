@@ -45,6 +45,8 @@
 
     
     reader.onload = function(e) {
+      console.log("Leitura do ficheiro iniciada");
+
       const text = e.target.result;
       const rows = text.split('\n').filter(r => r.trim() !== '');
       
