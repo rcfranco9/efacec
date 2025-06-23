@@ -2,55 +2,17 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8" />
-<title>Comparar Transformadores</title>
+<title>Debug Comparar Transformadores</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
-  #resultado {
-    margin-top: 20px;
-    padding: 15px;
-    border: 2px solid #333;
-    max-width: 400px;
-    background: #f9f9f9;
-  }
-  input, button {
-    padding: 6px 10px;
-    margin: 5px 0;
-  }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    margin-top: 10px;
-  }
-  th, td {
-    border: 1px solid #666;
-    padding: 6px;
-    text-align: center;
-  }
-  th {
-    background-color: #ddd;
-  }
-</style>
 </head>
 <body>
 
-<h1>Comparar Transformadores</h1>
-
-<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
 <input type="file" id="csvFile" accept=".csv" /><br><br>
+ID 1: <input type="text" id="id1Input" disabled><br><br>
+ID 2: <input type="text" id="id2Input" disabled><br><br>
+<button id="btnComparar" disabled>Comparar</button>
 
-<label for="id1Input">ID Transformador 1 (id_secagenscore):</label><br>
-<input type="text" id="id1Input" disabled placeholder="Insere o primeiro ID" /><br><br>
-
-<label for="id2Input">ID Transformador 2 (id_secagenscore):</label><br>
-<input type="text" id="id2Input" disabled placeholder="Insere o segundo ID" /><br><br>
-
-<button onclick="comparar()" disabled id="btnComparar">Comparar</button>
-
-<div id="resultado">Por favor, carrega o ficheiro CSV antes de comparar.</div>
+<div id="resultado"></div>
 
 <script>
   let dadosCSV = [];
@@ -58,80 +20,60 @@
   document.getElementById('csvFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function(event) {
-      const texto = event.target.result;
-
-      Papa.parse(texto, {
+      Papa.parse(event.target.result, {
         header: true,
         skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV = resultado.data;
-          console.log("CSV carregado!", dadosCSV);
-          document.getElementById('resultado').textContent = 'CSV carregado. Insere os dois IDs e clica em Comparar.';
+        complete: function(res) {
+          dadosCSV = res.data;
+          console.log("Dados CSV:", dadosCSV);
           document.getElementById('id1Input').disabled = false;
           document.getElementById('id2Input').disabled = false;
           document.getElementById('btnComparar').disabled = false;
-        },
-        error: function(err) {
-          document.getElementById('resultado').textContent = 'Erro ao ler CSV: ' + err.message;
+          document.getElementById('resultado').innerHTML = 'CSV carregado, insere IDs para comparar.';
         }
       });
     };
     reader.readAsText(file);
   });
 
-  function comparar() {
+  document.getElementById('btnComparar').addEventListener('click', function() {
     const id1 = document.getElementById('id1Input').value.trim();
     const id2 = document.getElementById('id2Input').value.trim();
     const resultadoDiv = document.getElementById('resultado');
-
-    if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
-      return;
-    }
 
     if (!id1 || !id2) {
       resultadoDiv.textContent = 'Por favor, insere os dois IDs.';
       return;
     }
 
-    // procura os dois objetos pelo id_secagenscore (ignorando espaços)
-    const d1 = dadosCSV.find(linha => linha.id_secagenscore && linha.id_secagenscore.trim() === id1);
-    const d2 = dadosCSV.find(linha => linha.id_secagenscore && linha.id_secagenscore.trim() === id2);
+    console.log('Procurando ID 1:', id1);
+    console.log('Procurando ID 2:', id2);
+
+    const d1 = dadosCSV.find(item => {
+      const id = (item.id_secagenscore || '').trim();
+      console.log('Comparar ID1:', id);
+      return id === id1;
+    });
+
+    const d2 = dadosCSV.find(item => {
+      const id = (item.id_secagenscore || '').trim();
+      console.log('Comparar ID2:', id);
+      return id === id2;
+    });
 
     if (!d1 || !d2) {
       resultadoDiv.textContent = 'Não encontrei um ou ambos os IDs no ficheiro.';
       return;
     }
 
-    // Campos a comparar
-    const campos = ['potencia', 'tensao', 'massat', 'massai'];
-
-    // Cria tabela com comparação
-    let html = `<h2>Comparação dos IDs ${id1} e ${id2}</h2>`;
-    html += '<table><tr><th>Parâmetro</th><th>ID 1</th><th>ID 2</th><th>Diferença (ID1 - ID2)</th></tr>';
-
-    campos.forEach(campo => {
-      const val1 = d1[campo] ? d1[campo].trim().replace(',', '.') : '0';
-      const val2 = d2[campo] ? d2[campo].trim().replace(',', '.') : '0';
-
-      const num1 = parseFloat(val1);
-      const num2 = parseFloat(val2);
-      const diff = (!isNaN(num1) && !isNaN(num2)) ? (num1 - num2).toFixed(2) : 'N/A';
-
-      html += `<tr>
-        <td>${campo}</td>
-        <td>${val1}</td>
-        <td>${val2}</td>
-        <td>${diff}</td>
-      </tr>`;
-    });
-
-    html += '</table>';
-    resultadoDiv.innerHTML = html;
-  }
+    resultadoDiv.innerHTML = `
+      <h3>Comparação</h3>
+      <p><strong>ID 1 (${id1}):</strong> Potência=${d1.potencia}, Tensão=${d1.tensao}, Massat=${d1.massat}, Massai=${d1.massai}</p>
+      <p><strong>ID 2 (${id2}):</strong> Potência=${d2.potencia}, Tensão=${d2.tensao}, Massat=${d2.massat}, Massai=${d2.massai}</p>
+    `;
+  });
 </script>
 
 </body>
