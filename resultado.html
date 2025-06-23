@@ -34,8 +34,8 @@
     });
 
   function buscarDados() {
-    const idProcurado = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+    const idProcurado = Number(document.getElementById('idInput').value.trim());
+    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idProcurado);
 
     if (!idProcurado) {
       resultadoDiv.textContent = 'Por favor, insere um ID.';
