@@ -45,18 +45,24 @@
       const text = e.target.result;
       const rows = text.split('\n').filter(r => r.trim() !== '');
       
-      const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+      // ajusta aqui para o separador correto se não for vírgula
+      const separador = ',';
+      
+      const headers = rows[0].split(separador).map(h => h.trim().toLowerCase());
       
       const data = rows.slice(1).map(row => {
-        const vals = row.split(',');
+        const vals = row.split(separador);
         let obj = {};
         headers.forEach((h, i) => obj[h] = vals[i] ? vals[i].trim() : '');
         return obj;
       });
       
-      // IDs no CSV na coluna "id" (minúsculo)
-      const row1 = data.find(r => r['id'] === id1);
-      const row2 = data.find(r => r['id'] === id2);
+      const idCol = 'id_secagenscore'; // o nome certo da coluna
+      const id1Normalized = id1.toLowerCase();
+      const id2Normalized = id2.toLowerCase();
+      
+      const row1 = data.find(r => r[idCol] && r[idCol].toLowerCase() === id1Normalized);
+      const row2 = data.find(r => r[idCol] && r[idCol].toLowerCase() === id2Normalized);
       
       if (!row1 || !row2) {
         errorEl.textContent = 'Um ou ambos os IDs não encontrados no CSV.';
