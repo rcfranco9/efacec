@@ -1,111 +1,60 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8" />
-<title>Comparar Transformadores - Debug</title>
+  <meta charset="UTF-8">
+  <title>Comparar Transformadores</title>
 </head>
 <body>
-  <h2>Carregar CSV e Comparar Transformadores</h2>
-  
-  <input type="file" id="csvFile" accept=".csv" /><br><br>
-  
-  ID do Transformador 1: <input type="text" id="id1" /><br><br>
-  ID do Transformador 2: <input type="text" id="id2" /><br><br>
-  
-  <button onclick="processCSV()">Comparar</button>
-  
-  <p id="error" style="color:red;"></p>
-  
-  <div id="result"></div>
-  
+  <h2>Comparar Transformadores</h2>
+
+  <input type="file" id="csvFile" accept=".csv"><br><br>
+
+  <label>ID 1: <input type="text" id="id1"></label><br><br>
+  <label>ID 2: <input type="text" id="id2"></label><br><br>
+
+  <button onclick="comparar()">Comparar</button>
+
+  <p id="erro" style="color: red;"></p>
+  <div id="resultado"></div>
+
   <script>
-  function processCSV() {
-    const fileInput = document.getElementById('csvFile');
-    const id1 = document.getElementById('id1').value.trim();
-    const id2 = document.getElementById('id2').value.trim();
-    const errorEl = document.getElementById('error');
-    const resultEl = document.getElementById('result');
-    
-    errorEl.textContent = '';
-    resultEl.innerHTML = '';
-    
-    if (!fileInput.files.length) {
-      errorEl.textContent = 'Tens de carregar um ficheiro CSV.';
-      return;
-    }
-    if (!id1 || !id2) {
-      errorEl.textContent = 'Indica os dois IDs.';
-      return;
-    }
-    
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    
-    console.log("Ficheiro selecionado:", file.name);
+    function comparar() {
+      const fileInput = document.getElementById('csvFile');
+      const id1 = document.getElementById('id1').value.trim().toLowerCase();
+      const id2 = document.getElementById('id2').value.trim().toLowerCase();
+      const erro = document.getElementById('erro');
+      const resultado = document.getElementById('resultado');
 
-    
-    reader.onload = function(e) {
-      console.log("Leitura do ficheiro iniciada");
+      erro.textContent = '';
+      resultado.innerHTML = '';
 
-      const text = e.target.result;
-      const rows = text.split('\n').filter(r => r.trim() !== '');
-      
-      // Ajusta o separador se necessário
-      const separador = ',';
-      
-      const headers = rows[0].split(separador).map(h => h.trim().toLowerCase());
-      
-      const data = rows.slice(1).map(row => {
-        const vals = row.split(separador);
-        let obj = {};
-        headers.forEach((h, i) => obj[h] = vals[i] ? vals[i].trim() : '');
-        return obj;
-      });
-      
-      const idCol = 'id_secagenscore';
-      const id1Normalized = id1.toLowerCase();
-      const id2Normalized = id2.toLowerCase();
-
-      // Mostrar todos os IDs lidos
-      console.log('IDs no CSV:');
-      data.forEach((r,i) => {
-        if(r[idCol] !== undefined)
-          console.log(`Linha ${i+2}: "${r[idCol]}"`);
-      });
-
-      // Mostrar IDs a comparar
-      console.log('ID que procuras:', id1Normalized, id2Normalized);
-      
-      const row1 = data.find(r => r[idCol] && r[idCol].toLowerCase() === id1Normalized);
-      const row2 = data.find(r => r[idCol] && r[idCol].toLowerCase() === id2Normalized);
-      
-      if (!row1 || !row2) {
-        errorEl.textContent = 'Um ou ambos os IDs não encontrados no CSV.';
+      if (!fileInput.files.length) {
+        erro.textContent = 'Carrega o ficheiro CSV.';
         return;
       }
-      
-      const params = ['potencia', 'tensao', 'massat', 'massai'];
-      
-      let html = `<table border="1" cellpadding="5"><tr><th>Parâmetro</th><th>Transformador ${id1}</th><th>Transformador ${id2}</th><th>Diferença</th></tr>`;
-      
-      params.forEach(p => {
-        const v1 = parseFloat(row1[p].replace(',', '.'));
-        const v2 = parseFloat(row2[p].replace(',', '.'));
-        
-        let diff = 'N/A';
-        if (!isNaN(v1) && !isNaN(v2)) {
-          diff = (v1 - v2).toFixed(3);
-        }
-        
-        html += `<tr><td>${p}</td><td>${row1[p]}</td><td>${row2[p]}</td><td>${diff}</td></tr>`;
-      });
-      
-      html += '</table>';
-      resultEl.innerHTML = html;
-    };
-    
-    reader.readAsText(file);
-  }
-  </script>
-</body>
-</html>
+
+      const ficheiro = fileInput.files[0];
+      const leitor = new FileReader();
+
+      leitor.onload = function(e) {
+        const texto = e.target.result;
+        const linhas = texto.split('\n').filter(l => l.trim() !== '');
+        const cabecalho = linhas[0].split(';').map(h => h.trim().toLowerCase());
+
+        const dados = linhas.slice(1).map(linha => {
+          const valores = linha.split(';');
+          const obj = {};
+          cabecalho.forEach((h, i) => obj[h] = valores[i] ? valores[i].trim() : '');
+          return obj;
+        });
+
+        const colId = 'id_secagenscore';
+
+        console.log("IDs encontrados no CSV:");
+        dados.forEach(d => console.log(d[colId]));
+
+        const d1 = dados.find(d => d[colId]?.toLowerCase() === id1);
+        const d2 = dados.find(d => d[colId]?.toLowerCase() === id2);
+
+        if (!d1 || !d2) {
+          erro.textContent = 'Não encontrei um o
