@@ -45,10 +45,8 @@
       const text = e.target.result;
       const rows = text.split('\n').filter(r => r.trim() !== '');
       
-      // Cabeçalho
-      const headers = rows[0].split(',').map(h => h.trim());
+      const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
       
-      // Dados
       const data = rows.slice(1).map(row => {
         const vals = row.split(',');
         let obj = {};
@@ -56,17 +54,16 @@
         return obj;
       });
       
-      // Encontrar linhas pelos IDs (supondo que a coluna é 'ID')
-      const row1 = data.find(r => r['ID'] === id1);
-      const row2 = data.find(r => r['ID'] === id2);
+      // IDs no CSV na coluna "id" (minúsculo)
+      const row1 = data.find(r => r['id'] === id1);
+      const row2 = data.find(r => r['id'] === id2);
       
       if (!row1 || !row2) {
         errorEl.textContent = 'Um ou ambos os IDs não encontrados no CSV.';
         return;
       }
       
-      // Parâmetros a comparar (tira todos menos ID)
-      const params = headers.filter(h => h !== 'ID');
+      const params = ['potencia', 'tensao', 'massat', 'massai'];
       
       let html = `<table border="1" cellpadding="5"><tr><th>Parâmetro</th><th>Transformador ${id1}</th><th>Transformador ${id2}</th><th>Diferença</th></tr>`;
       
