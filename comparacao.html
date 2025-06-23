@@ -22,6 +22,18 @@
     document.getElementById("botaoComparar").addEventListener("click", comparar);
 
     function comparar() {
+const dados = linhas.slice(1).map(linha => {
+  const valores = linha.split(';');
+  const obj = {};
+  cabecalho.forEach((h, i) => obj[h] = valores[i] ? valores[i].trim() : '');
+  return obj;
+});
+
+// Adiciona este bloco logo a seguir:
+console.log("IDs lidos do CSV:");
+dados.forEach(d => console.log(d['id_secagenscore']));
+
+      
       const fileInput = document.getElementById('csvFile');
       const id1 = document.getElementById('id1').value.trim().toLowerCase();
       const id2 = document.getElementById('id2').value.trim().toLowerCase();
