@@ -1,80 +1,81 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
-  <title>Consulta Transformador</title>
+<meta charset="UTF-8" />
+<title>Consulta CSV via Upload</title>
 </head>
 <body>
 
 <h1>Consulta Transformador</h1>
 
+<label for="csvFile">Escolhe o ficheiro CSV:</label>
+<input type="file" id="csvFile" accept=".csv" />
+<br><br>
 <label for="idInput">Insere o ID do transformador (id_secagenscore):</label>
-<input type="text" id="idInput" />
-<button onclick="buscarDados()">Procurar</button>
+<input type="text" id="idInput" disabled />
+<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
 
-<div id="resultado" style="margin-top:20px; white-space: pre-wrap;"></div>
+<div id="resultado" style="margin-top:20px;"></div>
 
 <script>
   let dadosCSV = [];
-  let dadosCarregados = false;
 
-  fetch('parcialcore.csv')
-    .then(res => {
-      if (!res.ok) throw new Error('Erro ao carregar CSV: ' + res.status);
-      return res.text();
-    })
-    .then(texto => {
-      const linhas = texto.trim().split('\n');
-      let separador = ',';
-      if (linhas[0].includes(';')) separador = ';';
+  document.getElementById('csvFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      const header = linhas[0].split(separador).map(h => h.trim());
-      
-      dadosCSV = linhas.slice(1).map(linha => {
-        const colunas = linha.split(separador).map(c => c.trim());
-        let obj = {};
-        colunas.forEach((valor, i) => {
-          obj[header[i]] = valor;
-        });
-        return obj;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const texto = event.target.result;
+      processaCSV(texto);
+      document.getElementById('idInput').disabled = false;
+      document.getElementById('btnBuscar').disabled = false;
+      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
+    };
+    reader.readAsText(file);
+  });
+
+  function processaCSV(texto) {
+    const linhas = texto.trim().split('\n');
+    let separador = ',';
+    if (linhas[0].includes(';')) separador = ';';
+
+    const header = linhas[0].split(separador).map(h => h.trim());
+
+    dadosCSV = linhas.slice(1).map(linha => {
+      const colunas = linha.split(separador).map(c => c.trim());
+      let obj = {};
+      colunas.forEach((valor, i) => {
+        obj[header[i]] = valor;
       });
-
-      dadosCarregados = true;
-      document.getElementById('resultado').textContent = 'CSV carregado com sucesso. Pode procurar IDs.';
-    })
-    .catch(erro => {
-      document.getElementById('resultado').textContent = erro.message;
+      return obj;
     });
+  }
 
   function buscarDados() {
+    const idInput = document.getElementById('idInput').value.trim();
     const resultadoDiv = document.getElementById('resultado');
 
-    if (!dadosCarregados) {
-      resultadoDiv.textContent = 'Ainda estou a carregar os dados, espera um pouco...';
+    if (!idInput) {
+      resultadoDiv.textContent = 'Por favor, insere um ID.';
       return;
     }
 
-    const idProcuradoTexto = document.getElementById('idInput').value.trim();
-    if (!idProcuradoTexto) {
-      resultadoDiv.textContent = 'Por favor, insere um ID válido.';
-      return;
-    }
-
-    const idProcurado = Number(idProcuradoTexto);
-    if (isNaN(idProcurado)) {
+    const idNum = Number(idInput);
+    if (isNaN(idNum)) {
       resultadoDiv.textContent = 'O ID deve ser um número.';
       return;
     }
 
-    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idProcurado);
+    const encontrado = dadosCSV.find(item => Number(item.id_secagenscore) === idNum);
 
     if (encontrado) {
       resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idProcurado}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
+        <h2>Resultados para ID: ${idNum}</h2>
+        <p><strong>Potência:</strong> ${encontrado.Potencia}</p>
+        <p><strong>Tensão:</strong> ${encontrado.Tensao}</p>
+        <p><strong>Massat:</strong> ${encontrado.Massat}</p>
+        <p><strong>Massai:</strong> ${encontrado.Massai}</p>
       `;
     } else {
       resultadoDiv.textContent = 'ID não encontrado.';
