@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS parcialcore;
+
+CREATE TABLE parcialcore (
+  id_parciaiscore INTEGER,
+  id_secagenscore INTEGER,
+  subprojecto TEXT,
+  material INTEGER,
+  potencia INTEGER,
+  tensao REAL,
+  massat INTEGER,
+  massai INTEGER,
+  cliente TEXT,
+  tipotransf TEXT
+);
