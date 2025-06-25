@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8" />
-<title>Consulta Transformador</title>
+<title>Consulta Transformador com 2 CSV</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   body {
@@ -13,7 +13,7 @@
     margin-top: 20px;
     padding: 15px;
     border: 2px solid #333;
-    max-width: 400px;
+    max-width: 600px;
     background: #f9f9f9;
   }
   input, button {
@@ -26,48 +26,67 @@
 
 <h1>Consulta Transformador</h1>
 
-<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
-<input type="file" id="csvFile" accept=".csv" /><br><br>
+<label for="csvFile1">Escolhe o primeiro ficheiro CSV:</label><br>
+<input type="file" id="csvFile1" accept=".csv" /><br><br>
+
+<label for="csvFile2">Escolhe o segundo ficheiro CSV:</label><br>
+<input type="file" id="csvFile2" accept=".csv" /><br><br>
 
 <label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
 <input type="text" id="idInput" disabled placeholder="Insere o ID" />
 <button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
 
-<div id="resultado">Por favor, carrega o ficheiro CSV antes de procurar.</div>
+<div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
 
 <script>
-  let dadosCSV = [];
+  let dadosCSV1 = [];
+  let dadosCSV2 = [];
 
-  // Ao escolher o ficheiro CSV
-  document.getElementById('csvFile').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  function ativarInputSePronto() {
+    if (dadosCSV1.length > 0 && dadosCSV2.length > 0) {
+      document.getElementById('idInput').disabled = false;
+      document.getElementById('btnBuscar').disabled = false;
+      document.getElementById('resultado').textContent = 'Ficheiros carregados. Insere o ID e procura.';
+    }
+  }
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const texto = event.target.result;
+  // Função para carregar CSV
+  function carregarCSV(inputId, arrayDados) {
+    const fileInput = document.getElementById(inputId);
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
 
-      Papa.parse(texto, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV = resultado.data;
-          console.log("CSV carregado!", dadosCSV);
-          document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
-          document.getElementById('idInput').disabled = false;
-          document.getElementById('btnBuscar').disabled = false;
-        }
-      });
-    };
-    reader.readAsText(file);
-  });
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const texto = event.target.result;
+
+        Papa.parse(texto, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(resultado) {
+            if(inputId === 'csvFile1') {
+              dadosCSV1 = resultado.data;
+            } else {
+              dadosCSV2 = resultado.data;
+            }
+            ativarInputSePronto();
+          }
+        });
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  carregarCSV('csvFile1', dadosCSV1);
+  carregarCSV('csvFile2', dadosCSV2);
 
   function buscarDados() {
     const idInput = document.getElementById('idInput').value.trim();
     const resultadoDiv = document.getElementById('resultado');
 
-    if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
+    if (dadosCSV1.length === 0 || dadosCSV2.length === 0) {
+      resultadoDiv.textContent = 'Carrega primeiro os dois ficheiros CSV.';
       return;
     }
 
@@ -76,19 +95,30 @@
       return;
     }
 
-    const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
+    const encontrado1 = dadosCSV1.find(linha => linha.id_secagenscore?.trim() === idInput);
+    const encontrado2 = dadosCSV2.filter(linha => linha.id_secagenscore?.trim() === idInput);
 
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idInput}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
+    if (!encontrado1) {
+      resultadoDiv.textContent = 'ID não encontrado no primeiro ficheiro.';
+      return;
     }
+
+    // Filtra valores PE_4_17 retirando zeros e valores vazios e transforma em número
+    const valoresPE = encontrado2
+      .map(linha => Number(linha.PE_4_17))
+      .filter(val => val > 0);
+
+    // Escolhe o menor valor PE_4_17 (ou undefined se não existir)
+    const menorPE = valoresPE.length > 0 ? Math.min(...valoresPE) : 'Sem valor PE_4_17 válido';
+
+    resultadoDiv.innerHTML = `
+      <h2>Resultados para ID: ${idInput}</h2>
+      <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
+      <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${encontrado1.massai || 'N/A'}</p>
+      <p><strong>Menor valor PE_4_17 (sem zeros):</strong> ${menorPE}</p>
+    `;
   }
 </script>
 
