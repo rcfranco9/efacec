@@ -106,7 +106,7 @@
     // Filtra valores PE_4_17 retirando zeros e valores vazios e transforma em número
     const valoresPE = encontrado2
       .map(linha => Number(linha.PE_4_17))
-      .filter(val => val > 0.1);
+      .filter(val => val > 0.15);
 
     // Escolhe o menor valor PE_4_17 (ou undefined se não existir)
     const menorPE = valoresPE.length > 0 ? Math.min(...valoresPE) : 'Sem valor PE_4_17 válido';
