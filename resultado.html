@@ -2,65 +2,100 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Efacec</title>
+  <title>Consulta Transformador</title>
+  <script src="https://raw.githubusercontent.com/rcfranco9/efacec/main/parcialcore.csv
+"></script>
   <style>
-    /* Fundo suave */
     body {
-      background: #e0e7ff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      max-width: 600px;
     }
-
-    /* Caixa central */
-    .container {
-      background: white;
-      padding: 40px 60px;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-      text-align: center;
-      width: 320px;
-    }
-
     h1 {
-      margin-bottom: 30px;
-      color: #333;
-      font-weight: 700;
+      color: #2c3e50;
     }
-
-    button {
-      background-color: #4f46e5; /* azul roxo moderno */
-      color: white;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      margin: 12px 0;
-      width: 100%;
-      font-size: 18px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-      box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+    #resultado {
+      margin-top: 20px;
+      padding: 15px;
+      border: 2px solid #333;
+      background: #f4f4f4;
     }
-
-    button:hover {
-      background-color: #4338ca;
-      box-shadow: 0 6px 12px rgba(67, 56, 202, 0.5);
+    input, button {
+      padding: 8px 10px;
+      margin: 10px 0;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <h1>Escolhe uma opção:</h1>
+<h1>Consulta de Transformador</h1>
 
-    <button onclick="location.href='resultado.html'">resultado</button>
+<p><strong>CSV carregado automaticamente do GitHub</strong></p>
 
-    <button onclick="location.href='comparacao.html'">comparacao</button>
-    <button onclick="location.href='comparacaoparcial.html'">filtros</button>
-  </div>
+<label for="idInput">Insere o ID do transformador (<code>id_secagenscore</code>):</label><br>
+<input type="text" id="idInput" placeholder="Ex: 41" />
+<button onclick="buscarDados()">Procurar</button>
+
+<div id="resultado">A carregar dados do CSV remoto...</div>
+
+<script>
+  let dadosCSV = [];
+
+  const urlCSV = 'https://raw.githubusercontent.com/UTILIZADOR/REPOSITORIO/BRANCH/nome_do_ficheiro.csv';
+  // Exemplo real: 
+  // const urlCSV = 'https://raw.githubusercontent.com/rodrigoalg/transformadores/main/secagens.csv';
+
+  async function carregarCSV() {
+    try {
+      const resposta = await fetch(urlCSV);
+      const texto = await resposta.text();
+
+      const parsed = Papa.parse(texto, {
+        header: true,
+        skipEmptyLines: true
+      });
+
+      dadosCSV = parsed.data;
+      console.log("CSV carregado com sucesso!", dadosCSV);
+      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e carrega em "Procurar".';
+    } catch (erro) {
+      document.getElementById('resultado').textContent = 'Erro ao carregar o CSV.';
+      console.error("Erro ao carregar CSV:", erro);
+    }
+  }
+
+  function buscarDados() {
+    const idInput = document.getElementById('idInput').value.trim();
+    const resultadoDiv = document.getElementById('resultado');
+
+    if (dadosCSV.length === 0) {
+      resultadoDiv.textContent = 'Ainda não foi possível carregar o CSV.';
+      return;
+    }
+
+    if (!idInput) {
+      resultadoDiv.textContent = 'Por favor, insere um ID.';
+      return;
+    }
+
+    const encontrado = dadosCSV.find(linha => linha.id_secagenscore?.trim() === idInput);
+
+    if (encontrado) {
+      resultadoDiv.innerHTML = 
+        <h2>Resultados para ID: ${idInput}</h2>
+        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
+        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
+        <p><strong>Massat:</strong> ${encontrado.massat}</p>
+        <p><strong>Massai:</strong> ${encontrado.massai}</p>
+      ;
+    } else {
+      resultadoDiv.textContent = 'ID não encontrado no ficheiro.';
+    }
+  }
+
+  carregarCSV();
+</script>
 
 </body>
 </html>
