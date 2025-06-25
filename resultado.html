@@ -1,101 +1,46 @@
+<?php
+// Abre a base de dados SQLite (transformadores.db tem de estar na mesma pasta)
+$db = new SQLite3('transformadores.db');
+
+$id = $_GET['id'] ?? '';
+$id = SQLite3::escapeString($id);
+
+$dados = null;
+if ($id !== '') {
+    $query = "SELECT * FROM parcialcore WHERE id_secagenscore = '$id'";
+    $result = $db->query($query);
+    $dados = $result->fetchArray(SQLITE3_ASSOC);
+}
+?>
+
 <!DOCTYPE html>
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
   <title>Consulta Transformador</title>
-  <script src="https://raw.githubusercontent.com/rcfranco9/efacec/main/parcialcore.csv
-"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      max-width: 600px;
-    }
-    h1 {
-      color: #2c3e50;
-    }
-    #resultado {
-      margin-top: 20px;
-      padding: 15px;
-      border: 2px solid #333;
-      background: #f4f4f4;
-    }
-    input, button {
-      padding: 8px 10px;
-      margin: 10px 0;
-      font-size: 16px;
-    }
+    body { font-family: Arial, sans-serif; margin: 40px; max-width: 600px; }
+    input, button { padding: 8px 10px; margin: 10px 0; font-size: 16px; }
+    #resultado { margin-top: 20px; padding: 15px; border: 2px solid #333; background: #f4f4f4; }
   </style>
 </head>
 <body>
 
 <h1>Consulta de Transformador</h1>
 
-<p><strong>CSV carregado automaticamente do GitHub</strong></p>
+<form method="get">
+  <label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
+  <input type="text" id="idInput" name="id" placeholder="Ex: 41" value="<?php echo htmlspecialchars($id); ?>" />
+  <button type="submit">Procurar</button>
+</form>
 
-<label for="idInput">Insere o ID do transformador (<code>id_secagenscore</code>):</label><br>
-<input type="text" id="idInput" placeholder="Ex: 41" />
-<button onclick="buscarDados()">Procurar</button>
-
-<div id="resultado">A carregar dados do CSV remoto...</div>
-
-<script>
-  let dadosCSV = [];
-
-  const urlCSV = 'https://raw.githubusercontent.com/UTILIZADOR/REPOSITORIO/BRANCH/nome_do_ficheiro.csv';
-  // Exemplo real: 
-  // const urlCSV = 'https://raw.githubusercontent.com/rodrigoalg/transformadores/main/secagens.csv';
-
-  async function carregarCSV() {
-    try {
-      const resposta = await fetch(urlCSV);
-      const texto = await resposta.text();
-
-      const parsed = Papa.parse(texto, {
-        header: true,
-        skipEmptyLines: true
-      });
-
-      dadosCSV = parsed.data;
-      console.log("CSV carregado com sucesso!", dadosCSV);
-      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e carrega em "Procurar".';
-    } catch (erro) {
-      document.getElementById('resultado').textContent = 'Erro ao carregar o CSV.';
-      console.error("Erro ao carregar CSV:", erro);
-    }
-  }
-
-  function buscarDados() {
-    const idInput = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
-
-    if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Ainda não foi possível carregar o CSV.';
-      return;
-    }
-
-    if (!idInput) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
-      return;
-    }
-
-    const encontrado = dadosCSV.find(linha => linha.id_secagenscore?.trim() === idInput);
-
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idInput}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado no ficheiro.';
-    }
-  }
-
-  carregarCSV();
-</script>
-
-</body>
-</html>
+<div id="resultado">
+<?php
+if ($id === '') {
+    echo "Insere um ID e carrega em Procurar.";
+} elseif (!$dados) {
+    echo "ID não encontrado na base de dados.";
+} else {
+    echo "<h2>Resultados para ID: " . htmlspecialchars($id) . "</h2>";
+    echo "<p><strong>Potência:</strong> " . htmlspecialchars($dados['potencia']) . "</p>";
+    echo "<p><strong>Tensão:</strong> " . h
