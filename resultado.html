@@ -1,73 +1,75 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8" />
-<title>Consulta Transformador</title>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
-  #resultado {
-    margin-top: 20px;
-    padding: 15px;
-    border: 2px solid #333;
-    max-width: 400px;
-    background: #f9f9f9;
-  }
-  input, button {
-    padding: 6px 10px;
-    margin: 5px 0;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Consulta Transformador</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      max-width: 600px;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    #resultado {
+      margin-top: 20px;
+      padding: 15px;
+      border: 2px solid #333;
+      background: #f4f4f4;
+    }
+    input, button {
+      padding: 8px 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Consulta Transformador</h1>
+<h1>Consulta de Transformador</h1>
 
-<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
-<input type="file" id="csvFile" accept=".csv" /><br><br>
+<p><strong>CSV carregado automaticamente do GitHub</strong></p>
 
-<label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
-<input type="text" id="idInput" disabled placeholder="Insere o ID" />
-<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
+<label for="idInput">Insere o ID do transformador (<code>id_secagenscore</code>):</label><br>
+<input type="text" id="idInput" placeholder="Ex: 41" />
+<button onclick="buscarDados()">Procurar</button>
 
-<div id="resultado">Por favor, carrega o ficheiro CSV antes de procurar.</div>
+<div id="resultado">A carregar dados do CSV remoto...</div>
 
 <script>
   let dadosCSV = [];
 
-  // Ao escolher o ficheiro CSV
-  document.getElementById('csvFile').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  const urlCSV = 'https://raw.githubusercontent.com/UTILIZADOR/REPOSITORIO/BRANCH/nome_do_ficheiro.csv';
+  // Exemplo real: 
+  // const urlCSV = 'https://raw.githubusercontent.com/rodrigoalg/transformadores/main/secagens.csv';
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const texto = event.target.result;
+  async function carregarCSV() {
+    try {
+      const resposta = await fetch(urlCSV);
+      const texto = await resposta.text();
 
-      Papa.parse(texto, {
+      const parsed = Papa.parse(texto, {
         header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV = resultado.data;
-          console.log("CSV carregado!", dadosCSV);
-          document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
-          document.getElementById('idInput').disabled = false;
-          document.getElementById('btnBuscar').disabled = false;
-        }
+        skipEmptyLines: true
       });
-    };
-    reader.readAsText(file);
-  });
+
+      dadosCSV = parsed.data;
+      console.log("CSV carregado com sucesso!", dadosCSV);
+      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e carrega em "Procurar".';
+    } catch (erro) {
+      document.getElementById('resultado').textContent = 'Erro ao carregar o CSV.';
+      console.error("Erro ao carregar CSV:", erro);
+    }
+  }
 
   function buscarDados() {
     const idInput = document.getElementById('idInput').value.trim();
     const resultadoDiv = document.getElementById('resultado');
 
     if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
+      resultadoDiv.textContent = 'Ainda não foi possível carregar o CSV.';
       return;
     }
 
@@ -76,7 +78,7 @@
       return;
     }
 
-    const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
+    const encontrado = dadosCSV.find(linha => linha.id_secagenscore?.trim() === idInput);
 
     if (encontrado) {
       resultadoDiv.innerHTML = `
@@ -87,11 +89,12 @@
         <p><strong>Massai:</strong> ${encontrado.massai}</p>
       `;
     } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
+      resultadoDiv.textContent = 'ID não encontrado no ficheiro.';
     }
   }
+
+  carregarCSV();
 </script>
 
 </body>
 </html>
-
