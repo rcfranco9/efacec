@@ -1,46 +1,66 @@
-<?php
-// Abre a base de dados SQLite (transformadores.db tem de estar na mesma pasta)
-$db = new SQLite3('transformadores.db');
-
-$id = $_GET['id'] ?? '';
-$id = SQLite3::escapeString($id);
-
-$dados = null;
-if ($id !== '') {
-    $query = "SELECT * FROM parcialcore WHERE id_secagenscore = '$id'";
-    $result = $db->query($query);
-    $dados = $result->fetchArray(SQLITE3_ASSOC);
-}
-?>
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Consulta Transformador</title>
+  <title>Efacec</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; max-width: 600px; }
-    input, button { padding: 8px 10px; margin: 10px 0; font-size: 16px; }
-    #resultado { margin-top: 20px; padding: 15px; border: 2px solid #333; background: #f4f4f4; }
+    /* Fundo suave */
+    body {
+      background: #e0e7ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    /* Caixa central */
+    .container {
+      background: white;
+      padding: 40px 60px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 320px;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+      color: #333;
+      font-weight: 700;
+    }
+
+    button {
+      background-color: #4f46e5; /* azul roxo moderno */
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      margin: 12px 0;
+      width: 100%;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+    }
+
+    button:hover {
+      background-color: #4338ca;
+      box-shadow: 0 6px 12px rgba(67, 56, 202, 0.5);
+    }
   </style>
 </head>
 <body>
 
-<h1>Consulta de Transformador</h1>
+  <div class="container">
+    <h1>Escolhe uma opção:</h1>
 
-<form method="get">
-  <label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
-  <input type="text" id="idInput" name="id" placeholder="Ex: 41" value="<?php echo htmlspecialchars($id); ?>" />
-  <button type="submit">Procurar</button>
-</form>
+    <button onclick="location.href='resultado.html'">resultado</button>
 
-<div id="resultado">
-<?php
-if ($id === '') {
-    echo "Insere um ID e carrega em Procurar.";
-} elseif (!$dados) {
-    echo "ID não encontrado na base de dados.";
-} else {
-    echo "<h2>Resultados para ID: " . htmlspecialchars($id) . "</h2>";
-    echo "<p><strong>Potência:</strong> " . htmlspecialchars($dados['potencia']) . "</p>";
-    echo "<p><strong>Tensão:</strong> " . h
+    <button onclick="location.href='comparacao.html'">comparacao</button>
+    <button onclick="location.href='comparacaoparcial.html'">filtros</button>
+  </div>
+
+</body>
+</html>
