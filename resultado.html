@@ -2,43 +2,24 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8" />
-<title>Consulta Transformador</title>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
-  #resultado {
-    margin-top: 20px;
-    padding: 15px;
-    border: 2px solid #333;
-    max-width: 400px;
-    background: #f9f9f9;
-  }
-  input, button {
-    padding: 6px 10px;
-    margin: 5px 0;
-  }
-</style>
+<title>Consulta CSV via Upload</title>
 </head>
 <body>
 
 <h1>Consulta Transformador</h1>
 
-<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
-<input type="file" id="csvFile" accept=".csv" /><br><br>
+<label for="csvFile">Escolhe o ficheiro CSV:</label>
+<input type="file" id="csvFile" accept=".csv" />
+<br><br>
+<label for="idInput">Insere o ID do transformador (id_secagenscore):</label>
+<input type="text" id="idInput" placeholder="Insere o ID">
+<button onclick="buscarDados()">Procurar</button>
+<div id="resultado"></div>
 
-<label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
-<input type="text" id="idInput" disabled placeholder="Insere o ID" />
-<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
-
-<div id="resultado">Por favor, carrega o ficheiro CSV antes de procurar.</div>
 
 <script>
   let dadosCSV = [];
 
-  // Ao escolher o ficheiro CSV
   document.getElementById('csvFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -46,50 +27,58 @@
     const reader = new FileReader();
     reader.onload = function(event) {
       const texto = event.target.result;
-
-      Papa.parse(texto, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV = resultado.data;
-          console.log("CSV carregado!", dadosCSV);
-          document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
-          document.getElementById('idInput').disabled = false;
-          document.getElementById('btnBuscar').disabled = false;
-        }
-      });
+      processaCSV(texto);
+      document.getElementById('idInput').disabled = false;
+      document.getElementById('btnBuscar').disabled = false;
+      document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
     };
     reader.readAsText(file);
   });
 
-  function buscarDados() {
-    const idInput = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+  function processaCSV(texto) {
+    const linhas = texto.trim().split('\n');
+    let separador = ',';
+    if (linhas[0].includes(';')) separador = ';';
 
-    if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
-      return;
-    }
+    const header = linhas[0].split(separador).map(h => h.trim());
 
-    if (!idInput) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
-      return;
-    }
-
-    const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
-
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idInput}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
-    }
+    dadosCSV = linhas.slice(1).map(linha => {
+      const colunas = linha.split(separador).map(c => c.trim());
+      let obj = {};
+      colunas.forEach((valor, i) => {
+        obj[header[i]] = valor;
+      });
+      return obj;
+    });
   }
+function buscarDados() {
+  const idInput = document.getElementById('idInput').value.trim();
+  const resultadoDiv = document.getElementById('resultado');
+
+  if (!idInput) {
+    resultadoDiv.textContent = 'Por favor, insere um ID.';
+    return;
+  }
+
+  // DEBUG: imprime todos os IDs do CSV
+  console.log('IDs existentes:', dadosCSV.map(l => l.id_secagenscore));
+
+  const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
+
+  if (encontrado) {
+    resultadoDiv.innerHTML = `
+      <h2>Resultados para ID: ${idInput}</h2>
+      <p><strong>Potência:</strong> ${encontrado.potencia}</p>
+      <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
+      <p><strong>Massat:</strong> ${encontrado.massat}</p>
+      <p><strong>Massai:</strong> ${encontrado.massai}</p>
+    `;
+  } else {
+    resultadoDiv.textContent = 'ID não encontrado.';
+  }
+}
+
+
 </script>
 
 </body>
