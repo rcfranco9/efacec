@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Filtrar Transformadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      background-color: #f5f5f5;
+      padding: 20px;
+    }
+    h1 {
+      color: #222;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input, button {
+      padding: 8px;
+      width: 100%;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 15px;
+      background-color: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #444;
+    }
+    #resultado {
+      margin-top: 25px;
+      padding: 15px;
+      background: #fff;
+      border: 2px solid #ccc;
+    }
+    .item {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Filtrar Transformadores por Tensão e Potência</h1>
+
+<label for="csvFile">Ficheiro CSV:</label>
+<input type="file" id="csvFile" accept=".csv" />
+
+<label for="tensaoInput">Tensão:</label>
+<input type="text" id="tensaoInput" placeholder="ex: 240.5" disabled>
+
+<label for="potenciaInput">Potência:</label>
+<input type="text" id="potenciaInput" placeholder="ex: 140" disabled>
+
+<button onclick="filtrarTransformadores()" id="btnFiltrar" disabled>Procurar</button>
+
+<div id="resultado">Carrega primeiro o ficheiro CSV.</div>
+
+<script>
+  let dadosCSV = [];
+
+  document.getElementById('csvFile').addEventListener('change', function (e) {
+    const ficheiro = e.target.files[0];
+    if (!ficheiro) return;
+
+    const leitor = new FileReader();
+    leitor.onload = function (event) {
+      const texto = event.target.result;
+      Papa.parse(texto, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function (resultado) {
+          dadosCSV = resultado.data;
+          document.getElementById('tensaoInput').disabled = false;
+          document.getElementById('potenciaInput').disabled = false;
+          document.getElementById('btnFiltrar').disabled = false;
+          document.getElementById('resultado').innerHTML = 'CSV carregado. Agora insere os valores.';
+          console.log("CSV carregado:", dadosCSV);
+        }
+      });
+    };
+    leitor.readAsText(ficheiro);
+  });
+
+  function filtrarTransformadores() {
+    const tensao = document.getElementById('tensaoInput').value.trim();
+    const potencia = document.getElementById('potenciaInput').value.trim();
+    const resultadoDiv = document.getElementById('resultado');
+
+    if (!tensao || !potencia) {
+      resultadoDiv.innerHTML = 'Preenche ambos os campos.';
+      return;
+    }
+
+    const resultados = dadosCSV.filter(linha =>
+      linha.tensao?.trim() === tensao && linha.potencia?.trim() === potencia
+    );
+
+    if (resultados.length === 0) {
+      resultadoDiv.innerHTML = 'Nenhum transformador encontrado com esses valores.';
+      return;
+    }
+
+    let html = `<strong>Foram encontrados ${resultados.length} transformadores:</strong><br><br>`;
+    resultados.forEach((linha, i) => {
+      html += `
+        <div class="item">
+          <strong>#${i + 1}</strong><br>
+          <strong>ID:</strong> ${linha.id_secagenscore} <br>
+          <strong>Cliente:</strong> ${linha.cliente}
+        </div>
+      `;
+    });
+
+    resultadoDiv.innerHTML = html;
+  }
+</script>
+
+</body>
+</html>
