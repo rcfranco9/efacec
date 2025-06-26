@@ -145,14 +145,7 @@
     massaiToneladas /= 1000; // kg para toneladas
 
     // Calcular taxa LC normalizada: (difLC) / (horas * toneladas)
-    let taxaLCNormalizada = 'Indefinido';
-    if (typeof difLC === 'string') {
-      taxaLCNormalizada = 'Não calculado (difLC insuficiente)';
-    } else if (duracaoHoras > 0 && massaiToneladas > 0) {
-      taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(6);
-    } else {
-      taxaLCNormalizada = 'Não calculado (valores inválidos)';
-    }
+   let taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(6);
 
     resultadoDiv.innerHTML = `
       <h2>Resultados para ID: ${idInput}</h2>
