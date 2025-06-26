@@ -106,43 +106,43 @@
   </div>
 
   <script>
-    let dadosMeta = [], dadosSerie = [];
-    let metaCarregado = false, serieCarregado = false;
+    let dadosMeta = [];
+    let dadosSerie = [];
+    let metaCarregado = false;
+    let serieCarregado = false;
 
     function checkReady() {
       const ready = metaCarregado && serieCarregado;
-      ['id1Input','id2Input','btnComparar'].forEach(id =>
-        document.getElementById(id).disabled = !ready
-      );
+      document.getElementById('id1Input').disabled = !ready;
+      document.getElementById('id2Input').disabled = !ready;
+      document.getElementById('btnComparar').disabled = !ready;
       if (ready) {
-        document.getElementById('resultado').textContent =
-          'CSV carregados. Insere os dois IDs para comparar.';
+        document.getElementById('resultado').textContent = 'CSV carregados. Insere os dois IDs para comparar.';
       }
     }
 
-    function carregarCSV(id, destino, tipo) {
-      document.getElementById(id).addEventListener('change', e => {
+    function carregarCSV(inputId, destino, tipo) {
+      const input = document.getElementById(inputId);
+      input.addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          Papa.parse(ev.target.result, {
-            header: true,
-            skipEmptyLines: true,
-            complete: res => {
-              destino.length = 0;
-              Array.prototype.push.apply(destino, res.data);
-              if (tipo === 'meta') metaCarregado = true;
-              if (tipo === 'serie') serieCarregado = true;
-              checkReady();
-            },
-            error: err => {
-              document.getElementById('resultado').innerHTML =
-                `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
+
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: res => {
+            destino.length = 0;
+            for(let i=0; i < res.data.length; i++){
+              destino.push(res.data[i]);
             }
-          });
-        };
-        reader.readAsText(file);
+            if(tipo === 'meta') metaCarregado = true;
+            if(tipo === 'serie') serieCarregado = true;
+            checkReady();
+          },
+          error: err => {
+            document.getElementById('resultado').innerHTML = `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
+          }
+        });
       });
     }
 
@@ -161,16 +161,17 @@
       );
       const lc = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
       const difLC = lc.length >= 2 ? +(lc[lc.length-1] - lc[0]).toFixed(3) : 0;
-
       const ts = rows
-        .map(r => new Date(r.DataHora).getTime())
+        .map(r => {
+          // O teu formato é "2025-02-09 11:52:50.000" — criar Date funciona
+          const d = new Date(r.DataHora.replace(' ', 'T')); 
+          return d.getTime();
+        })
         .filter(t => !isNaN(t))
         .sort((a,b) => a - b);
       const dur = ts.length >= 2 ? +((ts[ts.length-1] - ts[0]) / 36e5).toFixed(2) : 1;
-
       const ton = parseNum(massaiKg) / 1000 || 1;
       const taxa = +((difLC) / (dur * ton)).toFixed(2);
-
       return { difLC, dur, taxa };
     }
 
