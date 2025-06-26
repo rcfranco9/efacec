@@ -5,7 +5,82 @@
   <title>Comparar Transformadores com 2 CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-    /* (o teu CSS permanece igual) */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
+      padding: 30px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: 600;
+      color: #34495e;
+    }
+    input, button {
+      padding: 10px;
+      width: 100%;
+      margin-top: 8px;
+      border-radius: 5px;
+      border: 1px solid #bbb;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background-color: #3498db;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    #resultado {
+      margin-top: 30px;
+      padding: 20px;
+      background: #fff;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      min-height: 100px;
+    }
+    .msg {
+      padding: 12px;
+      background: #fdecea;
+      color: #a94442;
+      border-left: 5px solid #e74c3c;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #2980b9;
+      color: #fff;
+    }
+    .diff-positive { color: #27ae60; font-weight: bold; }
+    .diff-negative { color: #c0392b; font-weight: bold; }
+    .diff-neutral  { color: #7f8c8d; }
   </style>
 </head>
 <body>
@@ -43,75 +118,54 @@
       }
     }
 
-    // 1) CSV de Metadados
-    document.getElementById('csvMeta')
-      .addEventListener('change', e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          Papa.parse(ev.target.result, {
-            header: true,
-            skipEmptyLines: true,
-            complete: res => {
-              dadosMeta = res.data;
-              checkReady();
-            },
-            error: err => {
-              document.getElementById('resultado').innerHTML =
-                `<div class="msg">Erro CSV metadados: ${err.message}</div>`;
-            }
-          });
-        };
-        reader.readAsText(file);
-      });
+    // carrega um CSV com PapaParse
+    function carregarCSV(selector, target) {
+      document.getElementById(selector)
+        .addEventListener('change', e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = ev => {
+            Papa.parse(ev.target.result, {
+              header: true,
+              skipEmptyLines: true,
+              complete: res => {
+                target.splice(0, target.length, ...res.data);
+                checkReady();
+              },
+              error: err => {
+                document.getElementById('resultado').innerHTML =
+                  `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
+              }
+            });
+          };
+          reader.readAsText(file);
+        });
+    }
 
-    // 2) CSV de Séries Temporais
-    document.getElementById('csvSerie')
-      .addEventListener('change', e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          Papa.parse(ev.target.result, {
-            header: true,
-            skipEmptyLines: true,
-            complete: res => {
-              dadosSerie = res.data;
-              checkReady();
-            },
-            error: err => {
-              document.getElementById('resultado').innerHTML =
-                `<div class="msg">Erro CSV séries: ${err.message}</div>`;
-            }
-          });
-        };
-        reader.readAsText(file);
-      });
+    carregarCSV('csvMeta',  dadosMeta);
+    carregarCSV('csvSerie', dadosSerie);
 
-    // utilitário para converter strings numéricas
+    // converte string em número (0 se inválido)
     function parseNum(v) {
       const n = parseFloat((v||'').toString().replace(',', '.').trim());
       return isNaN(n) ? 0 : n;
     }
 
-    // calcula ∆LC, duração (h) e taxa
+    // calcula ∆LC, duração (h) e taxa normalizada
     function calcLC(id, massaiKg) {
       const rows = dadosSerie.filter(r =>
         (r.id_secagenscore||'').trim() === id &&
         r.LC_3_8 && r.DataHora
       );
 
-      // LC valores
-      const lc = rows
-        .map(r => parseNum(r.LC_3_8))
-        .filter(n => n !== 0)
-        .sort((a,b)=>a-b);
+      // ∆LC
+      const lc = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
       const difLC = lc.length >= 2
         ? +(lc[lc.length-1] - lc[0]).toFixed(3)
         : 0;
 
-      // timestamps
+      // duração em horas
       const ts = rows
         .map(r => new Date(r.DataHora).getTime())
         .filter(t => !isNaN(t))
@@ -120,11 +174,11 @@
         ? +((ts[ts.length-1] - ts[0]) / 36e5).toFixed(2)
         : 1;
 
-      // massai t
-      const ton = parseNum(massaiKg)/1000 || 1;
+      // massa interna em toneladas
+      const ton = parseNum(massaiKg) / 1000 || 1;
 
-      // taxa garantida
-      const taxa = +((difLC)/(dur*ton)).toFixed(2);
+      // taxa normalizada
+      const taxa = +((difLC) / (dur * ton)).toFixed(2);
       return { difLC, dur, taxa };
     }
 
@@ -173,14 +227,16 @@
           const v1 = parseNum(m1[c]), v2 = parseNum(m2[c]);
           const diff = +(v1 - v2).toFixed(2);
           html += `<tr>
-            <td>${c.charAt(0).toUpperCase()+c.slice(1)}</td>
+            <td>${c.charAt(0).toUpperCase() + c.slice(1)}</td>
             <td>${v1}</td>
             <td>${v2}</td>
-            <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
+            <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">
+              ${diff}
+            </td>
           </tr>`;
         });
 
-        // LC stats
+        // estatísticas LC
         lcKeys.forEach(o => {
           const v1 = s1[o.k], v2 = s2[o.k];
           const diff = +(v1 - v2).toFixed(2);
@@ -188,7 +244,9 @@
             <td>${o.label}</td>
             <td>${v1}</td>
             <td>${v2}</td>
-            <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
+            <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">
+              ${diff}
+            </td>
           </tr>`;
         });
 
