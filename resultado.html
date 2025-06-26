@@ -133,17 +133,23 @@
       duracaoHoras = (diffMs / (1000 * 60 * 60)).toFixed(2) + ' horas';
     }
 
-    // Apresentar resultados
-    resultadoDiv.innerHTML = `
-      <h2>Resultados para ID: ${idInput}</h2>
-      <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
-      <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
-      <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
-      <p><strong>Massai:</strong> ${encontrado1.massai ? (Number(encontrado1.massai) / 1000).toFixed(2) + ' t' : 'N/A'}</p>
-      <p><strong>Menor valor PE_4_17 (> 0.1):</strong> ${menorPE}</p>
-      <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
-      <p><strong>Duração do processo:</strong> ${duracaoHoras}</p>
-    `;
+  // Calcular taxa LC normalizada
+let taxaLCNormalizada = 'Indefinido';
+if (difLC !== 'Sem valores válidos' && duracaoHoras > 0 && massaiToneladas > 0) {
+  taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(6);
+}
+
+resultadoDiv.innerHTML = `
+  <h2>Resultados para ID: ${idInput}</h2>
+  <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
+  <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
+  <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
+  <p><strong>Massai:</strong> ${massaiToneladas.toFixed(2)} t</p>
+  <p><strong>Menor valor PE_4_17 (&gt; 0.1):</strong> ${menorPE}</p>
+  <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
+  <p><strong>Duração do processo:</strong> ${duracaoHoras}</p>
+  <p><strong>Taxa LC normalizada:</strong> ${taxaLCNormalizada}</p>
+`;
   }
 </script>
 
