@@ -14,26 +14,19 @@
     }
     h1 { color: #222; }
     label { display: block; margin-top: 15px; font-weight: bold; }
-    input, button { padding: 8px; width: 100%; margin-top: 5px; box-sizing: border-box; }
+    input, button {
+      padding: 8px; width: 100%; margin-top: 5px; box-sizing: border-box;
+    }
     button {
-      margin-top: 15px;
-      background-color: #333;
-      color: white;
-      border: none;
-      cursor: pointer;
+      margin-top: 15px; background-color: #333; color: white;
+      border: none; cursor: pointer;
     }
     button:hover:not(:disabled) { background-color: #444; }
     button:disabled { background-color: #aaa; cursor: not-allowed; }
     #resultado {
-      margin-top: 25px;
-      padding: 15px;
-      background: #fff;
-      border: 2px solid #ccc;
+      margin-top: 25px; padding: 15px; background: #fff; border: 2px solid #ccc;
     }
-    .item {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-    }
+    .item { padding: 10px; border-bottom: 1px solid #ddd; }
     .item:last-child { border-bottom: none; }
   </style>
 </head>
@@ -60,7 +53,8 @@
   <script>
     let dadosMeta = [], dadosSerie = [];
 
-    function checkPronto() {
+    // Ativa inputs quando ambos CSVs estiverem carregados
+    function checkReady() {
       const ok = dadosMeta.length > 0 && dadosSerie.length > 0;
       ['potenciaInput','tensaoInput','btnFiltrar']
         .forEach(id => document.getElementById(id).disabled = !ok);
@@ -70,115 +64,133 @@
       }
     }
 
-    // Carregar Metadados
-    document.getElementById('csvMeta')
-      .addEventListener('change', e => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-          Papa.parse(ev.target.result, {
-            header: true, skipEmptyLines: true,
-            complete: res => {
-              dadosMeta = res.data;
-              checkPronto();
-            }
-          });
-        };
-        r.readAsText(f);
-      });
+    // Carrega CSV de metadados
+    document.getElementById('csvMeta').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        Papa.parse(ev.target.result, {
+          header: true, skipEmptyLines: true,
+          complete: r => {
+            dadosMeta = r.data;
+            checkReady();
+          }
+        });
+      };
+      reader.readAsText(file);
+    });
 
-    // Carregar Séries
-    document.getElementById('csvSerie')
-      .addEventListener('change', e => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-          Papa.parse(ev.target.result, {
-            header: true, skipEmptyLines: true,
-            complete: res => {
-              dadosSerie = res.data;
-              checkPronto();
-            }
-          });
-        };
-        r.readAsText(f);
-      });
+    // Carrega CSV de séries temporais
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        Papa.parse(ev.target.result, {
+          header: true, skipEmptyLines: true,
+          complete: r => {
+            dadosSerie = r.data;
+            checkReady();
+          }
+        });
+      };
+      reader.readAsText(file);
+    });
 
-    // Função que calcula LC para um dado ID + massai (em kg)
-    function calcLC(id, massaiKg) {
-      const linhas = dadosSerie
-        .filter(r => (r.id_secagenscore||'').trim() === id)
-        .filter(r => r.LC_3_8 && r.DataHora);
-
-      // Variação LC_3_8
-      const lcVals = linhas
-        .map(r => parseFloat(r.LC_3_8.toString().replace(',','.')))
-        .filter(n => !isNaN(n));
-      const difLC = (lcVals.length >= 2)
-        ? +(lcVals[lcVals.length-1] - lcVals[0]).toFixed(3)
-        : 'Insuficiente';
-
-      // Duração em horas
-      const datas = linhas
-        .map(r => new Date(r.DataHora))
-        .filter(d => !isNaN(d.getTime()))
-        .sort((a,b)=>a-b);
-      const dur = (datas.length >= 2)
-        ? +(((datas[datas.length-1] - datas[0]) / 36e5)).toFixed(2)
-        : 'Insuficiente';
-
-      // Massai em toneladas
-      const ton = parseFloat(massaiKg) / 1000;
-      const taxa = (typeof difLC === 'number' && typeof dur === 'number' && ton > 0)
-        ? +((difLC) / (dur * ton)).toFixed(2)
-        : 'Insuficiente';
-
-      return { difLC, dur, taxa };
+    // Converte string numérica (vírgula/ponto) em float
+    function parseNum(str) {
+      if (str == null) return NaN;
+      return parseFloat(str.toString().replace(',', '.').trim());
     }
 
-    document.getElementById('btnFiltrar')
-      .addEventListener('click', () => {
-        const p = document.getElementById('potenciaInput').value.trim();
-        const t = document.getElementById('tensaoInput').value.trim();
-        const out = document.getElementById('resultado');
+    // Calcula LC para um ID: ∆LC, duração (h) e taxa normalizada
+    function calcLC(id, massaiKg) {
+      const linhas = dadosSerie.filter(r =>
+        (r.id_secagenscore||'').trim() === id &&
+        r.LC_3_8 && r.DataHora
+      );
 
-        if (!p || !t) {
-          out.textContent = 'Preenche ambos os campos.';
-          return;
-        }
+      // Extrai valores LC_3_8
+      const lcVals = linhas
+        .map(r => parseNum(r.LC_3_8))
+        .filter(n => !isNaN(n));
 
-        // filtrar metadados
-        const encontrados = dadosMeta.filter(r =>
-          (r.potencia||'').trim() === p &&
-          (r.tensao  ||'').trim() === t
-        );
+      let difLC = 'Insuficiente';
+      if (lcVals.length >= 2) {
+        difLC = +(lcVals[lcVals.length-1] - lcVals[0]).toFixed(3);
+      }
 
-        if (encontrados.length === 0) {
-          out.textContent = 'Nenhum transformador encontrado.';
-          return;
-        }
+      // Extrai timestamps e calcula duração em horas
+      const times = linhas
+        .map(r => new Date(r.DataHora))
+        .filter(d => !isNaN(d.getTime()))
+        .sort((a,b) => a - b);
 
-        // montar output
-        let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong><br>`;
-        encontrados.forEach((m, i) => {
-          const id = (m.id_secagenscore||'').trim();
-          const stats = calcLC(id, m.massai);
-          html += `
-            <div class="item">
-              <strong>#${i+1} — ID:</strong> ${id}<br>
-              <strong>Subprojecto:</strong> ${m.subprojecto || 'N/A'}<br>
-              <strong>Massai:</strong> ${parseFloat(m.massai||0)/1000} t<br>
-              <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
-              <strong>Duração (h):</strong> ${stats.dur}<br>
-              <strong>Taxa LC:</strong> ${stats.taxa}
-            </div>
-          `;
-        });
+      let duracao = 'Insuficiente';
+      if (times.length >= 2) {
+        const ms = times[times.length-1] - times[0];
+        duracao = +(ms / (1000 * 60 * 60)).toFixed(2);
+      }
 
-        out.innerHTML = html;
+      // Converte massai (kg → toneladas)
+      const mKg = parseNum(massaiKg);
+      const toneladas = mKg / 1000;
+
+      // Calcula taxa normalizada
+      let taxa = 'Insuficiente';
+      if (typeof difLC === 'number' &&
+          typeof duracao === 'number' &&
+          toneladas > 0) {
+        taxa = +(difLC / (duracao * toneladas)).toFixed(2);
+      }
+
+      return { difLC, duracao, taxa };
+    }
+
+    // Filtra e mostra resultados
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.';
+        return;
+      }
+
+      // Filtra metadados por potência e tensão
+      const encontrados = dadosMeta.filter(r =>
+        (r.potencia||'').trim() === pot &&
+        (r.tensao  ||'').trim() === ten
+      );
+
+      if (encontrados.length === 0) {
+        out.textContent = 'Nenhum transformador encontrado.';
+        return;
+      }
+
+      // Monta o HTML de saída
+      let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong><br>`;
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLC(id, m.massai);
+        const mTon = (parseNum(m.massai) / 1000).toFixed(3);
+
+        html += `
+          <div class="item">
+            <strong>#${i+1} — ID:</strong> ${id}<br>
+            <strong>Subprojecto:</strong> ${m.subprojecto || 'N/A'}<br>
+            <strong>Massai:</strong> ${mTon} t<br>
+            <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
+            <strong>Duração (h):</strong> ${stats.duracao}<br>
+            <strong>Taxa LC normalizada:</strong> ${stats.taxa}
+          </div>
+        `;
       });
+
+      out.innerHTML = html;
+    });
   </script>
 
 </body>
