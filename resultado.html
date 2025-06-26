@@ -125,7 +125,7 @@ if (valoresLC.length >= 2) {
 }
 // Obter valores válidos da coluna datahora como objetos Date
 const datasValidas = encontrado2
-  .map(linha => new Date(linha.datahora))
+  .map(linha => new Date(linha.datahora.replace(' ', 'T')))
   .filter(d => !isNaN(d.getTime())); // filtra datas inválidas
 
 let duracaoHoras = 'Sem datas válidas';
