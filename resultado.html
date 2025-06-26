@@ -42,7 +42,7 @@
   let dadosCSV1 = [];
   let dadosCSV2 = [];
 
-  // Verifica se ambos os ficheiros foram carregados
+  // Ativa o input e botão quando ambos CSVs estiverem carregados
   function ativarInputSePronto() {
     if (dadosCSV1.length > 0 && dadosCSV2.length > 0) {
       document.getElementById('idInput').disabled = false;
@@ -127,29 +127,44 @@
       .filter(data => !isNaN(data.getTime()))
       .sort((a, b) => a - b);
 
-    let duracaoHoras = 'Tempo inválido';
+    let duracaoHoras = 0;
     if (datas.length >= 2) {
       const diffMs = datas[datas.length - 1] - datas[0];
-      duracaoHoras = (diffMs / (1000 * 60 * 60)).toFixed(2) + ' horas';
+      duracaoHoras = diffMs / (1000 * 60 * 60); // número em horas
+    } else {
+      resultadoDiv.textContent = 'Dados de DataHora insuficientes.';
+      return;
     }
 
-  // Calcular taxa LC normalizada
-let taxaLCNormalizada = 'Indefinido';
-if (difLC !== 'Sem valores válidos' && duracaoHoras > 0 && massaiToneladas > 0) {
-  taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(6);
-}
+    // Massai convertido de kg para toneladas
+    let massaiToneladas = Number(encontrado1.massai);
+    if (isNaN(massaiToneladas)) {
+      resultadoDiv.textContent = 'Massai inválido.';
+      return;
+    }
+    massaiToneladas /= 1000; // kg para toneladas
 
-resultadoDiv.innerHTML = `
-  <h2>Resultados para ID: ${idInput}</h2>
-  <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
-  <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
-  <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
-  <p><strong>Massai:</strong> ${massaiToneladas.toFixed(2)} t</p>
-  <p><strong>Menor valor PE_4_17 (&gt; 0.1):</strong> ${menorPE}</p>
-  <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
-  <p><strong>Duração do processo:</strong> ${duracaoHoras}</p>
-  <p><strong>Taxa LC normalizada:</strong> ${taxaLCNormalizada}</p>
-`;
+    // Calcular taxa LC normalizada: (difLC) / (horas * toneladas)
+    let taxaLCNormalizada = 'Indefinido';
+    if (typeof difLC === 'string') {
+      taxaLCNormalizada = 'Não calculado (difLC insuficiente)';
+    } else if (duracaoHoras > 0 && massaiToneladas > 0) {
+      taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(6);
+    } else {
+      taxaLCNormalizada = 'Não calculado (valores inválidos)';
+    }
+
+    resultadoDiv.innerHTML = `
+      <h2>Resultados para ID: ${idInput}</h2>
+      <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
+      <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${massaiToneladas.toFixed(3)} toneladas</p>
+      <p><strong>Menor valor PE_4_17 (&gt; 0.1):</strong> ${menorPE}</p>
+      <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
+      <p><strong>Duração do processo:</strong> ${duracaoHoras.toFixed(2)} horas</p>
+      <p><strong>Taxa LC normalizada:</strong> ${taxaLCNormalizada}</p>
+    `;
   }
 </script>
 
