@@ -1,197 +1,209 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Filtrar Transformadores com Taxa LC Garantida</title>
+  <meta charset="UTF-8" />
+  <title>Consulta Transformador com 2 CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      max-width: 900px;
+      max-width: 800px;
       margin: 40px auto;
-      background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
-      padding: 30px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      background: #f5f5f5;
+      padding: 20px 30px;
       border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
     h1 {
-      color: #2c3e50;
       text-align: center;
-      margin-bottom: 30px;
+      color: #2c3e50;
     }
     label {
+      font-weight: bold;
       display: block;
       margin-top: 20px;
-      font-weight: 600;
       color: #34495e;
     }
     input, button {
       padding: 10px;
       width: 100%;
-      margin-top: 8px;
+      margin-top: 5px;
       border-radius: 5px;
       border: 1px solid #bbb;
-      font-size: 16px;
+      font-size: 15px;
       box-sizing: border-box;
     }
     button {
-      margin-top: 20px;
+      margin-top: 15px;
       background-color: #2980b9;
       color: white;
       border: none;
       font-weight: bold;
-      transition: background-color 0.3s ease;
+      cursor: pointer;
     }
-    button:hover:not(:disabled) { background-color: #3498db; }
-    button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+    button:hover:not(:disabled) {
+      background-color: #3498db;
+    }
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
     #resultado {
       margin-top: 30px;
       padding: 20px;
-      background: #fff;
       border: 2px solid #ccc;
+      background: #fff;
       border-radius: 8px;
-      min-height: 80px;
+      line-height: 1.6;
     }
-    .item {
-      padding: 15px;
-      margin-bottom: 10px;
-      background-color: #fdfdfd;
-      border-left: 6px solid #2980b9;
-      box-shadow: 1px 1px 5px rgba(0,0,0,0.05);
+    strong {
+      color: #2c3e50;
     }
-    .item:last-child { margin-bottom: 0; }
-    strong { color: #2c3e50; }
   </style>
 </head>
 <body>
 
-<h1>Filtrar Transformadores com Taxa LC Garantida</h1>
+<h1>Consulta Transformador</h1>
 
-<label for="csvMeta">1) CSV de Metadados:</label>
-<input type="file" id="csvMeta" accept=".csv">
+<label for="csvFile1">CSV de Metadados:</label>
+<input type="file" id="csvFile1" accept=".csv" />
 
-<label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
-<input type="file" id="csvSerie" accept=".csv">
+<label for="csvFile2">CSV de Séries (LC_3_8 + DataHora):</label>
+<input type="file" id="csvFile2" accept=".csv" />
 
-<label for="potenciaInput">Potência (ex: 140):</label>
-<input type="text" id="potenciaInput" placeholder="Potência" disabled>
+<label for="idInput">ID do transformador (id_secagenscore):</label>
+<input type="text" id="idInput" disabled placeholder="Insere o ID" />
+<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
 
-<label for="tensaoInput">Tensão (ex: 240.5):</label>
-<input type="text" id="tensaoInput" placeholder="Tensão" disabled>
-
-<button id="btnFiltrar" disabled>Procurar</button>
-
-<div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
+<div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
 
 <script>
-let dadosMeta = [], dadosSerie = [];
+  let dadosCSV1 = [], dadosCSV2 = [];
 
-function checkReady() {
-  console.log("Check Ready:", dadosMeta.length, dadosSerie.length);
-  const ok = Array.isArray(dadosMeta) && dadosMeta.length > 0 &&
-             Array.isArray(dadosSerie) && dadosSerie.length > 0;
-  ['potenciaInput', 'tensaoInput', 'btnFiltrar'].forEach(id =>
-    document.getElementById(id).disabled = !ok
-  );
-  if (ok) {
-    document.getElementById('resultado').textContent =
-      'CSV carregados. Insere potência e tensão.';
+  function ativarInputSePronto() {
+    const btn = document.getElementById('btnBuscar');
+    const input = document.getElementById('idInput');
+    const aviso = document.getElementById('resultado');
+    if (dadosCSV1.length && dadosCSV2.length) {
+      btn.disabled = false;
+      input.disabled = false;
+      aviso.textContent = 'Ficheiros carregados. Insere o ID e procura.';
+    }
   }
-}
 
-function carregarCSV(inputId, targetArray) {
-  document.getElementById(inputId).addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = ev => Papa.parse(ev.target.result, {
-      header: true,
-      skipEmptyLines: true,
-      complete: res => {
-        targetArray.length = 0;
-        targetArray.push(...res.data);
-        console.log(`CSV ${inputId} carregado com ${res.data.length} linhas.`);
-        checkReady();
-      },
-      error: err => {
-        document.getElementById('resultado').innerHTML =
-          `<div class="item">Erro ao ler CSV: ${err.message}</div>`;
-      }
+  function carregarCSV(id, destino, callback) {
+    document.getElementById(id).addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        Papa.parse(event.target.result, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(res) {
+            destino.length = 0;
+            res.data.forEach(row => destino.push(row));
+            callback();
+          }
+        });
+      };
+      reader.readAsText(file);
     });
-    reader.readAsText(f);
-  });
-}
-carregarCSV('csvMeta', dadosMeta);
-carregarCSV('csvSerie', dadosSerie);
-
-function parseNum(v) {
-  return parseFloat((v || '').toString().replace(',', '.').trim());
-}
-
-function fmt(v, dec = 2) {
-  return isNaN(v) ? '' : v.toFixed(dec);
-}
-
-function calcLC(id, massaiKg) {
-  const linhas = dadosSerie.filter(r =>
-    (r.id_secagenscore || '').trim() === id &&
-    r.LC_3_8 && r.DataHora
-  );
-
-  const lc = linhas.map(r => parseNum(r.LC_3_8)).sort((a, b) => a - b);
-  const difLC = lc.length ? lc[lc.length - 1] - lc[0] : NaN;
-
-  const ts = linhas
-    .map(r => new Date(r.DataHora).getTime())
-    .filter(t => !isNaN(t))
-    .sort((a, b) => a - b);
-  const dur = ts.length ? (ts[ts.length - 1] - ts[0]) / 36e5 : NaN;
-
-  const ton = parseNum(massaiKg) / 1000;
-
-  const taxa = (difLC) / (dur * ton);
-
-  return { difLC, dur, taxa };
-}
-
-document.getElementById('btnFiltrar').addEventListener('click', () => {
-  const pot = document.getElementById('potenciaInput').value.trim();
-  const ten = document.getElementById('tensaoInput').value.trim();
-  const out = document.getElementById('resultado');
-
-  if (!pot || !ten) {
-    out.innerHTML = `<div class="item">Preenche ambos os campos.</div>`;
-    return;
   }
 
-  const encontrados = dadosMeta.filter(r =>
-    (r.potencia || '').trim() === pot &&
-    (r.tensao || '').trim() === ten
-  );
+  carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
+  carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 
-  if (!encontrados.length) {
-    out.innerHTML = `<div class="item">Nenhum transformador encontrado.</div>`;
-    return;
-  }
+  function buscarDados() {
+    const idInput = document.getElementById('idInput').value.trim();
+    const out = document.getElementById('resultado');
 
-  let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-  encontrados.forEach((m, i) => {
-    const id = (m.id_secagenscore || '').trim();
-    const stats = calcLC(id, m.massai);
-    const mTon = parseNum(m.massai) / 1000;
-    html += `
-      <div class="item">
-        <strong>#${i + 1} — ID:</strong> ${id}<br>
-        <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
-        <strong>Massai:</strong> ${fmt(mTon, 3)} t<br>
-        <strong>Δ LC:</strong> ${fmt(stats.difLC, 3)}<br>
-        <strong>Duração (h):</strong> ${fmt(stats.dur)}<br>
-        <strong>Taxa de remoção de água:</strong> ${fmt(stats.taxa)}
-      </div>
+    if (!idInput) {
+      out.textContent = 'Por favor, insere um ID.';
+      return;
+    }
+
+    const meta = dadosCSV1.find(l => (l.id_secagenscore || '').trim() === idInput);
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === idInput);
+
+    if (!meta) {
+      out.textContent = 'ID não encontrado nos metadados.';
+      return;
+    }
+    if (!serie.length) {
+      out.textContent = 'ID não encontrado nas séries.';
+      return;
+    }
+
+    // Valores LC ordenados
+    const valoresLC = serie
+      .map(l => Number((l.LC_3_8 || '').replace(',', '.')))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    const difLC = valoresLC.length >= 2
+      ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3)
+      : 'Insuficiente';
+
+    // Datas ordenadas
+    const datas = serie
+      .map(l => new Date(l.DataHora))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+
+    if (datas.length < 2) {
+      out.textContent = 'Dados de DataHora insuficientes.';
+      return;
+    }
+
+    const duracao = (datas[datas.length - 1] - datas[0]) / 36e5; // horas
+
+    const massaiTon = Number((meta.massai || '').replace(',', '.')) / 1000;
+    if (isNaN(massaiTon) || massaiTon === 0) {
+      out.textContent = 'Massai inválido nos metadados.';
+      return;
+    }
+
+    let taxaLC = 'N/A';
+    if (difLC !== 'Insuficiente' && duracao > 0) {
+      taxaLC = (difLC / (duracao * massaiTon)).toFixed(2);
+    }
+
+    // Últimas 10 horas
+    const final = datas[datas.length - 1];
+    const inicial = new Date(final.getTime() - 10 * 3600 * 1000);
+    const ultimos = serie.filter(l => {
+      const d = new Date(l.DataHora);
+      return d >= inicial && d <= final;
+    });
+
+    const lc10h = ultimos
+      .map(l => Number((l.LC_3_8 || '').replace(',', '.')))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => a - b);
+
+    let difLC10h = 'Insuficiente';
+    let taxa10h = 'N/A';
+
+    if (lc10h.length >= 2) {
+      difLC10h = (lc10h[lc10h.length - 1] - lc10h[0]).toFixed(3);
+      taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
+    }
+
+    out.innerHTML = `
+      <h2>Resultados para ID: ${idInput}</h2>
+      <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'}</p>
+      <p><strong>Massat:</strong> ${meta.massat || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${massaiTon.toFixed(3)} t</p>
+      <p><strong>Δ LC total:</strong> ${difLC}</p>
+      <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
+      <p><strong>Taxa LC normalizada:</strong> ${taxaLC}</p>
+      <hr>
+      <p><strong>Δ LC nas últimas 10h:</strong> ${difLC10h}</p>
+      <p><strong>Taxa LC nas últimas 10h:</strong> ${taxa10h}</p>
     `;
-  });
-  out.innerHTML = html;
-});
+  }
 </script>
 
 </body>
