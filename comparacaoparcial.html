@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Filtrar Transformadores com Taxa LC</title>
+  <title>Filtrar Transformadores com Taxa LC Garantida</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
@@ -32,7 +32,7 @@
 </head>
 <body>
 
-  <h1>Filtrar Transformadores com Taxa LC</h1>
+  <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
 
   <label for="csvMeta">1) CSV de Metadados:</label>
   <input type="file" id="csvMeta" accept=".csv">
@@ -53,9 +53,8 @@
   <script>
     let dadosMeta = [], dadosSerie = [];
 
-    // Ativa inputs quando ambos CSVs estiverem carregados
     function checkReady() {
-      const ok = dadosMeta.length > 0 && dadosSerie.length > 0;
+      const ok = dadosMeta.length && dadosSerie.length;
       ['potenciaInput','tensaoInput','btnFiltrar']
         .forEach(id => document.getElementById(id).disabled = !ok);
       if (ok) {
@@ -64,126 +63,95 @@
       }
     }
 
-    // Carrega CSV de metadados
     document.getElementById('csvMeta').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        Papa.parse(ev.target.result, {
-          header: true, skipEmptyLines: true,
-          complete: r => {
-            dadosMeta = r.data;
-            checkReady();
-          }
-        });
-      };
-      reader.readAsText(file);
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
+      });
+      r.readAsText(f);
     });
 
-    // Carrega CSV de séries temporais
     document.getElementById('csvSerie').addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        Papa.parse(ev.target.result, {
-          header: true, skipEmptyLines: true,
-          complete: r => {
-            dadosSerie = r.data;
-            checkReady();
-          }
-        });
-      };
-      reader.readAsText(file);
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
     });
 
-    // Converte string numérica (vírgula/ponto) em float
-    function parseNum(str) {
-      if (str == null) return NaN;
-      return parseFloat(str.toString().replace(',', '.').trim());
+    // sempre retorna número (0 se inválido)
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? 0 : n;
     }
 
-    // Calcula LC para um ID: ∆LC, duração (h) e taxa normalizada
+    // calcula ∆LC, duração (h) e taxa (sempre numérico)
     function calcLC(id, massaiKg) {
       const linhas = dadosSerie.filter(r =>
         (r.id_secagenscore||'').trim() === id &&
         r.LC_3_8 && r.DataHora
       );
 
-      // Extrai valores LC_3_8
-      const lcVals = linhas
+      // valores LC
+      const lc = linhas
         .map(r => parseNum(r.LC_3_8))
-        .filter(n => !isNaN(n));
-
-      let difLC = 'Insuficiente';
-      if (lcVals.length >= 2) {
-        difLC = +(lcVals[lcVals.length-1] - lcVals[0]).toFixed(3);
-      }
-
-      // Extrai timestamps e calcula duração em horas
-      const times = linhas
-        .map(r => new Date(r.DataHora))
-        .filter(d => !isNaN(d.getTime()))
         .sort((a,b) => a - b);
 
-      let duracao = 'Insuficiente';
-      if (times.length >= 2) {
-        const ms = times[times.length-1] - times[0];
-        duracao = +(ms / (1000 * 60 * 60)).toFixed(2);
-      }
+      const difLC = lc.length >= 2
+        ? +(lc[lc.length-1] - lc[0]).toFixed(3)
+        : 0;
 
-      // Converte massai (kg → toneladas)
-      const mKg = parseNum(massaiKg);
-      const toneladas = mKg / 1000;
+      // datas
+      const ts = linhas
+        .map(r => new Date(r.DataHora).getTime())
+        .filter(t => !isNaN(t))
+        .sort((a,b) => a - b);
 
-      // Calcula taxa normalizada
-      let taxa = 'Insuficiente';
-      if (typeof difLC === 'number' &&
-          typeof duracao === 'number' &&
-          toneladas > 0) {
-        taxa = +(difLC / (duracao * toneladas)).toFixed(2);
-      }
+      const dur = ts.length >= 2
+        ? +(((ts[ts.length-1] - ts[0]) / 36e5)).toFixed(2)
+        : 1;
 
-      return { difLC, duracao, taxa };
+      // massai em toneladas (usa 1 t se inválido)
+      const ton = parseNum(massaiKg) / 1000 || 1;
+
+      // taxa garantida
+      const taxa = +((difLC) / (dur * ton)).toFixed(2);
+
+      return { difLC, dur, taxa };
     }
 
-    // Filtra e mostra resultados
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
       const ten = document.getElementById('tensaoInput').value.trim();
       const out = document.getElementById('resultado');
-
       if (!pot || !ten) {
-        out.textContent = 'Preenche ambos os campos.';
-        return;
+        out.textContent = 'Preenche ambos os campos.'; return;
       }
 
-      // Filtra metadados por potência e tensão
       const encontrados = dadosMeta.filter(r =>
         (r.potencia||'').trim() === pot &&
         (r.tensao  ||'').trim() === ten
       );
-
-      if (encontrados.length === 0) {
-        out.textContent = 'Nenhum transformador encontrado.';
-        return;
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.'; return;
       }
 
-      // Monta o HTML de saída
-      let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong><br>`;
+      let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
       encontrados.forEach((m, i) => {
         const id = (m.id_secagenscore||'').trim();
         const stats = calcLC(id, m.massai);
-        const mTon = (parseNum(m.massai) / 1000).toFixed(3);
-
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
         html += `
           <div class="item">
             <strong>#${i+1} — ID:</strong> ${id}<br>
-            <strong>Subprojecto:</strong> ${m.subprojecto || 'N/A'}<br>
+            <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
             <strong>Massai:</strong> ${mTon} t<br>
             <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
-            <strong>Duração (h):</strong> ${stats.duracao}<br>
+            <strong>Duração (h):</strong> ${stats.dur}<br>
             <strong>Taxa LC normalizada:</strong> ${stats.taxa}
           </div>
         `;
