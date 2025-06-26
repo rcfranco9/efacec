@@ -65,38 +65,40 @@
 </head>
 <body>
 
-  <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
+<h1>Filtrar Transformadores com Taxa LC Garantida</h1>
 
-  <label for="csvMeta">1) CSV de Metadados:</label>
-  <input type="file" id="csvMeta" accept=".csv">
+<label for="csvMeta">1) CSV de Metadados:</label>
+<input type="file" id="csvMeta" accept=".csv">
 
-  <label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
-  <input type="file" id="csvSerie" accept=".csv">
+<label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
+<input type="file" id="csvSerie" accept=".csv">
 
-  <label for="potenciaInput">Potência (ex: 140):</label>
-  <input type="text" id="potenciaInput" placeholder="Potência" disabled>
+<label for="potenciaInput">Potência (ex: 140):</label>
+<input type="text" id="potenciaInput" placeholder="Potência" disabled>
 
-  <label for="tensaoInput">Tensão (ex: 240.5):</label>
-  <input type="text" id="tensaoInput" placeholder="Tensão" disabled>
+<label for="tensaoInput">Tensão (ex: 240.5):</label>
+<input type="text" id="tensaoInput" placeholder="Tensão" disabled>
 
-  <button id="btnFiltrar" disabled>Procurar</button>
+<button id="btnFiltrar" disabled>Procurar</button>
 
-  <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
+<div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
 <script>
 let dadosMeta = [], dadosSerie = [];
 
-// ativa inputs quando ambos CSV estiverem carregados
 function checkReady() {
-  const ok = dadosMeta.length && dadosSerie.length;
-  ['potenciaInput','tensaoInput','btnFiltrar']
-    .forEach(id => document.getElementById(id).disabled = !ok);
-  if (ok)
+  console.log("Check Ready:", dadosMeta.length, dadosSerie.length);
+  const ok = Array.isArray(dadosMeta) && dadosMeta.length > 0 &&
+             Array.isArray(dadosSerie) && dadosSerie.length > 0;
+  ['potenciaInput', 'tensaoInput', 'btnFiltrar'].forEach(id =>
+    document.getElementById(id).disabled = !ok
+  );
+  if (ok) {
     document.getElementById('resultado').textContent =
       'CSV carregados. Insere potência e tensão.';
+  }
 }
 
-// carrega CSV com PapaParse
 function carregarCSV(inputId, targetArray) {
   document.getElementById(inputId).addEventListener('change', e => {
     const f = e.target.files[0];
@@ -108,6 +110,7 @@ function carregarCSV(inputId, targetArray) {
       complete: res => {
         targetArray.length = 0;
         targetArray.push(...res.data);
+        console.log(`CSV ${inputId} carregado com ${res.data.length} linhas.`);
         checkReady();
       },
       error: err => {
@@ -118,45 +121,34 @@ function carregarCSV(inputId, targetArray) {
     reader.readAsText(f);
   });
 }
-carregarCSV('csvMeta',  dadosMeta);
+carregarCSV('csvMeta', dadosMeta);
 carregarCSV('csvSerie', dadosSerie);
 
-// tenta converter string→float, devolve NaN se não for número
 function parseNum(v) {
-  return parseFloat((v||'').toString().replace(',', '.').trim());
+  return parseFloat((v || '').toString().replace(',', '.').trim());
 }
 
-// formata número ou devolve string vazia
-function fmt(v, dec=2) {
+function fmt(v, dec = 2) {
   return isNaN(v) ? '' : v.toFixed(dec);
 }
 
-// calcula diferença LC, duração em horas e taxa (sem valores-fora)
 function calcLC(id, massaiKg) {
   const linhas = dadosSerie.filter(r =>
-    (r.id_secagenscore||'').trim() === id &&
+    (r.id_secagenscore || '').trim() === id &&
     r.LC_3_8 && r.DataHora
   );
 
-  // extrai valores numéricos
-  const lc = linhas.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
-  const difLC = lc.length
-    ? lc[lc.length-1] - lc[0]
-    : NaN;
+  const lc = linhas.map(r => parseNum(r.LC_3_8)).sort((a, b) => a - b);
+  const difLC = lc.length ? lc[lc.length - 1] - lc[0] : NaN;
 
-  // timestamps
   const ts = linhas
     .map(r => new Date(r.DataHora).getTime())
     .filter(t => !isNaN(t))
-    .sort((a,b)=>a-b);
-  const dur = ts.length
-    ? (ts[ts.length-1] - ts[0]) / 36e5
-    : NaN;
+    .sort((a, b) => a - b);
+  const dur = ts.length ? (ts[ts.length - 1] - ts[0]) / 36e5 : NaN;
 
-  // massa interna em toneladas (pode ser negativa ou zero)
   const ton = parseNum(massaiKg) / 1000;
 
-  // taxa = ∆LC / (duração × massa)
   const taxa = (difLC) / (dur * ton);
 
   return { difLC, dur, taxa };
@@ -166,14 +158,15 @@ document.getElementById('btnFiltrar').addEventListener('click', () => {
   const pot = document.getElementById('potenciaInput').value.trim();
   const ten = document.getElementById('tensaoInput').value.trim();
   const out = document.getElementById('resultado');
+
   if (!pot || !ten) {
     out.innerHTML = `<div class="item">Preenche ambos os campos.</div>`;
     return;
   }
 
   const encontrados = dadosMeta.filter(r =>
-    (r.potencia||'').trim() === pot &&
-    (r.tensao  ||'').trim() === ten
+    (r.potencia || '').trim() === pot &&
+    (r.tensao || '').trim() === ten
   );
 
   if (!encontrados.length) {
@@ -182,16 +175,16 @@ document.getElementById('btnFiltrar').addEventListener('click', () => {
   }
 
   let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-  encontrados.forEach((m,i) => {
-    const id     = (m.id_secagenscore||'').trim();
-    const stats  = calcLC(id, m.massai);
-    const mTon   = parseNum(m.massai)/1000;
+  encontrados.forEach((m, i) => {
+    const id = (m.id_secagenscore || '').trim();
+    const stats = calcLC(id, m.massai);
+    const mTon = parseNum(m.massai) / 1000;
     html += `
       <div class="item">
-        <strong>#${i+1} — ID:</strong> ${id}<br>
-        <strong>Projecto:</strong> ${m.subprojecto||'N/A'}<br>
-        <strong>Massai:</strong> ${fmt(mTon,3)} t<br>
-        <strong>Δ LC:</strong> ${fmt(stats.difLC,3)}<br>
+        <strong>#${i + 1} — ID:</strong> ${id}<br>
+        <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
+        <strong>Massai:</strong> ${fmt(mTon, 3)} t<br>
+        <strong>Δ LC:</strong> ${fmt(stats.difLC, 3)}<br>
         <strong>Duração (h):</strong> ${fmt(stats.dur)}<br>
         <strong>Taxa de remoção de água:</strong> ${fmt(stats.taxa)}
       </div>
