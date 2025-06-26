@@ -108,9 +108,16 @@ function carregarCSV(inputId, targetArray) {
       header: true,
       skipEmptyLines: true,
       complete: res => {
+        if(res.errors.length > 0) {
+          console.error(`Erros no CSV ${inputId}:`, res.errors);
+          document.getElementById('resultado').innerHTML =
+            `<div class="item">Erro no parsing do CSV ${inputId}: ${res.errors.map(er => er.message).join(', ')}</div>`;
+          return;
+        }
         targetArray.length = 0;
         targetArray.push(...res.data);
         console.log(`CSV ${inputId} carregado com ${res.data.length} linhas.`);
+        console.log('Exemplo dados:', inputId, res.data.slice(0,3));
         checkReady();
       },
       error: err => {
