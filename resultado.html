@@ -81,14 +81,17 @@
   let dadosCSV1 = [], dadosCSV2 = [];
 
   function ativarInputSePronto() {
+    const btn = document.getElementById('btnBuscar');
+    const input = document.getElementById('idInput');
+    const aviso = document.getElementById('resultado');
     if (dadosCSV1.length && dadosCSV2.length) {
-      document.getElementById('idInput').disabled = false;
-      document.getElementById('btnBuscar').disabled = false;
-      document.getElementById('resultado').textContent = 'Ficheiros carregados. Insere o ID e procura.';
+      btn.disabled = false;
+      input.disabled = false;
+      aviso.textContent = 'Ficheiros carregados. Insere o ID e procura.';
     }
   }
 
-  function carregarCSV(id, destino) {
+  function carregarCSV(id, destino, callback) {
     document.getElementById(id).addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -99,8 +102,8 @@
           skipEmptyLines: true,
           complete: function(res) {
             destino.length = 0;
-            destino.push(...res.data);
-            ativarInputSePronto();
+            res.data.forEach(row => destino.push(row));
+            callback();
           }
         });
       };
@@ -108,8 +111,8 @@
     });
   }
 
-  carregarCSV('csvFile1', dadosCSV1);
-  carregarCSV('csvFile2', dadosCSV2);
+  carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
+  carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 
   function buscarDados() {
     const idInput = document.getElementById('idInput').value.trim();
