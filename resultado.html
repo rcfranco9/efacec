@@ -6,19 +6,58 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      background: #f5f5f5;
+      padding: 20px 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
-    #resultado {
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    label {
+      font-weight: bold;
+      display: block;
       margin-top: 20px;
-      padding: 15px;
-      border: 2px solid #333;
-      max-width: 600px;
-      background: #f9f9f9;
+      color: #34495e;
     }
     input, button {
-      padding: 6px 10px;
-      margin: 5px 0;
+      padding: 10px;
+      width: 100%;
+      margin-top: 5px;
+      border-radius: 5px;
+      border: 1px solid #bbb;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 15px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) {
+      background-color: #3498db;
+    }
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+    #resultado {
+      margin-top: 30px;
+      padding: 20px;
+      border: 2px solid #ccc;
+      background: #fff;
+      border-radius: 8px;
+      line-height: 1.6;
+    }
+    strong {
+      color: #2c3e50;
     }
   </style>
 </head>
@@ -26,131 +65,125 @@
 
 <h1>Consulta Transformador</h1>
 
-<label for="csvFile1">Escolhe o primeiro ficheiro CSV:</label><br>
-<input type="file" id="csvFile1" accept=".csv" /><br><br>
+<label for="csvFile1">CSV de Metadados:</label>
+<input type="file" id="csvFile1" accept=".csv" />
 
-<label for="csvFile2">Escolhe o segundo ficheiro CSV:</label><br>
-<input type="file" id="csvFile2" accept=".csv" /><br><br>
+<label for="csvFile2">CSV de Séries (LC_3_8 + DataHora):</label>
+<input type="file" id="csvFile2" accept=".csv" />
 
-<label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
+<label for="idInput">ID do transformador (id_secagenscore):</label>
 <input type="text" id="idInput" disabled placeholder="Insere o ID" />
 <button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
 
 <script>
-  let dadosCSV1 = [];
-  let dadosCSV2 = [];
+  let dadosCSV1 = [], dadosCSV2 = [];
 
-  // Ativa o input e botão quando ambos CSVs estiverem carregados
   function ativarInputSePronto() {
-    if (dadosCSV1.length > 0 && dadosCSV2.length > 0) {
+    if (dadosCSV1.length && dadosCSV2.length) {
       document.getElementById('idInput').disabled = false;
       document.getElementById('btnBuscar').disabled = false;
       document.getElementById('resultado').textContent = 'Ficheiros carregados. Insere o ID e procura.';
     }
   }
 
-  // Carregar CSV 1
-  document.getElementById('csvFile1').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      Papa.parse(event.target.result, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV1 = resultado.data;
-          ativarInputSePronto();
-        }
-      });
-    };
-    reader.readAsText(file);
-  });
+  function carregarCSV(id, destino) {
+    document.getElementById(id).addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        Papa.parse(event.target.result, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(res) {
+            destino.length = 0;
+            destino.push(...res.data);
+            ativarInputSePronto();
+          }
+        });
+      };
+      reader.readAsText(file);
+    });
+  }
 
-  // Carregar CSV 2
-  document.getElementById('csvFile2').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      Papa.parse(event.target.result, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV2 = resultado.data;
-          ativarInputSePronto();
-        }
-      });
-    };
-    reader.readAsText(file);
-  });
+  carregarCSV('csvFile1', dadosCSV1);
+  carregarCSV('csvFile2', dadosCSV2);
 
   function buscarDados() {
     const idInput = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+    const out = document.getElementById('resultado');
 
     if (!idInput) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
+      out.textContent = 'Por favor, insere um ID.';
       return;
     }
 
-    const encontrado1 = dadosCSV1.find(linha => linha.id_secagenscore?.trim() === idInput);
-    const encontrados2 = dadosCSV2.filter(linha => linha.id_secagenscore?.trim() === idInput);
+    const meta = dadosCSV1.find(l => l.id_secagenscore?.trim() === idInput);
+    const serie = dadosCSV2.filter(l => l.id_secagenscore?.trim() === idInput);
 
-    if (!encontrado1) {
-      resultadoDiv.textContent = 'ID não encontrado no primeiro ficheiro.';
-      return;
-    }
+    if (!meta) return out.textContent = 'ID não encontrado nos metadados.';
+    if (!serie.length) return out.textContent = 'ID não encontrado nas séries.';
 
-    if (encontrados2.length === 0) {
-      resultadoDiv.textContent = 'ID não encontrado no segundo ficheiro.';
-      return;
-    }
+    const valoresLC = serie
+      .map(l => Number(l.LC_3_8))
+      .filter(n => !isNaN(n));
+    const difLC = valoresLC.length >= 2
+      ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3)
+      : 'Insuficiente';
 
-
-    // diferença LC_3_8
-    const valoresLC = encontrados2
-      .map(linha => Number(linha.LC_3_8))
-      .filter(val => !isNaN(val));
-    const difLC = valoresLC.length >= 2 ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3) : 'Insuficiente';
-
-    // duração (em horas) entre primeiras e últimas DataHora
-    const datas = encontrados2
-      .map(linha => new Date(linha.DataHora))
-      .filter(data => !isNaN(data.getTime()))
+    const datas = serie
+      .map(l => new Date(l.DataHora))
+      .filter(d => !isNaN(d.getTime()))
       .sort((a, b) => a - b);
-
-    let duracaoHoras = 0;
-    if (datas.length >= 2) {
-      const diffMs = datas[datas.length - 1] - datas[0];
-      duracaoHoras = diffMs / (1000 * 60 * 60); // número em horas
-    } else {
-      resultadoDiv.textContent = 'Dados de DataHora insuficientes.';
+    if (datas.length < 2) {
+      out.textContent = 'Dados de DataHora insuficientes.';
       return;
     }
+    const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
+    const massaiTon = Number(meta.massai) / 1000;
 
-    // Massai convertido de kg para toneladas
-    let massaiToneladas = Number(encontrado1.massai);
-    if (isNaN(massaiToneladas)) {
-      resultadoDiv.textContent = 'Massai inválido.';
-      return;
+    let taxaLC = 'N/A';
+    if (!isNaN(difLC) && !isNaN(duracao) && !isNaN(massaiTon) && massaiTon !== 0)
+      taxaLC = (difLC / (duracao * massaiTon)).toFixed(2);
+
+    // ➕ Nas últimas 10 horas
+    const dadosOrdenados = serie
+      .filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
+      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+    const final = new Date(dadosOrdenados[dadosOrdenados.length - 1].DataHora);
+    const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
+    const ultimos = dadosOrdenados.filter(l =>
+      new Date(l.DataHora) >= inicial && new Date(l.DataHora) <= final
+    );
+
+    let difLC10h = 'Insuficiente';
+    let taxa10h = 'N/A';
+
+    const lc10h = ultimos
+      .map(l => Number(l.LC_3_8))
+      .filter(n => !isNaN(n))
+      .sort((a,b) => a - b);
+
+    if (lc10h.length >= 2 && !isNaN(massaiTon) && massaiTon !== 0) {
+      difLC10h = (lc10h[lc10h.length - 1] - lc10h[0]).toFixed(3);
+      taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
     }
-    massaiToneladas /= 1000; // kg para toneladas
 
-    // Calcular taxa LC normalizada: (difLC) / (horas * toneladas)
-   let taxaLCNormalizada = (difLC / (duracaoHoras * massaiToneladas)).toFixed(2);
-
-    resultadoDiv.innerHTML = `
+    out.innerHTML = `
       <h2>Resultados para ID: ${idInput}</h2>
-      <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
-      <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
-      <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
-      <p><strong>Massai:</strong> ${massaiToneladas.toFixed(3)} toneladas</p>
-      <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
-      <p><strong>Duração do processo:</strong> ${duracaoHoras.toFixed(2)} horas</p>
-      <p><strong>Taxa LC normalizada:</strong> ${taxaLCNormalizada}</p>
+      <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'}</p>
+      <p><strong>Massat:</strong> ${meta.massat || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${massaiTon.toFixed(3)} t</p>
+      <p><strong>Δ LC total:</strong> ${difLC}</p>
+      <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
+      <p><strong>Taxa LC normalizada:</strong> ${taxaLC}</p>
+      <hr>
+      <p><strong>Δ LC nas últimas 10h:</strong> ${difLC10h}</p>
+      <p><strong>Taxa LC nas últimas 10h:</strong> ${taxa10h}</p>
     `;
   }
 </script>
