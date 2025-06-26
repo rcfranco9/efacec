@@ -67,10 +67,10 @@
 
 <h1>Filtrar Transformadores com Taxa LC</h1>
 
-<label for="csvMeta">CSV de Metadados:</label>
+<label for="csvMeta">1) CSV de Metadados:</label>
 <input type="file" id="csvMeta" accept=".csv" />
 
-<label for="csvSerie">CSV de Séries (LC_3_8 + DataHora):</label>
+<label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
 <input type="file" id="csvSerie" accept=".csv" />
 
 <label for="potenciaInput">Potência (ex: 140):</label>
@@ -87,8 +87,7 @@
 let dadosMeta = [], dadosSerie = [];
 
 function checkReady() {
-  const ok = Array.isArray(dadosMeta) && dadosMeta.length > 0 &&
-             Array.isArray(dadosSerie) && dadosSerie.length > 0;
+  const ok = dadosMeta.length > 0 && dadosSerie.length > 0;
   ['potenciaInput', 'tensaoInput', 'btnFiltrar'].forEach(id =>
     document.getElementById(id).disabled = !ok
   );
@@ -98,34 +97,31 @@ function checkReady() {
 }
 
 function carregarCSV(inputId, targetArray) {
-  const input = document.getElementById(inputId);
-  input.addEventListener('change', e => {
+  document.getElementById(inputId).addEventListener('change', e => {
     const f = e.target.files[0];
-    if (!f) {
-      console.log(`Nenhum ficheiro selecionado no ${inputId}`);
-      return;
-    }
-    console.log(`Lendo ficheiro ${f.name} no input ${inputId}`);
+    if (!f) return;
+
     const reader = new FileReader();
     reader.onload = ev => {
-      console.log(`Conteúdo do ficheiro ${f.name} (início):`, ev.target.result.slice(0, 200));
       Papa.parse(ev.target.result, {
         header: true,
         skipEmptyLines: true,
+        dynamicTyping: false,
         complete: res => {
           if (res.errors.length > 0) {
-            console.error(`Erros no CSV ${inputId}:`, res.errors);
-            document.getElementById('resultado').innerHTML =
-              `<div class="item">Erro ao ler CSV ${inputId}: ${res.errors.map(err => err.message).join(', ')}</div>`;
-            return;
+            console.warn(`Erros no CSV ${inputId}:`, res.errors);
           }
-          const dadosLimpos = res.data.map(linha => {
-            const novaLinha = {};
-            for (const key in linha) {
-              novaLinha[key] = linha[key] === "NULL" ? "" : linha[key];
-            }
-            return novaLinha;
-          });
+
+          const dadosLimpos = res.data
+            .filter(linha => Object.keys(linha).length > 1)
+            .map(linha => {
+              const novaLinha = {};
+              for (const key in linha) {
+                novaLinha[key] = linha[key] === "NULL" ? "" : linha[key];
+              }
+              return novaLinha;
+            });
+
           targetArray.length = 0;
           targetArray.push(...dadosLimpos);
           console.log(`CSV ${inputId} carregado com ${dadosLimpos.length} linhas.`);
@@ -138,9 +134,6 @@ function carregarCSV(inputId, targetArray) {
         }
       });
     };
-    reader.onerror = err => {
-      console.error(`Erro ao ler ficheiro ${f.name}:`, err);
-    }
     reader.readAsText(f);
   });
 }
@@ -158,22 +151,18 @@ function fmt(v, dec = 2) {
 
 function calcLC(id, massaiKg) {
   const linhas = dadosSerie.filter(r =>
-    (r.id_secagenscore || '').trim() === id &&
+    (r.id_secagenscore || r.ID || '').trim() === id &&
     r.LC_3_8 && r.DataHora
   );
 
-  const lc = linhas.map(r => parseNum(r.LC_3_8)).sort((a, b) => a - b);
+  const lc = linhas.map(r => parseNum(r.LC_3_8)).filter(v => !isNaN(v)).sort((a, b) => a - b);
   const difLC = lc.length ? lc[lc.length - 1] - lc[0] : NaN;
 
-  const ts = linhas
-    .map(r => new Date(r.DataHora).getTime())
-    .filter(t => !isNaN(t))
-    .sort((a, b) => a - b);
+  const ts = linhas.map(r => new Date(r.DataHora).getTime()).filter(t => !isNaN(t)).sort((a, b) => a - b);
   const dur = ts.length ? (ts[ts.length - 1] - ts[0]) / 36e5 : NaN;
 
   const ton = parseNum(massaiKg) / 1000;
-
-  const taxa = (difLC) / (dur * ton);
+  const taxa = dur && ton ? (difLC) / (dur * ton) : NaN;
 
   return { difLC, dur, taxa };
 }
