@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Filtrar Transformadores com Taxa LC </title>
+  <title>Filtrar Transformadores com Taxa LC</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
@@ -65,7 +65,7 @@
 </head>
 <body>
 
-<h1>Filtrar Transformadores com Taxa LC </h1>
+<h1>Filtrar Transformadores com Taxa LC</h1>
 
 <label for="csvMeta">1) CSV de Metadados:</label>
 <input type="file" id="csvMeta" accept=".csv" />
@@ -98,11 +98,17 @@ function checkReady() {
 }
 
 function carregarCSV(inputId, targetArray) {
-  document.getElementById(inputId).addEventListener('change', e => {
+  const input = document.getElementById(inputId);
+  input.addEventListener('change', e => {
     const f = e.target.files[0];
-    if (!f) return;
+    if (!f) {
+      console.log(`Nenhum ficheiro selecionado no ${inputId}`);
+      return;
+    }
+    console.log(`Lendo ficheiro ${f.name} no input ${inputId}`);
     const reader = new FileReader();
     reader.onload = ev => {
+      console.log(`Conteúdo do ficheiro ${f.name} (início):`, ev.target.result.slice(0, 200));
       Papa.parse(ev.target.result, {
         header: true,
         skipEmptyLines: true,
@@ -113,7 +119,6 @@ function carregarCSV(inputId, targetArray) {
               `<div class="item">Erro ao ler CSV ${inputId}: ${res.errors.map(err => err.message).join(', ')}</div>`;
             return;
           }
-          // Limpar "NULL" para string vazia
           const dadosLimpos = res.data.map(linha => {
             const novaLinha = {};
             for (const key in linha) {
@@ -121,7 +126,6 @@ function carregarCSV(inputId, targetArray) {
             }
             return novaLinha;
           });
-
           targetArray.length = 0;
           targetArray.push(...dadosLimpos);
           console.log(`CSV ${inputId} carregado com ${dadosLimpos.length} linhas.`);
@@ -134,6 +138,9 @@ function carregarCSV(inputId, targetArray) {
         }
       });
     };
+    reader.onerror = err => {
+      console.error(`Erro ao ler ficheiro ${f.name}:`, err);
+    }
     reader.readAsText(f);
   });
 }
