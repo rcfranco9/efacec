@@ -123,8 +123,24 @@ if (valoresLC.length >= 2) {
   const valorFinal = valoresLC[valoresLC.length - 1];
   diferencaLC = (valorFinal - valorInicial).toFixed(2); // arredonda a 2 casas decimais
 }
+// Obter valores válidos da coluna datahora como objetos Date
+const datasValidas = encontrado2
+  .map(linha => new Date(linha.datahora))
+  .filter(d => !isNaN(d.getTime())); // filtra datas inválidas
+
+let duracaoHoras = 'Sem datas válidas';
+
+if (datasValidas.length >= 2) {
+  datasValidas.sort((a, b) => a - b); // ordena as datas
+
+  const inicio = datasValidas[0];
+  const fim = datasValidas[datasValidas.length - 1];
+  const diffMs = fim - inicio;
+  duracaoHoras = (diffMs / (1000 * 60 * 60)).toFixed(2); // milisegundos para horas
+}
 
     
+   
     resultadoDiv.innerHTML = `
       <h2>Resultados para ID: ${idInput}</h2>
       <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
@@ -133,6 +149,8 @@ if (valoresLC.length >= 2) {
       <p><strong>Massai:</strong> ${encontrado1.massai || 'N/A'}</p>
       <p><strong>Menor valor PE_4_17 (sem zeros):</strong> ${menorPE}</p>
       <p><strong>Diferença LC_3_8 (final - inicial):</strong> ${diferencaLC}</p>
+      <p><strong>Duração total (horas):</strong> ${duracaoHoras}</p>
+
 
     `;
   }
