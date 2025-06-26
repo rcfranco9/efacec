@@ -2,14 +2,14 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Comparar Transformadores</title>
+  <title>Comparar Transformadores com 2 CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
     body {
       font-family: 'Inter', sans-serif;
       margin: 40px auto;
-      max-width: 650px;
+      max-width: 700px;
       background: #f5f7fa;
       color: #333;
       padding: 20px 25px;
@@ -28,7 +28,8 @@
       font-weight: 600;
       color: #555;
     }
-    input[type="text"], input[type="file"] {
+    input[type="file"],
+    input[type="text"] {
       width: 100%;
       padding: 12px 15px;
       font-size: 15px;
@@ -54,13 +55,8 @@
       cursor: pointer;
       transition: background-color 0.25s;
     }
-    button:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
-    button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
+    button:hover:not(:disabled) { background-color: #0056b3; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
     #resultado {
       margin-top: 30px;
       background: white;
@@ -106,8 +102,11 @@
 
   <h1>Comparar Transformadores</h1>
 
-  <label for="csvFile">Escolhe o ficheiro CSV:</label>
-  <input type="file" id="csvFile" accept=".csv" />
+  <label for="csvMeta">Ficheiro CSV Metadados:</label>
+  <input type="file" id="csvMeta" accept=".csv" />
+
+  <label for="csvSerie">Ficheiro CSV Séries (LC_3_8 + DataHora):</label>
+  <input type="file" id="csvSerie" accept=".csv" />
 
   <label for="id1Input">ID Transformador 1 (id_secagenscore):</label>
   <input type="text" id="id1Input" disabled placeholder="Insere o primeiro ID" />
@@ -118,81 +117,105 @@
   <button id="btnComparar" disabled>Comparar</button>
 
   <div id="resultado">
-    Por favor, carrega o ficheiro CSV antes de comparar.
+    Carrega ambos os ficheiros CSV para começar.
   </div>
 
   <script>
-    let dadosCSV = [];
+    let dadosMeta = [], dadosSerie = [];
 
-    document.getElementById('csvFile')
-      .addEventListener('change', function(e) {
+    // ativa inputs quando ambos estiverem carregados
+    function checkReady() {
+      if (dadosMeta.length && dadosSerie.length) {
+        ['id1Input','id2Input','btnComparar']
+          .forEach(id => document.getElementById(id).disabled = false);
+        document.getElementById('resultado')
+          .textContent = 'CSV carregados. Insere os dois IDs para comparar.';
+      }
+    }
+
+    // carregar metadados
+    document.getElementById('csvMeta')
+      .addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = evt => {
-          Papa.parse(evt.target.result, {
-            header: true,
-            skipEmptyLines: true,
-            complete: res => {
-              dadosCSV = res.data;
-              document.getElementById('resultado').textContent =
-                'CSV carregado. Insere os dois IDs para comparar.';
-              ['id1Input','id2Input','btnComparar']
-                .forEach(id => document.getElementById(id).disabled = false);
+        new FileReader().onload = ev => {
+          Papa.parse(ev.target.result, {
+            header: true, skipEmptyLines: true,
+            complete: r => {
+              dadosMeta = r.data;
+              checkReady();
             },
             error: err => {
               document.getElementById('resultado').innerHTML =
-                `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
+                `<div class="msg">Erro CSV metadados: ${err.message}</div>`;
             }
           });
         };
-        reader.readAsText(file);
+        .readAsText(file);
       });
 
-    function formata(val, decimals = 2) {
-      if (val == null || val === 'N/A') return 'N/A';
-      return parseFloat(val).toFixed(decimals);
+    // carregar série temporal
+    document.getElementById('csvSerie')
+      .addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        new FileReader().onload = ev => {
+          Papa.parse(ev.target.result, {
+            header: true, skipEmptyLines: true,
+            complete: r => {
+              dadosSerie = r.data;
+              checkReady();
+            },
+            error: err => {
+              document.getElementById('resultado').innerHTML =
+                `<div class="msg">Erro CSV séries: ${err.message}</div>`;
+            }
+          });
+        };
+        .readAsText(file);
+      });
+
+    function formata(v, dec=2) {
+      if (v == null || v==='N/A') return 'N/A';
+      return parseFloat(v).toFixed(dec);
     }
 
     function classifica(diff) {
-      if (diff === 0 || diff === 'N/A') return 'diff-neutral';
-      return diff > 0 ? 'diff-positive' : 'diff-negative';
+      if (diff===0||diff==='N/A') return 'diff-neutral';
+      return diff>0 ? 'diff-positive' : 'diff-negative';
     }
 
-    // retorna { difLC, duracao, taxa }
+    // calcula stats LC para um ID usando dadosSerie e massai_kg dos metadados
     function calcLCStats(id, massai_kg) {
-      const linhas = dadosCSV
-        .filter(r => (r.id_secagenscore||'').trim() === id)
+      const linhas = dadosSerie
+        .filter(r => (r.id_secagenscore||'').trim()===id)
         .filter(r => r.LC_3_8 && r.DataHora);
 
-      // extrai LC
       const vals = linhas
-        .map(r => parseFloat(r.LC_3_8.toString().replace(',', '.')))
+        .map(r => parseFloat(r.LC_3_8.toString().replace(',','.')))
         .filter(n => !isNaN(n));
-      const difLC = vals.length >= 2
+      const difLC = vals.length>=2
         ? +(vals[vals.length-1] - vals[0]).toFixed(3)
         : 'N/A';
 
-      // extrai datas
       const dates = linhas
         .map(r => new Date(r.DataHora))
         .filter(d => !isNaN(d.getTime()))
         .sort((a,b)=>a-b);
-      const duracao = (dates.length >= 2)
+      const dur = dates.length>=2
         ? +((dates[dates.length-1] - dates[0]) / 36e5).toFixed(2)
         : 'N/A';
 
-      // massai em toneladas
       const ton = parseFloat(massai_kg)/1000;
-      const taxa = (typeof difLC==='number' && typeof duracao==='number' && ton>0)
-        ? +((difLC)/(duracao*ton)).toFixed(2)
+      const taxa = (typeof difLC==='number' && typeof dur==='number' && ton>0)
+        ? +((difLC)/(dur*ton)).toFixed(2)
         : 'N/A';
 
-      return { difLC, duracao, taxa };
+      return { difLC, dur, taxa };
     }
 
     document.getElementById('btnComparar')
-      .addEventListener('click', function() {
+      .addEventListener('click', () => {
         const id1 = document.getElementById('id1Input').value.trim();
         const id2 = document.getElementById('id2Input').value.trim();
         const out = document.getElementById('resultado');
@@ -201,19 +224,24 @@
           out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
           return;
         }
-        const d1 = dadosCSV.find(r=> (r.id_secagenscore||'').trim()===id1);
-        const d2 = dadosCSV.find(r=> (r.id_secagenscore||'').trim()===id2);
-        if (!d1 || !d2) {
-          out.innerHTML = `<div class="msg">Não encontrei um ou ambos os IDs no ficheiro.</div>`;
+
+        const m1 = dadosMeta.find(r=> (r.id_secagenscore||'').trim()===id1);
+        const m2 = dadosMeta.find(r=> (r.id_secagenscore||'').trim()===id2);
+        if (!m1 || !m2) {
+          out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
           return;
         }
 
-        // metadados + LC
-        const metaCampos = ['potencia','tensao','massat','massai'];
-        const stats1 = calcLCStats(id1, d1.massai);
-        const stats2 = calcLCStats(id2, d2.massai);
+        const stats1 = calcLCStats(id1, m1.massai);
+        const stats2 = calcLCStats(id2, m2.massai);
 
-        // constrói tabela
+        const metaCampos = ['potencia','tensao','massat','massai'];
+        const lcKeys = [
+          { k:'difLC', label:'Variação LC_3_8' },
+          { k:'dur',   label:'Duração (h)' },
+          { k:'taxa',  label:'Taxa LC normalizada' }
+        ];
+
         let html = `<h2>Comparação ID ${id1} × ID ${id2}</h2>`;
         html += `<table>
           <thead>
@@ -226,12 +254,12 @@
           </thead>
           <tbody>`;
 
-        // metadados
+        // Metadados
         metaCampos.forEach(c => {
-          const v1 = d1[c] || 'N/A';
-          const v2 = d2[c] || 'N/A';
-          const n1 = parseFloat(v1.toString().replace(',', '.'));
-          const n2 = parseFloat(v2.toString().replace(',', '.'));
+          const v1 = m1[c]||'N/A';
+          const v2 = m2[c]||'N/A';
+          const n1 = parseFloat(v1.toString().replace(',','.'));
+          const n2 = parseFloat(v2.toString().replace(',','.'));
           const diff = (!isNaN(n1)&&!isNaN(n2))
             ? +(n1 - n2).toFixed(2)
             : 'N/A';
@@ -243,19 +271,14 @@
           </tr>`;
         });
 
-        // LC stats
-        const lcLabels = {
-          difLC: 'Variação LC_3_8',
-          duracao: 'Duração (h)',
-          taxa: 'Taxa LC normalizada'
-        };
-        ['difLC','duracao','taxa'].forEach(key => {
-          const v1 = stats1[key], v2 = stats2[key];
-          const diff = (typeof v1==='number' && typeof v2==='number')
+        // LC Stats
+        lcKeys.forEach(o => {
+          const v1 = stats1[o.k], v2 = stats2[o.k];
+          const diff = (typeof v1==='number'&&typeof v2==='number')
             ? +(v1 - v2).toFixed(2)
             : 'N/A';
           html += `<tr>
-            <td>${lcLabels[key]}</td>
+            <td>${o.label}</td>
             <td>${formata(v1)}</td>
             <td>${formata(v2)}</td>
             <td class="${classifica(diff)}">${diff}</td>
@@ -266,6 +289,5 @@
         out.innerHTML = html;
       });
   </script>
-
 </body>
 </html>
