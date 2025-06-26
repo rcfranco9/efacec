@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Filtrar Transformadores com Taxa LC Garantida</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
@@ -68,16 +68,16 @@
 <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
 
 <label for="csvMeta">1) CSV de Metadados:</label>
-<input type="file" id="csvMeta" accept=".csv">
+<input type="file" id="csvMeta" accept=".csv" />
 
 <label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
-<input type="file" id="csvSerie" accept=".csv">
+<input type="file" id="csvSerie" accept=".csv" />
 
 <label for="potenciaInput">Potência (ex: 140):</label>
-<input type="text" id="potenciaInput" placeholder="Potência" disabled>
+<input type="text" id="potenciaInput" placeholder="Potência" disabled />
 
 <label for="tensaoInput">Tensão (ex: 240.5):</label>
-<input type="text" id="tensaoInput" placeholder="Tensão" disabled>
+<input type="text" id="tensaoInput" placeholder="Tensão" disabled />
 
 <button id="btnFiltrar" disabled>Procurar</button>
 
@@ -87,15 +87,13 @@
 let dadosMeta = [], dadosSerie = [];
 
 function checkReady() {
-  console.log("Check Ready:", dadosMeta.length, dadosSerie.length);
   const ok = Array.isArray(dadosMeta) && dadosMeta.length > 0 &&
              Array.isArray(dadosSerie) && dadosSerie.length > 0;
   ['potenciaInput', 'tensaoInput', 'btnFiltrar'].forEach(id =>
     document.getElementById(id).disabled = !ok
   );
   if (ok) {
-    document.getElementById('resultado').textContent =
-      'CSV carregados. Insere potência e tensão.';
+    document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
   }
 }
 
@@ -104,30 +102,42 @@ function carregarCSV(inputId, targetArray) {
     const f = e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = ev => Papa.parse(ev.target.result, {
-      header: true,
-      skipEmptyLines: true,
-      complete: res => {
-        if(res.errors.length > 0) {
-          console.error(`Erros no CSV ${inputId}:`, res.errors);
+    reader.onload = ev => {
+      Papa.parse(ev.target.result, {
+        header: true,
+        skipEmptyLines: true,
+        complete: res => {
+          if (res.errors.length > 0) {
+            console.error(`Erros no CSV ${inputId}:`, res.errors);
+            document.getElementById('resultado').innerHTML =
+              `<div class="item">Erro ao ler CSV ${inputId}: ${res.errors.map(err => err.message).join(', ')}</div>`;
+            return;
+          }
+          // Limpar "NULL" para string vazia
+          const dadosLimpos = res.data.map(linha => {
+            const novaLinha = {};
+            for (const key in linha) {
+              novaLinha[key] = linha[key] === "NULL" ? "" : linha[key];
+            }
+            return novaLinha;
+          });
+
+          targetArray.length = 0;
+          targetArray.push(...dadosLimpos);
+          console.log(`CSV ${inputId} carregado com ${dadosLimpos.length} linhas.`);
+          checkReady();
+        },
+        error: err => {
           document.getElementById('resultado').innerHTML =
-            `<div class="item">Erro no parsing do CSV ${inputId}: ${res.errors.map(er => er.message).join(', ')}</div>`;
-          return;
+            `<div class="item">Erro ao ler CSV: ${err.message}</div>`;
+          console.error(err);
         }
-        targetArray.length = 0;
-        targetArray.push(...res.data);
-        console.log(`CSV ${inputId} carregado com ${res.data.length} linhas.`);
-        console.log('Exemplo dados:', inputId, res.data.slice(0,3));
-        checkReady();
-      },
-      error: err => {
-        document.getElementById('resultado').innerHTML =
-          `<div class="item">Erro ao ler CSV: ${err.message}</div>`;
-      }
-    });
+      });
+    };
     reader.readAsText(f);
   });
 }
+
 carregarCSV('csvMeta', dadosMeta);
 carregarCSV('csvSerie', dadosSerie);
 
