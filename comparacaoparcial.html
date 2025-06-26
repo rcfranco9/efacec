@@ -2,30 +2,19 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Filtrar Transformadores</title>
+  <title>Filtrar Transformadores com Taxa LC</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 700px;
+      max-width: 800px;
       margin: 40px auto;
       background-color: #f5f5f5;
       padding: 20px;
     }
-    h1 {
-      color: #222;
-    }
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    input, button {
-      padding: 8px;
-      width: 100%;
-      margin-top: 5px;
-      box-sizing: border-box;
-    }
+    h1 { color: #222; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, button { padding: 8px; width: 100%; margin-top: 5px; box-sizing: border-box; }
     button {
       margin-top: 15px;
       background-color: #333;
@@ -33,9 +22,8 @@
       border: none;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #444;
-    }
+    button:hover:not(:disabled) { background-color: #444; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
     #resultado {
       margin-top: 25px;
       padding: 15px;
@@ -46,85 +34,152 @@
       padding: 10px;
       border-bottom: 1px solid #ddd;
     }
+    .item:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
 
-<h1>Filtrar Transformadores por Tensão e Potência</h1>
+  <h1>Filtrar Transformadores com Taxa LC</h1>
 
-<label for="csvFile">Ficheiro CSV:</label>
-<input type="file" id="csvFile" accept=".csv" />
+  <label for="csvMeta">1) CSV de Metadados:</label>
+  <input type="file" id="csvMeta" accept=".csv">
 
+  <label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
+  <input type="file" id="csvSerie" accept=".csv">
 
-<label for="potenciaInput">Potência:</label>
-<input type="text" id="potenciaInput" placeholder="ex: 140" disabled>
+  <label for="potenciaInput">Potência (ex: 140):</label>
+  <input type="text" id="potenciaInput" placeholder="Potência" disabled>
 
-<label for="tensaoInput">Tensão:</label>
-<input type="text" id="tensaoInput" placeholder="ex: 240.5" disabled>
-  
-<button onclick="filtrarTransformadores()" id="btnFiltrar" disabled>Procurar</button>
+  <label for="tensaoInput">Tensão (ex: 240.5):</label>
+  <input type="text" id="tensaoInput" placeholder="Tensão" disabled>
 
-<div id="resultado">Carrega primeiro o ficheiro CSV.</div>
+  <button id="btnFiltrar" disabled>Procurar</button>
 
-<script>
-  let dadosCSV = [];
+  <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
-  document.getElementById('csvFile').addEventListener('change', function (e) {
-    const ficheiro = e.target.files[0];
-    if (!ficheiro) return;
+  <script>
+    let dadosMeta = [], dadosSerie = [];
 
-    const leitor = new FileReader();
-    leitor.onload = function (event) {
-      const texto = event.target.result;
-      Papa.parse(texto, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function (resultado) {
-          dadosCSV = resultado.data;
-          document.getElementById('tensaoInput').disabled = false;
-          document.getElementById('potenciaInput').disabled = false;
-          document.getElementById('btnFiltrar').disabled = false;
-          document.getElementById('resultado').innerHTML = 'CSV carregado. Agora insere os valores.';
-          console.log("CSV carregado:", dadosCSV);
-        }
+    function checkPronto() {
+      const ok = dadosMeta.length > 0 && dadosSerie.length > 0;
+      ['potenciaInput','tensaoInput','btnFiltrar']
+        .forEach(id => document.getElementById(id).disabled = !ok);
+      if (ok) {
+        document.getElementById('resultado')
+          .textContent = 'CSV carregados. Insere potência e tensão.';
+      }
+    }
+
+    // Carregar Metadados
+    document.getElementById('csvMeta')
+      .addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+          Papa.parse(ev.target.result, {
+            header: true, skipEmptyLines: true,
+            complete: res => {
+              dadosMeta = res.data;
+              checkPronto();
+            }
+          });
+        };
+        r.readAsText(f);
       });
-    };
-    leitor.readAsText(ficheiro);
-  });
 
-  function filtrarTransformadores() {
-    const tensao = document.getElementById('tensaoInput').value.trim();
-    const potencia = document.getElementById('potenciaInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+    // Carregar Séries
+    document.getElementById('csvSerie')
+      .addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+          Papa.parse(ev.target.result, {
+            header: true, skipEmptyLines: true,
+            complete: res => {
+              dadosSerie = res.data;
+              checkPronto();
+            }
+          });
+        };
+        r.readAsText(f);
+      });
 
-    if (!tensao || !potencia) {
-      resultadoDiv.innerHTML = 'Preenche ambos os campos.';
-      return;
+    // Função que calcula LC para um dado ID + massai (em kg)
+    function calcLC(id, massaiKg) {
+      const linhas = dadosSerie
+        .filter(r => (r.id_secagenscore||'').trim() === id)
+        .filter(r => r.LC_3_8 && r.DataHora);
+
+      // Variação LC_3_8
+      const lcVals = linhas
+        .map(r => parseFloat(r.LC_3_8.toString().replace(',','.')))
+        .filter(n => !isNaN(n));
+      const difLC = (lcVals.length >= 2)
+        ? +(lcVals[lcVals.length-1] - lcVals[0]).toFixed(3)
+        : 'Insuficiente';
+
+      // Duração em horas
+      const datas = linhas
+        .map(r => new Date(r.DataHora))
+        .filter(d => !isNaN(d.getTime()))
+        .sort((a,b)=>a-b);
+      const dur = (datas.length >= 2)
+        ? +(((datas[datas.length-1] - datas[0]) / 36e5)).toFixed(2)
+        : 'Insuficiente';
+
+      // Massai em toneladas
+      const ton = parseFloat(massaiKg) / 1000;
+      const taxa = (typeof difLC === 'number' && typeof dur === 'number' && ton > 0)
+        ? +((difLC) / (dur * ton)).toFixed(2)
+        : 'Insuficiente';
+
+      return { difLC, dur, taxa };
     }
 
-    const resultados = dadosCSV.filter(linha =>
-      linha.tensao?.trim() === tensao && linha.potencia?.trim() === potencia
-    );
+    document.getElementById('btnFiltrar')
+      .addEventListener('click', () => {
+        const p = document.getElementById('potenciaInput').value.trim();
+        const t = document.getElementById('tensaoInput').value.trim();
+        const out = document.getElementById('resultado');
 
-    if (resultados.length === 0) {
-      resultadoDiv.innerHTML = 'Nenhum transformador encontrado com esses valores.';
-      return;
-    }
+        if (!p || !t) {
+          out.textContent = 'Preenche ambos os campos.';
+          return;
+        }
 
-    let html = `<strong>Foram encontrados ${resultados.length} transformadores:</strong><br><br>`;
-    resultados.forEach((linha, i) => {
-      html += `
-        <div class="item">
-          <strong>#${i + 1}</strong><br>
-          <strong>ID:</strong> ${linha.id_secagenscore} <br>
-          <strong>transformador:</strong> ${linha.subprojecto}
-        </div>
-      `;
-    });
+        // filtrar metadados
+        const encontrados = dadosMeta.filter(r =>
+          (r.potencia||'').trim() === p &&
+          (r.tensao  ||'').trim() === t
+        );
 
-    resultadoDiv.innerHTML = html;
-  }
-</script>
+        if (encontrados.length === 0) {
+          out.textContent = 'Nenhum transformador encontrado.';
+          return;
+        }
+
+        // montar output
+        let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong><br>`;
+        encontrados.forEach((m, i) => {
+          const id = (m.id_secagenscore||'').trim();
+          const stats = calcLC(id, m.massai);
+          html += `
+            <div class="item">
+              <strong>#${i+1} — ID:</strong> ${id}<br>
+              <strong>Subprojecto:</strong> ${m.subprojecto || 'N/A'}<br>
+              <strong>Massai:</strong> ${parseFloat(m.massai||0)/1000} t<br>
+              <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
+              <strong>Duração (h):</strong> ${stats.dur}<br>
+              <strong>Taxa LC:</strong> ${stats.taxa}
+            </div>
+          `;
+        });
+
+        out.innerHTML = html;
+      });
+  </script>
 
 </body>
 </html>
