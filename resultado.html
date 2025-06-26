@@ -139,7 +139,7 @@
       <p><strong>Potência:</strong> ${encontrado1.potencia || 'N/A'}</p>
       <p><strong>Tensão:</strong> ${encontrado1.tensao || 'N/A'}</p>
       <p><strong>Massat:</strong> ${encontrado1.massat || 'N/A'}</p>
-      <p><strong>Massai:</strong> ${encontrado1.massai || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${encontrado1.massai ? (Number(encontrado1.massai) / 1000).toFixed(2) + ' t' : 'N/A'}</p>
       <p><strong>Menor valor PE_4_17 (> 0.1):</strong> ${menorPE}</p>
       <p><strong>Variação LC_3_8:</strong> ${difLC}</p>
       <p><strong>Duração do processo:</strong> ${duracaoHoras}</p>
