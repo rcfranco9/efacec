@@ -324,7 +324,7 @@
             <td class="${diffClass(t1.deltaLC10h - t2.deltaLC10h)}">${(t1.deltaLC10h - t2.deltaLC10h).toFixed(3)}</td>
           </tr>
           <tr>
-            <td>Taxa (últimas 10h) [Δ LC / (10h * massat)]</td>
+            <td>Taxa (últimas 10h) </td>
             <td>${t1.taxa10h.toFixed(4)}</td>
             <td>${t2.taxa10h.toFixed(4)}</td>
             <td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td>
@@ -336,7 +336,7 @@
             <td class="${diffClass(t1.deltaLCTotal - t2.deltaLCTotal)}">${(t1.deltaLCTotal - t2.deltaLCTotal).toFixed(3)}</td>
           </tr>
           <tr>
-            <td>Taxa total [Δ LC / (horasTotais * massat)]</td>
+            <td>Taxa total </td>
             <td>${t1.taxaTotal.toFixed(4)}</td>
             <td>${t2.taxaTotal.toFixed(4)}</td>
             <td class="${diffClass(t1.taxaTotal - t2.taxaTotal)}">${(t1.taxaTotal - t2.taxaTotal).toFixed(4)}</td>
@@ -347,13 +347,7 @@
             <td>${t2.horasTotais.toFixed(2)}</td>
             <td class="${diffClass(t1.horasTotais - t2.horasTotais)}">${(t1.horasTotais - t2.horasTotais).toFixed(2)}</td>
           </tr>
-          <tr>
-            <td>Massa isolamento (kg)</td>
-            <td>${parseNum(m1.massai).toFixed(1)}</td>
-            <td>${parseNum(m2.massai).toFixed(1)}</td>
-            <td class="${diffClass(parseNum(m1.massai) - parseNum(m2.massai))}">${(parseNum(m1.massai) - parseNum(m2.massai)).toFixed(1)}</td>
-          </tr>
-         
+          
         </tbody>
       </table>`;
 
