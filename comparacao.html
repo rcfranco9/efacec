@@ -348,29 +348,12 @@
             <td class="${diffClass(t1.horasTotais - t2.horasTotais)}">${(t1.horasTotais - t2.horasTotais).toFixed(2)}</td>
           </tr>
           <tr>
-            <td>Tensão (kV)</td>
-            <td>${parseNum(m1.tensao).toFixed(1)}</td>
-            <td>${parseNum(m2.tensao).toFixed(1)}</td>
-            <td class="${diffClass(parseNum(m1.tensao) - parseNum(m2.tensao))}">${(parseNum(m1.tensao) - parseNum(m2.tensao)).toFixed(1)}</td>
-          </tr>
-          <tr>
-            <td>Potência (kVA)</td>
-            <td>${parseNum(m1.potencia).toFixed(1)}</td>
-            <td>${parseNum(m2.potencia).toFixed(1)}</td>
-            <td class="${diffClass(parseNum(m1.potencia) - parseNum(m2.potencia))}">${(parseNum(m1.potencia) - parseNum(m2.potencia)).toFixed(1)}</td>
-          </tr>
-          <tr>
             <td>Massa isolamento (kg)</td>
             <td>${parseNum(m1.massai).toFixed(1)}</td>
             <td>${parseNum(m2.massai).toFixed(1)}</td>
             <td class="${diffClass(parseNum(m1.massai) - parseNum(m2.massai))}">${(parseNum(m1.massai) - parseNum(m2.massai)).toFixed(1)}</td>
           </tr>
-          <tr>
-            <td>Massa total (kg)</td>
-            <td>${parseNum(m1.massat).toFixed(1)}</td>
-            <td>${parseNum(m2.massat).toFixed(1)}</td>
-            <td class="${diffClass(parseNum(m1.massat) - parseNum(m2.massat))}">${(parseNum(m1.massat) - parseNum(m2.massat)).toFixed(1)}</td>
-          </tr>
+         
         </tbody>
       </table>`;
 
