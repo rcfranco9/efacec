@@ -105,53 +105,7 @@
 
   <script>
     let dadosMeta = [], dadosSerie = [];
-function encontraMaxTE(serie) {
-  const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
 
-  let maxTE = null;
-  serie.forEach(linha => {
-    colunasTE.forEach(col => {
-      const raw = (linha[col] || '').toString().replace(',', '.').trim();
-      const val = Number(raw);
-      if (!isNaN(val) && val <= 140) {
-        if (maxTE === null || val > maxTE) maxTE = val;
-      }
-    });
-  });
-
-  return maxTE !== null ? maxTE.toFixed(3) : 'N/A';
-}
-
-document.getElementById('csvMeta').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => Papa.parse(ev.target.result, {
-    header:true, skipEmptyLines:true,
-    complete: res => { 
-      dadosMeta = res.data; 
-      checkReady(); 
-    }
-  });
-  r.readAsText(f);
-});
-
-document.getElementById('csvSerie').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => Papa.parse(ev.target.result, {
-    header:true, skipEmptyLines:true,
-    complete: res => {
-      dadosSerie = res.data;
-      console.log('dadosSerie carregados:', dadosSerie.slice(0,3));
-      
-      const maxTE = encontraMaxTE(dadosSerie);
-      console.log('Maior TE <= 140 encontrado na série:', maxTE);
-
-      checkReady();
-    }
-  });
-  r.readAsText(f);
-});
     
     function checkReady() {
       const ok = dadosMeta.length && dadosSerie.length;
