@@ -147,9 +147,7 @@
     carregarCSV('csvSerie', dadosSerie, 'serie');
 
     function parseNum(v) {
-      if (v === undefined || v === null) return 0;
-      const s = v.toString().replace(',', '.').trim();
-      const n = parseFloat(s);
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
       return isNaN(n) ? 0 : n;
     }
 
@@ -178,32 +176,31 @@
       };
     }
 
-    function calcLC(id, massaiKg) {
-      const rows = dadosSerie.filter(r =>
-        (r.id_secagenscore||'').trim() === id &&
-        r.LC_3_8 && r.DataHora
-      );
-
-      if(rows.length === 0) return { difLC: 0, dur: 0, taxa: 0 };
-
-      const lcValues = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
-      const difLC = lcValues.length >= 2 ? +(lcValues[lcValues.length-1] - lcValues[0]).toFixed(3) : 0;
-
-      const timestamps = rows
+    function getUltimoLC(id) {
+      const rows = dadosSerie
+        .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
         .map(r => {
-          const d = new Date(r.DataHora.replace(' ', 'T'));
-          return d.getTime();
+          const ts = new Date(r.DataHora.replace(' ', 'T')).getTime();
+          return { lc: parseNum(r.LC_3_8), ts };
         })
-        .filter(t => !isNaN(t))
-        .sort((a,b) => a - b);
+        .filter(r => !isNaN(r.ts))
+        .sort((a,b) => a.ts - b.ts);
+      
+      if (rows.length === 0) return null;
+      return +rows[rows.length - 1].lc.toFixed(3);
+    }
 
-      const dur = timestamps.length >= 2 ? +((timestamps[timestamps.length-1] - timestamps[0]) / 3600000).toFixed(2) : 1;
-
-      const ton = parseNum(massaiKg) / 1000 || 1;
-
-      const taxa = dur && ton ? +((difLC) / (dur * ton)).toFixed(3) : 0;
-
-      return { difLC, dur, taxa };
+    function calcTaxaSimples(ultimoLC, lc10hAntes, massaiKg) {
+      if (ultimoLC === null || lc10hAntes === null) return null;
+      const difLC = ultimoLC - lc10hAntes;
+      const dur = 10; // horas fixas
+      const ton = massaiKg / 1000 || 1;
+      const taxa = difLC / (dur * ton);
+      return {
+        difLC: +difLC.toFixed(3),
+        dur,
+        taxa: +taxa.toFixed(3)
+      };
     }
 
     document.getElementById('btnComparar').addEventListener('click', () => {
@@ -223,25 +220,16 @@
         return;
       }
 
-      // Debug meta valores
-      ['potencia','tensao','massat','massai'].forEach(c => {
-        console.log(`Meta ${c}: ID1=${parseNum(m1[c])}, ID2=${parseNum(m2[c])}`);
-      });
-
-      const s1 = calcLC(id1, m1.massai);
-      const s2 = calcLC(id2, m2.massai);
-
-      console.log('calcLC resultados:', {id1: s1, id2: s2});
+      const ultimoLC1 = getUltimoLC(id1);
+      const ultimoLC2 = getUltimoLC(id2);
 
       const l1 = getLC10HorasAntes(id1);
       const l2 = getLC10HorasAntes(id2);
 
+      const s1 = calcTaxaSimples(ultimoLC1, l1 ? l1.lc : null, parseNum(m1.massai));
+      const s2 = calcTaxaSimples(ultimoLC2, l2 ? l2.lc : null, parseNum(m2.massai));
+
       const meta = ['potencia','tensao','massat','massai'];
-      const lcKeys = [
-        { k:'difLC', label:'Variação LC_3_8' },
-        { k:'dur',   label:'Duração (h)' },
-        { k:'taxa',  label:'Taxa LC normalizada' }
-      ];
 
       let html = `<h2>Comparação ID ${id1} × ID ${id2}</h2><table>
         <thead><tr>
@@ -253,43 +241,49 @@
 
       meta.forEach(c => {
         const v1 = parseNum(m1[c]), v2 = parseNum(m2[c]);
-        const diff = +(v1 - v2).toFixed(3);
+        const diff = +(v1 - v2).toFixed(2);
         html += `<tr>
           <td>${c.charAt(0).toUpperCase() + c.slice(1)}</td>
           <td>${v1}</td>
           <td>${v2}</td>
-          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff.toFixed(3)}</td>
+          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
         </tr>`;
       });
 
-      lcKeys.forEach(o => {
-        const v1 = s1[o.k] || 0;
-        const v2 = s2[o.k] || 0;
-        const diff = +(v1 - v2).toFixed(3);
-        html += `<tr>
-          <td>${o.label}</td>
-          <td>${v1.toFixed(3)}</td>
-          <td>${v2.toFixed(3)}</td>
-          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff.toFixed(3)}</td>
-        </tr>`;
-      });
+      if(s1 && s2){
+        ['difLC', 'dur', 'taxa'].forEach(key => {
+          const v1 = s1[key];
+          const v2 = s2[key];
+          const diff = +(v1 - v2).toFixed(3);
+          const labels = {
+            difLC: 'Diferença LC (último - 10h antes)',
+            dur: 'Duração (h)',
+            taxa: 'Taxa LC normalizada'
+          };
+          html += `<tr>
+            <td>${labels[key]}</td>
+            <td>${v1}</td>
+            <td>${v2}</td>
+            <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
+          </tr>`;
+        });
+      } else {
+        html += `<tr><td colspan="4" class="diff-neutral">Não foi possível calcular taxa para um ou ambos IDs</td></tr>`;
+      }
 
       if (l1 && l2) {
         const diffLC10 = +(l1.lc - l2.lc).toFixed(3);
         html += `<tr>
           <td>LC_3_8 10h antes do fim</td>
-          <td>${l1.lc.toFixed(3)} (${l1.dataHora})</td>
-          <td>${l2.lc.toFixed(3)} (${l2.dataHora})</td>
-          <td class="${diffLC10>0?'diff-positive':diffLC10<0?'diff-negative':'diff-neutral'}">${diffLC10.toFixed(3)}</td>
+          <td>${l1.lc} (${l1.dataHora})</td>
+          <td>${l2.lc} (${l2.dataHora})</td>
+          <td class="${diffLC10>0?'diff-positive':diffLC10<0?'diff-negative':'diff-neutral'}">${diffLC10}</td>
         </tr>`;
       }
 
-      html += '</tbody></table>';
-
+      html += `</tbody></table>`;
       out.innerHTML = html;
     });
-
   </script>
-
 </body>
 </html>
