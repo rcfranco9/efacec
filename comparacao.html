@@ -154,26 +154,6 @@
       return isNaN(n) ? 0 : n;
     }
 
-    function calcLC(id, massaiKg) {
-      const rows = dadosSerie.filter(r =>
-        (r.id_secagenscore||'').trim() === id &&
-        r.LC_3_8 && r.DataHora
-      );
-      const lc = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
-      const difLC = lc.length >= 2 ? +(lc[lc.length-1] - lc[0]).toFixed(3) : 0;
-      const ts = rows
-        .map(r => {
-          const d = new Date(r.DataHora.replace(' ', 'T')); 
-          return d.getTime();
-        })
-        .filter(t => !isNaN(t))
-        .sort((a,b) => a - b);
-      const dur = ts.length >= 2 ? +((ts[ts.length-1] - ts[0]) / 36e5).toFixed(2) : 1;
-      const ton = parseNum(massaiKg) / 1000 || 1;
-      const taxa = +((difLC) / (dur * ton)).toFixed(2);
-      return { difLC, dur, taxa };
-    }
-
     function getLC10HorasAntes(id) {
       const rows = dadosSerie
         .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
@@ -189,21 +169,34 @@
       const fim = rows[rows.length - 1].ts;
       const alvo = fim - 10 * 3600 * 1000;
 
-      let maisProximo = rows[0];
-      let deltaMin = Math.abs(rows[0].ts - alvo);
+      const anteriores = rows.filter(r => r.ts <= alvo);
+      if (anteriores.length === 0) return null;
 
-      for (let i = 1; i < rows.length; i++) {
-        const d = Math.abs(rows[i].ts - alvo);
-        if (d < deltaMin) {
-          maisProximo = rows[i];
-          deltaMin = d;
-        }
-      }
-
+      const ponto = anteriores[anteriores.length - 1];
       return {
-        dataHora: new Date(maisProximo.ts).toLocaleString('pt-PT'),
-        lc: +maisProximo.lc.toFixed(3)
+        dataHora: new Date(ponto.ts).toLocaleString('pt-PT'),
+        lc: +ponto.lc.toFixed(3)
       };
+    }
+
+    function calcLC(id, massaiKg) {
+      const rows = dadosSerie.filter(r =>
+        (r.id_secagenscore||'').trim() === id &&
+        r.LC_3_8 && r.DataHora
+      );
+      const lc = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
+      const difLC = lc.length >= 2 ? +(lc[lc.length-1] - lc[0]).toFixed(3) : 0;
+      const ts = rows
+        .map(r => {
+          const d = new Date(r.DataHora.replace(' ', 'T'));
+          return d.getTime();
+        })
+        .filter(t => !isNaN(t))
+        .sort((a,b) => a - b);
+      const dur = ts.length >= 2 ? +((ts[ts.length-1] - ts[0]) / 36e5).toFixed(2) : 1;
+      const ton = parseNum(massaiKg) / 1000 || 1;
+      const taxa = +((difLC) / (dur * ton)).toFixed(2);
+      return { difLC, dur, taxa };
     }
 
     document.getElementById('btnComparar').addEventListener('click', () => {
@@ -225,8 +218,8 @@
 
       const s1 = calcLC(id1, m1.massai);
       const s2 = calcLC(id2, m2.massai);
-      const lc1_10h = getLC10HorasAntes(id1);
-      const lc2_10h = getLC10HorasAntes(id2);
+      const l1 = getLC10HorasAntes(id1);
+      const l2 = getLC10HorasAntes(id2);
 
       const meta = ['potencia','tensao','massat','massai'];
       const lcKeys = [
@@ -265,16 +258,15 @@
         </tr>`;
       });
 
-      html += `<tr>
-        <td>LC a 10h do fim</td>
-        <td>${lc1_10h ? lc1_10h.lc : '—'}</td>
-        <td>${lc2_10h ? lc2_10h.lc : '—'}</td>
-        <td class="${lc1_10h && lc2_10h ? 
-          lc1_10h.lc > lc2_10h.lc ? 'diff-positive' : 
-          lc1_10h.lc < lc2_10h.lc ? 'diff-negative' : 'diff-neutral' : ''}">
-          ${lc1_10h && lc2_10h ? (lc1_10h.lc - lc2_10h.lc).toFixed(3) : '—'}
-        </td>
-      </tr>`;
+      if (l1 && l2) {
+        const diffLC10 = +(l1.lc - l2.lc).toFixed(3);
+        html += `<tr>
+          <td>LC_3_8 10h antes do fim</td>
+          <td>${l1.lc} (${l1.dataHora})</td>
+          <td>${l2.lc} (${l2.dataHora})</td>
+          <td class="${diffLC10>0?'diff-positive':diffLC10<0?'diff-negative':'diff-neutral'}">${diffLC10}</td>
+        </tr>`;
+      }
 
       html += `</tbody></table>`;
       out.innerHTML = html;
