@@ -174,15 +174,20 @@
     }
 
     function maiorTE(r) {
-      const camposTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-      let maxTE = 0;
-      camposTE.forEach(c => {
-        const val = parseNum(r[c]);
-        if (val > maxTE && val <= 140) maxTE = val;
-      });
-      return maxTE;
+     const camposTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+  let maxTE = 0;
+  camposTE.forEach(c => {
+    if (r.hasOwnProperty(c)) {
+      let valRaw = (r[c] || '').toString().trim().replace(',', '.');
+      if (valRaw === '') return; // vazio
+      let val = parseFloat(valRaw);
+      if (!isNaN(val) && val <= 140 && val > maxTE) {
+        maxTE = val;
+      }
     }
-
+  });
+  return maxTE;
+}
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
       const ten = document.getElementById('tensaoInput').value.trim();
