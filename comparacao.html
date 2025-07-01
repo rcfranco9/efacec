@@ -106,10 +106,8 @@
   </div>
 
   <script>
-    let dadosMeta = [];
-    let dadosSerie = [];
-    let metaCarregado = false;
-    let serieCarregado = false;
+    let dadosMeta = [], dadosSerie = [];
+    let metaCarregado = false, serieCarregado = false;
 
     function checkReady() {
       const ready = metaCarregado && serieCarregado;
@@ -126,7 +124,6 @@
       input.addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
-
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
