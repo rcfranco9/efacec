@@ -167,26 +167,12 @@
       return isNaN(n) ? 0 : n;
     }
 
-    // Função para calcular o maior valor entre TE_5_4_1 a TE_5_4_6 com limite 140
-    function maxTE140(row) {
-      const valores = [
-        parseNum(row.TE_5_4_1),
-        parseNum(row.TE_5_4_2),
-        parseNum(row.TE_5_4_3),
-        parseNum(row.TE_5_4_4),
-        parseNum(row.TE_5_4_5),
-        parseNum(row.TE_5_4_6),
-      ];
-      const maxVal = Math.max(...valores);
-      return maxVal > 140 ? 140 : maxVal;
-    }
-
     function getUltimoE10HorasAntes(id) {
       const rows = dadosSerie
         .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
         .map(r => {
           const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
-          return { ...r, ts: t, lc: parseNum(r.LC_3_8), maxTE: maxTE140(r) };
+          return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
         })
         .filter(r => !isNaN(r.ts))
         .sort((a, b) => a.ts - b.ts);
@@ -202,8 +188,8 @@
       const lc10hAntes = anteriores[anteriores.length - 1];
 
       return {
-        ultimo: { lc: +ultimo.lc.toFixed(3), dataHora: new Date(ultimo.ts).toLocaleString('pt-PT'), maxTE: ultimo.maxTE },
-        dezHorasAntes: { lc: +lc10hAntes.lc.toFixed(3), dataHora: new Date(lc10hAntes.ts).toLocaleString('pt-PT'), maxTE: lc10hAntes.maxTE }
+        ultimo: { lc: +ultimo.lc.toFixed(3), dataHora: new Date(ultimo.ts).toLocaleString('pt-PT') },
+        dezHorasAntes: { lc: +lc10hAntes.lc.toFixed(3), dataHora: new Date(lc10hAntes.ts).toLocaleString('pt-PT') }
       };
     }
 
@@ -212,7 +198,7 @@
         .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
         .map(r => {
           const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
-          return { ...r, ts: t, lc: parseNum(r.LC_3_8), maxTE: maxTE140(r) };
+          return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
         })
         .filter(r => !isNaN(r.ts))
         .sort((a, b) => a.ts - b.ts);
@@ -224,8 +210,8 @@
       const horasTotais = (fim.ts - inicio.ts) / (3600 * 1000);
 
       return {
-        inicio: { lc: +inicio.lc.toFixed(3), dataHora: new Date(inicio.ts).toLocaleString('pt-PT'), maxTE: inicio.maxTE },
-        fim: { lc: +fim.lc.toFixed(3), dataHora: new Date(fim.ts).toLocaleString('pt-PT'), maxTE: fim.maxTE },
+        inicio: { lc: +inicio.lc.toFixed(3), dataHora: new Date(inicio.ts).toLocaleString('pt-PT') },
+        fim: { lc: +fim.lc.toFixed(3), dataHora: new Date(fim.ts).toLocaleString('pt-PT') },
         horasTotais
       };
     }
@@ -249,66 +235,124 @@
       }
 
       return {
-        taxa10h, deltaLC10h,
-        taxaTotal, deltaLCTotal,
-        valores10h, valoresTotal
+        taxa10h,
+        deltaLC10h,
+        ultimo10h: valores10h ? valores10h.ultimo : null,
+        dezHorasAntes: valores10h ? valores10h.dezHorasAntes : null,
+        taxaTotal,
+        deltaLCTotal,
+        inicioTotal: valoresTotal ? valoresTotal.inicio : null,
+        fimTotal: valoresTotal ? valoresTotal.fim : null,
+        horasTotais: valoresTotal ? valoresTotal.horasTotais : 0
       };
     }
 
-    // Obter massa do metadado dado id
-    function getMassa(id) {
-      const meta = dadosMeta.find(m => (m.id_secagenscore || '').trim() === id);
-      if (!meta) return 1;
-      return parseNum(meta.Massa_kg) || 1;
+    function mostrarDadosMeta(meta) {
+      if (!meta) return '<p>Dados não encontrados.</p>';
+
+      // Tensao e potencia antes das massas
+      const camposMostrar = ['id_secagenscore', 'marca', 'tipo', 'tensao', 'potencia', 'massat', 'massai', 'ano', 'local'];
+
+      let html = '<div class="transformador-dados">';
+      html += `<h3>Transformador ${meta.id_secagenscore}</h3>`;
+      camposMostrar.forEach(campo => {
+        if(meta[campo] !== undefined && meta[campo] !== '') {
+          html += `<p><strong>${campo.charAt(0).toUpperCase() + campo.slice(1)}:</strong> ${meta[campo]}</p>`;
+        }
+      });
+      html += '</div>';
+      return html;
     }
 
-    // Comparar e mostrar no #resultado
+    function diffClass(v) {
+      if (v > 0) return 'diff-positive';
+      if (v < 0) return 'diff-negative';
+      return 'diff-neutral';
+    }
+
     document.getElementById('btnComparar').addEventListener('click', () => {
       const id1 = document.getElementById('id1Input').value.trim();
       const id2 = document.getElementById('id2Input').value.trim();
+      const out = document.getElementById('resultado');
+
       if (!id1 || !id2) {
-        document.getElementById('resultado').innerHTML = `<div class="msg">Insere os dois IDs para comparar.</div>`;
+        out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
         return;
       }
 
-      const massa1 = getMassa(id1);
-      const massa2 = getMassa(id2);
-
-      const dados1 = calcTaxa(id1, massa1);
-      const dados2 = calcTaxa(id2, massa2);
-
-      if (!dados1.valores10h || !dados2.valores10h) {
-        document.getElementById('resultado').innerHTML = `<div class="msg">Dados insuficientes para comparar.</div>`;
+      const m1 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id1);
+      const m2 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id2);
+      if (!m1 || !m2) {
+        out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
         return;
       }
 
-      // Mostrar tabela com comparação
-      const html = `
-        <h2>Comparação dos Transformadores ${id1} vs ${id2}</h2>
+      const t1 = calcTaxa(id1, m1.massai);
+      const t2 = calcTaxa(id2, m2.massai);
 
-        <div class="transformador-dados">
-          <h3>${id1} (Massa: ${massa1} kg)</h3>
-          <p>Último LC: ${dados1.valores10h.ultimo.lc} (${dados1.valores10h.ultimo.dataHora})</p>
-          <p>LC 10h Antes: ${dados1.valores10h.dezHorasAntes.lc} (${dados1.valores10h.dezHorasAntes.dataHora})</p>
-          <p>Max TE limitado a 140 (última leitura): ${dados1.valores10h.ultimo.maxTE}</p>
-          <p>Max TE limitado a 140 (10h antes): ${dados1.valores10h.dezHorasAntes.maxTE}</p>
-          <p>Taxa nas últimas 10h: ${dados1.taxa10h}</p>
-          <p>Taxa total: ${dados1.taxaTotal}</p>
-        </div>
+      // Mostrar dados dos transformadores
+      let html = '';
+      html += mostrarDadosMeta(m1);
+      html += mostrarDadosMeta(m2);
 
-        <div class="transformador-dados">
-          <h3>${id2} (Massa: ${massa2} kg)</h3>
-          <p>Último LC: ${dados2.valores10h.ultimo.lc} (${dados2.valores10h.ultimo.dataHora})</p>
-          <p>LC 10h Antes: ${dados2.valores10h.dezHorasAntes.lc} (${dados2.valores10h.dezHorasAntes.dataHora})</p>
-          <p>Max TE limitado a 140 (última leitura): ${dados2.valores10h.ultimo.maxTE}</p>
-          <p>Max TE limitado a 140 (10h antes): ${dados2.valores10h.dezHorasAntes.maxTE}</p>
-          <p>Taxa nas últimas 10h: ${dados2.taxa10h}</p>
-          <p>Taxa total: ${dados2.taxaTotal}</p>
-        </div>
-      `;
-      document.getElementById('resultado').innerHTML = html;
+      // Tabela de comparação
+      html += `<h2>Comparação das Taxas de LC_3_8</h2>
+      <table>
+        <thead><tr>
+          <th>Parâmetro</th>
+          <th>ID ${id1}</th>
+          <th>ID ${id2}</th>
+          <th>Δ (1−2)</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>Último valor LC_3_8 (últimas 10h)</td>
+            <td>${t1.ultimo10h ? t1.ultimo10h.lc.toFixed(3) : 'N/A'}</td>
+            <td>${t2.ultimo10h ? t2.ultimo10h.lc.toFixed(3) : 'N/A'}</td>
+            <td class="${diffClass((t1.ultimo10h?.lc || 0) - (t2.ultimo10h?.lc || 0))}">${((t1.ultimo10h?.lc || 0) - (t2.ultimo10h?.lc || 0)).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Valor LC_3_8 10h antes</td>
+            <td>${t1.dezHorasAntes ? t1.dezHorasAntes.lc.toFixed(3) : 'N/A'}</td>
+            <td>${t2.dezHorasAntes ? t2.dezHorasAntes.lc.toFixed(3) : 'N/A'}</td>
+            <td class="${diffClass((t1.dezHorasAntes?.lc || 0) - (t2.dezHorasAntes?.lc || 0))}">${((t1.dezHorasAntes?.lc || 0) - (t2.dezHorasAntes?.lc || 0)).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Δ LC_3_8 nas últimas 10h</td>
+            <td>${t1.deltaLC10h.toFixed(3)}</td>
+            <td>${t2.deltaLC10h.toFixed(3)}</td>
+            <td class="${diffClass(t1.deltaLC10h - t2.deltaLC10h)}">${(t1.deltaLC10h - t2.deltaLC10h).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Taxa (últimas 10h) </td>
+            <td>${t1.taxa10h.toFixed(4)}</td>
+            <td>${t2.taxa10h.toFixed(4)}</td>
+            <td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td>
+          </tr>
+          <tr>
+            <td>Δ LC_3_8 total</td>
+            <td>${t1.deltaLCTotal.toFixed(3)}</td>
+            <td>${t2.deltaLCTotal.toFixed(3)}</td>
+            <td class="${diffClass(t1.deltaLCTotal - t2.deltaLCTotal)}">${(t1.deltaLCTotal - t2.deltaLCTotal).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Taxa total </td>
+            <td>${t1.taxaTotal.toFixed(4)}</td>
+            <td>${t2.taxaTotal.toFixed(4)}</td>
+            <td class="${diffClass(t1.taxaTotal - t2.taxaTotal)}">${(t1.taxaTotal - t2.taxaTotal).toFixed(4)}</td>
+          </tr>
+          <tr>
+            <td>Duração total (horas)</td>
+            <td>${t1.horasTotais.toFixed(2)}</td>
+            <td>${t2.horasTotais.toFixed(2)}</td>
+            <td class="${diffClass(t1.horasTotais - t2.horasTotais)}">${(t1.horasTotais - t2.horasTotais).toFixed(2)}</td>
+          </tr>
+          
+        </tbody>
+      </table>`;
+
+      out.innerHTML = html;
     });
   </script>
-
 </body>
 </html>
