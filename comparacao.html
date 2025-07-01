@@ -163,7 +163,6 @@
       const difLC = lc.length >= 2 ? +(lc[lc.length-1] - lc[0]).toFixed(3) : 0;
       const ts = rows
         .map(r => {
-          // O teu formato é "2025-02-09 11:52:50.000" — criar Date funciona
           const d = new Date(r.DataHora.replace(' ', 'T')); 
           return d.getTime();
         })
@@ -173,6 +172,38 @@
       const ton = parseNum(massaiKg) / 1000 || 1;
       const taxa = +((difLC) / (dur * ton)).toFixed(2);
       return { difLC, dur, taxa };
+    }
+
+    function getLC10HorasAntes(id) {
+      const rows = dadosSerie
+        .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
+        .map(r => {
+          const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
+          return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
+        })
+        .filter(r => !isNaN(r.ts))
+        .sort((a, b) => a.ts - b.ts);
+
+      if (rows.length < 2) return null;
+
+      const fim = rows[rows.length - 1].ts;
+      const alvo = fim - 10 * 3600 * 1000;
+
+      let maisProximo = rows[0];
+      let deltaMin = Math.abs(rows[0].ts - alvo);
+
+      for (let i = 1; i < rows.length; i++) {
+        const d = Math.abs(rows[i].ts - alvo);
+        if (d < deltaMin) {
+          maisProximo = rows[i];
+          deltaMin = d;
+        }
+      }
+
+      return {
+        dataHora: new Date(maisProximo.ts).toLocaleString('pt-PT'),
+        lc: +maisProximo.lc.toFixed(3)
+      };
     }
 
     document.getElementById('btnComparar').addEventListener('click', () => {
@@ -194,6 +225,8 @@
 
       const s1 = calcLC(id1, m1.massai);
       const s2 = calcLC(id2, m2.massai);
+      const lc1_10h = getLC10HorasAntes(id1);
+      const lc2_10h = getLC10HorasAntes(id2);
 
       const meta = ['potencia','tensao','massat','massai'];
       const lcKeys = [
@@ -231,6 +264,17 @@
           <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
         </tr>`;
       });
+
+      html += `<tr>
+        <td>LC a 10h do fim</td>
+        <td>${lc1_10h ? lc1_10h.lc : '—'}</td>
+        <td>${lc2_10h ? lc2_10h.lc : '—'}</td>
+        <td class="${lc1_10h && lc2_10h ? 
+          lc1_10h.lc > lc2_10h.lc ? 'diff-positive' : 
+          lc1_10h.lc < lc2_10h.lc ? 'diff-negative' : 'diff-neutral' : ''}">
+          ${lc1_10h && lc2_10h ? (lc1_10h.lc - lc2_10h.lc).toFixed(3) : '—'}
+        </td>
+      </tr>`;
 
       html += `</tbody></table>`;
       out.innerHTML = html;
