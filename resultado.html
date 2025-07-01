@@ -129,6 +129,7 @@
     if (!meta) return out.textContent = 'ID não encontrado nos metadados.';
     if (!serie.length) return out.textContent = 'ID não encontrado nas séries.';
 
+    // Valores LC
     const valoresLC = serie
       .map(l => Number(l.LC_3_8))
       .filter(n => !isNaN(n));
@@ -136,6 +137,7 @@
       ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3)
       : 'Insuficiente';
 
+    // Datas ordenadas
     const datas = serie
       .map(l => new Date(l.DataHora))
       .filter(d => !isNaN(d.getTime()))
@@ -177,6 +179,21 @@
       taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
     }
 
+    // Máximo TE_5_4_1 até TE_5_4_6
+    const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
+
+    let maxTE = null;
+    serie.forEach(linha => {
+      colunasTE.forEach(col => {
+        const val = Number(linha[col]);
+        if (!isNaN(val)) {
+          if (maxTE === null || val > maxTE) maxTE = val;
+        }
+      });
+    });
+
+    maxTE = maxTE !== null ? maxTE.toFixed(3) : 'N/A';
+
     out.innerHTML = `
       <h2>Resultados para ID: ${idInput}</h2>
       <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
@@ -189,6 +206,8 @@
       <hr>
       <p><strong>Δ LC nas últimas 10h:</strong> ${difLC10h}</p>
       <p><strong>Taxa LC nas últimas 10h:</strong> ${taxa10h}</p>
+      <hr>
+      <p><strong>Máximo valor TE_5_4_1 até TE_5_4_6:</strong> ${maxTE}</p>
     `;
   }
 </script>
