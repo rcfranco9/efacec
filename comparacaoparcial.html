@@ -190,6 +190,23 @@ function encontraMaxTE(serie) {
 
   return maxTE !== null ? maxTE.toFixed(3) : 'N/A';
 }
+    document.getElementById('csvSerie').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => Papa.parse(ev.target.result, {
+    header:true, skipEmptyLines:true,
+    complete: res => {
+      dadosSerie = res.data;
+      console.log('dadosSerie carregados:', dadosSerie.slice(0,3));
+
+      const maxTE = encontraMaxTE(dadosSerie);
+      console.log('Maior TE <= 140 encontrado na série:', maxTE);
+
+      checkReady();
+    }
+  });
+  r.readAsText(f);
+});
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
       const ten = document.getElementById('tensaoInput').value.trim();
