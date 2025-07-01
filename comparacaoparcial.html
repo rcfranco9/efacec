@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Filtrar Transformadores com Taxa LC Garantida</title>
+  <meta charset="UTF-8" />
+  <title>Filtrar Transformadores com Taxa LC Garantida e TE</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-   body {
+    body {
       font-family: 'Segoe UI', sans-serif;
       max-width: 900px;
       margin: 40px auto;
@@ -81,147 +81,161 @@
     .diff-positive { color: #27ae60; font-weight: bold; }
     .diff-negative { color: #c0392b; font-weight: bold; }
     .diff-neutral  { color: #7f8c8d; }
-    
   </style>
 </head>
 <body>
 
-  <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
+  <h1>Filtrar Transformadores com Taxa LC Garantida e TE</h1>
 
   <label for="csvMeta">1) CSV de Metadados:</label>
-  <input type="file" id="csvMeta" accept=".csv">
+  <input type="file" id="csvMeta" accept=".csv" />
 
   <label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
-  <input type="file" id="csvSerie" accept=".csv">
+  <input type="file" id="csvSerie" accept=".csv" />
 
   <label for="potenciaInput">Potência (ex: 140):</label>
-  <input type="text" id="potenciaInput" placeholder="Potência" disabled>
+  <input type="text" id="potenciaInput" placeholder="Potência" disabled />
 
   <label for="tensaoInput">Tensão (ex: 240.5):</label>
-  <input type="text" id="tensaoInput" placeholder="Tensão" disabled>
+  <input type="text" id="tensaoInput" placeholder="Tensão" disabled />
 
   <button id="btnFiltrar" disabled>Procurar</button>
 
   <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
-  <script>
-    let dadosMeta = [], dadosSerie = [];
+<script>
+  let dadosMeta = [], dadosSerie = [];
 
-    function checkReady() {
-      const ok = dadosMeta.length && dadosSerie.length;
-      ['potenciaInput','tensaoInput','btnFiltrar']
-        .forEach(id => document.getElementById(id).disabled = !ok);
-      if (ok) {
-        document.getElementById('resultado')
-          .textContent = 'CSV carregados. Insere potência e tensão.';
-      }
+  function checkReady() {
+    const ok = dadosMeta.length && dadosSerie.length;
+    ['potenciaInput','tensaoInput','btnFiltrar']
+      .forEach(id => document.getElementById(id).disabled = !ok);
+    if (ok) {
+      document.getElementById('resultado')
+        .textContent = 'CSV carregados. Insere potência e tensão.';
+    }
+  }
+
+  document.getElementById('csvMeta').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => Papa.parse(ev.target.result, {
+      header:true, skipEmptyLines:true,
+      complete: res => { dadosMeta = res.data; checkReady(); }
+    });
+    r.readAsText(f);
+  });
+
+  document.getElementById('csvSerie').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => Papa.parse(ev.target.result, {
+      header:true, skipEmptyLines:true,
+      complete: res => { dadosSerie = res.data; checkReady(); }
+    });
+    r.readAsText(f);
+  });
+
+  // sempre retorna número (0 se inválido)
+  function parseNum(v) {
+    const n = parseFloat((v||'').toString().replace(',', '.').trim());
+    return isNaN(n) ? 0 : n;
+  }
+
+  // calcula ∆LC, duração (h) e taxa (sempre numérico) - diferença entre primeiro e último registo da série (sem ordenar)
+  function calcLC(id, massaiKg) {
+    const linhas = dadosSerie.filter(r =>
+      (r.id_secagenscore||'').trim() === id &&
+      r.LC_3_8 && r.DataHora
+    );
+
+    if (linhas.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
+
+    // pegar primeiro e último (sem ordenar)
+    const primeiro = parseNum(linhas[0].LC_3_8);
+    const ultimo = parseNum(linhas[linhas.length - 1].LC_3_8);
+
+    const difLC = +(ultimo - primeiro).toFixed(3);
+
+    // datas da primeira e última linha
+    const dtInicio = new Date(linhas[0].DataHora).getTime();
+    const dtFim = new Date(linhas[linhas.length - 1].DataHora).getTime();
+    let dur = 1;
+    if (!isNaN(dtInicio) && !isNaN(dtFim) && dtFim > dtInicio) {
+      dur = +((dtFim - dtInicio) / 36e5).toFixed(2); // em horas
     }
 
-    document.getElementById('csvMeta').addEventListener('change', e => {
-      const f = e.target.files[0]; if (!f) return;
-      const r = new FileReader();
-      r.onload = ev => Papa.parse(ev.target.result, {
-        header:true, skipEmptyLines:true,
-        complete: res => { dadosMeta = res.data; checkReady(); }
-      });
-      r.readAsText(f);
-    });
+    // massai em toneladas (usa 1 t se inválido)
+    const ton = parseNum(massaiKg) / 1000 || 1;
 
-    document.getElementById('csvSerie').addEventListener('change', e => {
-      const f = e.target.files[0]; if (!f) return;
-      const r = new FileReader();
-      r.onload = ev => Papa.parse(ev.target.result, {
-        header:true, skipEmptyLines:true,
-        complete: res => { dadosSerie = res.data; checkReady(); }
-      });
-      r.readAsText(f);
-    });
+    // taxa garantida
+    const taxa = +((difLC) / (dur * ton)).toFixed(2);
 
-    // sempre retorna número (0 se inválido)
-    function parseNum(v) {
-      const n = parseFloat((v||'').toString().replace(',', '.').trim());
-      return isNaN(n) ? 0 : n;
+    return { difLC, dur, taxa };
+  }
+
+  // função que retorna o maior valor TE ≤ 140
+  function maiorTELimite(registo) {
+    const keys = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+    const valores = keys
+      .map(k => parseNum(registo[k]))
+      .filter(v => v <= 140 && v > 0);
+
+    if (valores.length === 0) return 0;
+
+    return Math.max(...valores);
+  }
+
+  // calcula taxa TE = maior TE / (10 * massai)
+  function taxaTE(registo) {
+    const valor = maiorTELimite(registo);
+    const massaiTon = parseNum(registo.massai) / 1000 || 1;
+    return +(valor / (10 * massaiTon)).toFixed(2);
+  }
+
+  document.getElementById('btnFiltrar').addEventListener('click', () => {
+    const pot = document.getElementById('potenciaInput').value.trim();
+    const ten = document.getElementById('tensaoInput').value.trim();
+    const out = document.getElementById('resultado');
+    if (!pot || !ten) {
+      out.textContent = 'Preenche ambos os campos.';
+      return;
     }
 
-    // calcula diferença LC entre último valor e valor 10h antes, e taxa = difLC / (10 * massai em toneladas)
-    function calcLC(id, massaiKg) {
-      const linhas = dadosSerie.filter(r =>
-        (r.id_secagenscore||'').trim() === id &&
-        r.LC_3_8 && r.DataHora
-      );
-
-      const registos = linhas.map(r => ({
-        valor: parseNum(r.LC_3_8),
-        ts: new Date(r.DataHora).getTime()
-      })).filter(r => !isNaN(r.ts));
-
-      if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
-
-      registos.sort((a,b) => a.ts - b.ts);
-
-      const ultimo = registos[registos.length - 1];
-      const alvoTS = ultimo.ts - 10 * 3600000; // 10 horas antes em ms
-
-      let anterior = null;
-      for (let i = registos.length - 1; i >= 0; i--) {
-        if (registos[i].ts <= alvoTS) {
-          anterior = registos[i];
-          break;
-        }
-      }
-
-      if (!anterior) anterior = registos[0];
-
-      const difLC = +(ultimo.valor - anterior.valor).toFixed(3);
-
-      // Taxa usando 10 horas fixas e massai em toneladas
-      const horas = 10;
-      const ton = parseNum(massaiKg) / 1000 || 1;
-
-      const taxa = +((difLC) / (horas * ton)).toFixed(2);
-
-      // Duração total entre primeiro e último registo (para mostrar)
-      const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
-
-      return { difLC, dur, taxa };
+    const encontrados = dadosMeta.filter(r =>
+      (r.potencia||'').trim() === pot &&
+      (r.tensao  ||'').trim() === ten
+    );
+    if (!encontrados.length) {
+      out.textContent = 'Nenhum transformador encontrado.';
+      return;
     }
 
-    document.getElementById('btnFiltrar').addEventListener('click', () => {
-      const pot = document.getElementById('potenciaInput').value.trim();
-      const ten = document.getElementById('tensaoInput').value.trim();
-      const out = document.getElementById('resultado');
-      if (!pot || !ten) {
-        out.textContent = 'Preenche ambos os campos.'; return;
-      }
+    let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
+    encontrados.forEach((m, i) => {
+      const id = (m.id_secagenscore||'').trim();
+      const stats = calcLC(id, m.massai);
+      const mTon = (parseNum(m.massai)/1000).toFixed(3);
+      const maiorTE = maiorTELimite(m);
+      const taxaTEVal = taxaTE(m);
 
-      const encontrados = dadosMeta.filter(r =>
-        (r.potencia||'').trim() === pot &&
-        (r.tensao  ||'').trim() === ten
-      );
-      if (!encontrados.length) {
-        out.textContent = 'Nenhum transformador encontrado.'; return;
-      }
-
-      let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-      encontrados.forEach((m, i) => {
-        const id = (m.id_secagenscore||'').trim();
-        const stats = calcLC(id, m.massai);
-        const mTon = (parseNum(m.massai)/1000).toFixed(3);
-        html += `
-          <div class="item">
-            <strong>#${i+1} — ID:</strong> ${id}<br>
-            <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
-            <strong>Massai:</strong> ${mTon} t<br>
-            <strong>Δ LC_3_8 (últ - 10h antes):</strong> ${stats.difLC}<br>
-            <strong>Duração (h):</strong> ${stats.dur}<br>
-            <strong>Taxa LC normalizada (difLC / (10 * massai t)):</strong> ${stats.taxa}
-          </div>
-        `;
-      });
-
-      out.innerHTML = html;
+      html += `
+        <div class="item">
+          <strong>#${i+1} — ID:</strong> ${id}<br>
+          <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
+          <strong>Massai:</strong> ${mTon} t<br>
+          <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
+          <strong>Duração (h):</strong> ${stats.dur}<br>
+          <strong>Taxa LC normalizada:</strong> ${stats.taxa}<br>
+          <strong>Maior TE ≤ 140:</strong> ${maiorTE}<br>
+          <strong>Taxa TE normalizada:</strong> ${taxaTEVal}
+        </div>
+      `;
     });
-  </script>
+
+    out.innerHTML = html;
+  });
+</script>
 
 </body>
 </html>
