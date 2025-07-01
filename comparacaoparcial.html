@@ -173,20 +173,22 @@
       return { difLCFull, durFull, taxaFull, difLCLast10, taxaLast10 };
     }
 
-    function maiorTE(r) {
-     const camposTE = ['TE_5_4_1'];
-  let maxTE = 0;
-  camposTE.forEach(c => {
-    if (r.hasOwnProperty(c)) {
-      let valRaw = (r[c] || '').toString().trim().replace(',', '.');
-      if (valRaw === '') return; // vazio
-      let val = parseFloat(valRaw);
-      if (!isNaN(val) && val <= 140 && val > maxTE) {
-        maxTE = val;
+function encontraMaxTE(serie) {
+  const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
+
+  let maxTE = null;
+  serie.forEach(linha => {
+    colunasTE.forEach(col => {
+      // Limpa valor: substitui vírgulas, tira espaços
+      const raw = (linha[col] || '').toString().replace(',', '.').trim();
+      const val = Number(raw);
+      if (!isNaN(val) && val <= 140) {
+        if (maxTE === null || val > maxTE) maxTE = val;
       }
-    }
+    });
   });
-  return maxTE;
+
+  return maxTE !== null ? maxTE.toFixed(3) : 'N/A';
 }
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
