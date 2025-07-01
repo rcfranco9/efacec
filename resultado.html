@@ -179,14 +179,14 @@
       taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
     }
 
-    // Máximo TE_5_4_1 até TE_5_4_6
+    // Máximo TE_5_4_1 até TE_5_4_6 (ignorar valores > 140)
     const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
 
     let maxTE = null;
     serie.forEach(linha => {
       colunasTE.forEach(col => {
         const val = Number(linha[col]);
-        if (!isNaN(val)) {
+        if (!isNaN(val) && val <= 140) {
           if (maxTE === null || val > maxTE) maxTE = val;
         }
       });
