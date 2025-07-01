@@ -290,52 +290,6 @@
       const t1 = calcTaxa(id1, m1.massai);
       const t2 = calcTaxa(id2, m2.massai);
 
-      function getMaiorTE(meta) {
-  // Pega o maior entre TE_5_4_1 ... TE_5_4_6, limitado a 140
-  let maxTE = 0;
-  for (let i = 1; i <= 6; i++) {
-    let v = parseNum(meta[`TE_5_4_${i}`]);
-    if (v > maxTE) maxTE = v;
-  }
-  return Math.min(maxTE, 140);
-}
-
-function getMenorPE(meta) {
-  // Ajusta individualmente cada PE para minimo 0.1 e depois escolhe o menor
-  let pe1 = parseNum(meta['PE_5_5_1']);
-  let pe2 = parseNum(meta['PE_4_17']);
-  pe1 = pe1 < 0.1 ? 0.1 : pe1;
-  pe2 = pe2 < 0.1 ? 0.1 : pe2;
-  return Math.min(pe1, pe2);
-}
-
-document.getElementById('btnComparar').addEventListener('click', () => {
-  const id1 = document.getElementById('id1Input').value.trim();
-  const id2 = document.getElementById('id2Input').value.trim();
-  const out = document.getElementById('resultado');
-
-  if (!id1 || !id2) {
-    out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
-    return;
-  }
-
-  const m1 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id1);
-  const m2 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id2);
-  if (!m1 || !m2) {
-    out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
-    return;
-  }
-
-  const t1 = calcTaxa(id1, m1.massai);
-  const t2 = calcTaxa(id2, m2.massai);
-
-  // Cálculos TE e PE extra
-  const maiorTE1 = getMaiorTE(m1);
-  const maiorTE2 = getMaiorTE(m2);
-
-  const menorPE1 = getMenorPE(m1);
-  const menorPE2 = getMenorPE(m2);
-      
       // Mostrar dados dos transformadores
       let html = '';
       html += mostrarDadosMeta(m1);
@@ -393,18 +347,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
             <td>${t2.horasTotais.toFixed(2)}</td>
             <td class="${diffClass(t1.horasTotais - t2.horasTotais)}">${(t1.horasTotais - t2.horasTotais).toFixed(2)}</td>
           </tr>
-          <tr>
-            <td>Maior TE (5_4_1 a 5_4_6, max 140)</td>
-            <td>${maiorTE1.toFixed(3)}</td>
-            <td>${maiorTE2.toFixed(3)}</td>
-            <td class="${diffClass(maiorTE1 - maiorTE2)}">${(maiorTE1 - maiorTE2).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Menor PE (PE_5_5_1, PE_4_17, min 0.1)</td>
-            <td>${menorPE1.toFixed(3)}</td>
-            <td>${menorPE2.toFixed(3)}</td>
-            <td class="${diffClass(menorPE1 - menorPE2)}">${(menorPE1 - menorPE2).toFixed(3)}</td>
-          </tr> 
+          
         </tbody>
       </table>`;
 
