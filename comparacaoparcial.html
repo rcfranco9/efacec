@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Filtrar Transformadores com Taxa LC Garantida e TE</title>
+  <title>Filtrar Transformadores com Taxa LC Garantida</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
@@ -85,7 +85,7 @@
 </head>
 <body>
 
-  <h1>Filtrar Transformadores com Taxa LC Garantida e TE</h1>
+  <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
 
   <label for="csvMeta">1) CSV de Metadados:</label>
   <input type="file" id="csvMeta" accept=".csv" />
@@ -103,139 +103,126 @@
 
   <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
-<script>
-  let dadosMeta = [], dadosSerie = [];
+  <script>
+    let dadosMeta = [], dadosSerie = [];
 
-  function checkReady() {
-    const ok = dadosMeta.length && dadosSerie.length;
-    ['potenciaInput','tensaoInput','btnFiltrar']
-      .forEach(id => document.getElementById(id).disabled = !ok);
-    if (ok) {
-      document.getElementById('resultado')
-        .textContent = 'CSV carregados. Insere potência e tensão.';
-    }
-  }
-
-  document.getElementById('csvMeta').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosMeta = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  document.getElementById('csvSerie').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosSerie = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  // sempre retorna número (0 se inválido)
-  function parseNum(v) {
-    const n = parseFloat((v||'').toString().replace(',', '.').trim());
-    return isNaN(n) ? 0 : n;
-  }
-
-  // calcula ∆LC, duração (h) e taxa (sempre numérico) - diferença entre primeiro e último registo da série (sem ordenar)
-  function calcLC(id, massaiKg) {
-    const linhas = dadosSerie.filter(r =>
-      (r.id_secagenscore||'').trim() === id &&
-      r.LC_3_8 && r.DataHora
-    );
-
-    if (linhas.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
-
-    // pegar primeiro e último (sem ordenar)
-    const primeiro = parseNum(linhas[0].LC_3_8);
-    const ultimo = parseNum(linhas[linhas.length - 1].LC_3_8);
-
-    const difLC = +(ultimo - primeiro).toFixed(3);
-
-    // datas da primeira e última linha
-    const dtInicio = new Date(linhas[0].DataHora).getTime();
-    const dtFim = new Date(linhas[linhas.length - 1].DataHora).getTime();
-    let dur = 1;
-    if (!isNaN(dtInicio) && !isNaN(dtFim) && dtFim > dtInicio) {
-      dur = +((dtFim - dtInicio) / 36e5).toFixed(2); // em horas
+    function checkReady() {
+      const ok = dadosMeta.length && dadosSerie.length;
+      ['potenciaInput','tensaoInput','btnFiltrar']
+        .forEach(id => document.getElementById(id).disabled = !ok);
+      if (ok) {
+        document.getElementById('resultado')
+          .textContent = 'CSV carregados. Insere potência e tensão.';
+      }
     }
 
-    // massai em toneladas (usa 1 t se inválido)
-    const ton = parseNum(massaiKg) / 1000 || 1;
-
-    // taxa garantida
-    const taxa = +((difLC) / (dur * ton)).toFixed(2);
-
-    return { difLC, dur, taxa };
-  }
-
-  // função que retorna o maior valor TE ≤ 140
-  function maiorTELimite(registo) {
-    const keys = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const valores = keys
-      .map(k => parseNum(registo[k]))
-      .filter(v => v <= 140 && v > 0);
-
-    if (valores.length === 0) return 0;
-
-    return Math.max(...valores);
-  }
-
-  // calcula taxa TE = maior TE / (10 * massai)
-  function taxaTE(registo) {
-    const valor = maiorTELimite(registo);
-    const massaiTon = parseNum(registo.massai) / 1000 || 1;
-    return +(valor / (10 * massaiTon)).toFixed(2);
-  }
-
-  document.getElementById('btnFiltrar').addEventListener('click', () => {
-    const pot = document.getElementById('potenciaInput').value.trim();
-    const ten = document.getElementById('tensaoInput').value.trim();
-    const out = document.getElementById('resultado');
-    if (!pot || !ten) {
-      out.textContent = 'Preenche ambos os campos.';
-      return;
-    }
-
-    const encontrados = dadosMeta.filter(r =>
-      (r.potencia||'').trim() === pot &&
-      (r.tensao  ||'').trim() === ten
-    );
-    if (!encontrados.length) {
-      out.textContent = 'Nenhum transformador encontrado.';
-      return;
-    }
-
-    let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-    encontrados.forEach((m, i) => {
-      const id = (m.id_secagenscore||'').trim();
-      const stats = calcLC(id, m.massai);
-      const mTon = (parseNum(m.massai)/1000).toFixed(3);
-      const maiorTE = maiorTELimite(m);
-      const taxaTEVal = taxaTE(m);
-
-      html += `
-        <div class="item">
-          <strong>#${i+1} — ID:</strong> ${id}<br>
-          <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
-          <strong>Massai:</strong> ${mTon} t<br>
-          <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
-          <strong>Duração (h):</strong> ${stats.dur}<br>
-          <strong>Taxa LC normalizada:</strong> ${stats.taxa}<br>
-          <strong>Maior TE ≤ 140:</strong> ${maiorTE}<br>
-          <strong>Taxa TE normalizada:</strong> ${taxaTEVal}
-        </div>
-      `;
+    document.getElementById('csvMeta').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
+      });
+      r.readAsText(f);
     });
 
-    out.innerHTML = html;
-  });
-</script>
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
+
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? 0 : n;
+    }
+
+    function calcLCFullAndLast10(id, massaiKg) {
+      const linhas = dadosSerie.filter(r =>
+        (r.id_secagenscore||'').trim() === id &&
+        r.LC_3_8 && r.DataHora
+      );
+
+      const lc = linhas.map(r => parseNum(r.LC_3_8));
+      const ts = linhas.map(r => new Date(r.DataHora).getTime()).filter(t => !isNaN(t));
+
+      if (lc.length < 2 || ts.length < 2) {
+        return { difLCFull:0, durFull:1, taxaFull:0, difLCLast10:0, taxaLast10:0 };
+      }
+
+      const difLCFull = +(lc[lc.length-1] - lc[0]).toFixed(3);
+      const durFull = +(((ts[ts.length-1] - ts[0]) / 36e5)).toFixed(2);
+      const ton = parseNum(massaiKg) / 1000 || 1;
+      const taxaFull = +((difLCFull) / (durFull * ton)).toFixed(2);
+
+      const tsFinal = ts[ts.length-1];
+      let idxLast10 = 0;
+      for(let i=0; i<ts.length; i++) {
+        if (ts[i] >= tsFinal - 10*3600*1000) {
+          idxLast10 = i;
+          break;
+        }
+      }
+      const difLCLast10 = +(lc[lc.length-1] - lc[idxLast10]).toFixed(3);
+      const taxaLast10 = +((difLCLast10) / (10 * ton)).toFixed(2);
+
+      return { difLCFull, durFull, taxaFull, difLCLast10, taxaLast10 };
+    }
+
+    function maiorTE(r) {
+      const camposTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      let maxTE = 0;
+      camposTE.forEach(c => {
+        const val = parseNum(r[c]);
+        if (val > maxTE && val <= 140) maxTE = val;
+      });
+      return maxTE;
+    }
+
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.'; return;
+      }
+
+      const encontrados = dadosMeta.filter(r =>
+        (r.potencia||'').trim() === pot &&
+        (r.tensao  ||'').trim() === ten
+      );
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.'; return;
+      }
+
+      let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLCFullAndLast10(id, m.massai);
+        const teMax = maiorTE(m);
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
+        html += `
+          <div class="item">
+            <strong>#${i+1} — ID:</strong> ${id}<br>
+            <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
+            <strong>Massai:</strong> ${mTon} t<br>
+            <strong>Δ LC_3_8 total:</strong> ${stats.difLCFull}<br>
+            <strong>Duração total (h):</strong> ${stats.durFull}<br>
+            <strong>Taxa LC normalizada total:</strong> ${stats.taxaFull}<br>
+            <strong>Δ LC_3_8 últimas 10h:</strong> ${stats.difLCLast10}<br>
+            <strong>Taxa LC normalizada últimas 10h:</strong> ${stats.taxaLast10}<br>
+            <strong>Maior valor TE ≤ 140:</strong> ${teMax}
+          </div>
+        `;
+      });
+
+      out.innerHTML = html;
+    });
+  </script>
 
 </body>
 </html>
