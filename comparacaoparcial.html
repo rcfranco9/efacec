@@ -105,7 +105,7 @@
   <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
   <script>
-   let dadosMeta = [], dadosSerie = [];
+ let dadosMeta = [], dadosSerie = [];
 
   function checkReady() {
     const ok = dadosMeta.length && dadosSerie.length;
@@ -143,35 +143,41 @@
     return isNaN(n) ? 0 : n;
   }
 
-  // calcula ∆LC, duração (h) e taxa (sempre numérico)
+  // calcula diferença LC entre último valor e valor 10h antes, duração e taxa
   function calcLC(id, massaiKg) {
-    // filtra linhas para o id, que têm LC_3_8 e DataHora
     const linhas = dadosSerie.filter(r =>
       (r.id_secagenscore||'').trim() === id &&
       r.LC_3_8 && r.DataHora
     );
 
-    // pega nos valores LC_3_8 na ordem original do CSV (sem ordenar)
-    const lc = linhas.map(r => parseNum(r.LC_3_8));
+    const registos = linhas.map(r => ({
+      valor: parseNum(r.LC_3_8),
+      ts: new Date(r.DataHora).getTime()
+    })).filter(r => !isNaN(r.ts));
 
-    // diferença entre o último e o primeiro valor na ordem original
-    const difLC = lc.length >= 2
-      ? +(lc[lc.length - 1] - lc[0]).toFixed(3)
-      : 0;
+    if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
 
-    // calcula a duração em horas entre a última e a primeira DataHora válida
-    const ts = linhas
-      .map(r => new Date(r.DataHora).getTime())
-      .filter(t => !isNaN(t));
+    registos.sort((a,b) => a.ts - b.ts);
 
-    const dur = ts.length >= 2
-      ? +(((ts[ts.length - 1] - ts[0]) / 36e5)).toFixed(2)
-      : 1;
+    const ultimo = registos[registos.length - 1];
+    const alvoTS = ultimo.ts - 10 * 3600000; // 10 horas antes em ms
 
-    // massa em toneladas (usa 1 se inválido)
+    let anterior = null;
+    for (let i = registos.length - 1; i >= 0; i--) {
+      if (registos[i].ts <= alvoTS) {
+        anterior = registos[i];
+        break;
+      }
+    }
+
+    if (!anterior) anterior = registos[0];
+
+    const difLC = +(ultimo.valor - anterior.valor).toFixed(3);
+
+    const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
+
     const ton = parseNum(massaiKg) / 1000 || 1;
 
-    // taxa garantida
     const taxa = +((difLC) / (dur * ton)).toFixed(2);
 
     return { difLC, dur, taxa };
@@ -203,7 +209,7 @@
           <strong>#${i+1} — ID:</strong> ${id}<br>
           <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
           <strong>Massai:</strong> ${mTon} t<br>
-          <strong>Δ LC_3_8:</strong> ${stats.difLC}<br>
+          <strong>Δ LC_3_8 (últ - 10h antes):</strong> ${stats.difLC}<br>
           <strong>Duração (h):</strong> ${stats.dur}<br>
           <strong>Taxa LC normalizada:</strong> ${stats.taxa}
         </div>
