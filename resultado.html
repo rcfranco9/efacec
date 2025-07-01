@@ -126,8 +126,14 @@
     const meta = dadosCSV1.find(l => l.id_secagenscore?.trim() === idInput);
     const serie = dadosCSV2.filter(l => l.id_secagenscore?.trim() === idInput);
 
-    if (!meta) return out.textContent = 'ID não encontrado nos metadados.';
-    if (!serie.length) return out.textContent = 'ID não encontrado nas séries.';
+    if (!meta) {
+      out.textContent = 'ID não encontrado nos metadados.';
+      return;
+    }
+    if (!serie.length) {
+      out.textContent = 'ID não encontrado nas séries.';
+      return;
+    }
 
     // Valores LC
     const valoresLC = serie
@@ -194,6 +200,24 @@
 
     maxTE = maxTE !== null ? maxTE.toFixed(3) : 'N/A';
 
+    // Menor valor > 0.1 nas colunas PE_5_5_1 e PE_4_17
+    let minPE_5_5_1 = null;
+    let minPE_4_17 = null;
+
+    serie.forEach(linha => {
+      const val1 = Number(linha.PE_5_5_1);
+      if (!isNaN(val1) && val1 > 0.1) {
+        if (minPE_5_5_1 === null || val1 < minPE_5_5_1) minPE_5_5_1 = val1;
+      }
+      const val2 = Number(linha.PE_4_17);
+      if (!isNaN(val2) && val2 > 0.1) {
+        if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
+      }
+    });
+
+    const textoMinPE_5_5_1 = minPE_5_5_1 !== null ? minPE_5_5_1.toFixed(3) : 'N/A';
+    const textoMinPE_4_17 = minPE_4_17 !== null ? minPE_4_17.toFixed(3) : 'N/A';
+
     out.innerHTML = `
       <h2>Resultados para ID: ${idInput}</h2>
       <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
@@ -208,6 +232,9 @@
       <p><strong>Taxa LC nas últimas 10h:</strong> ${taxa10h}</p>
       <hr>
       <p><strong>Máximo valor TE_5_4_1 até TE_5_4_6:</strong> ${maxTE}</p>
+      <hr>
+      <p><strong>Menor valor PE_5_5_1 (> 0.1):</strong> ${textoMinPE_5_5_1}</p>
+      <p><strong>Menor valor PE_4_17 (> 0.1):</strong> ${textoMinPE_4_17}</p>
     `;
   }
 </script>
