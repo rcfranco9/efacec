@@ -81,6 +81,19 @@
     .diff-positive { color: #27ae60; font-weight: bold; }
     .diff-negative { color: #c0392b; font-weight: bold; }
     .diff-neutral  { color: #7f8c8d; }
+    .transformador-dados {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #ecf0f1;
+      border-radius: 6px;
+    }
+    .transformador-dados h3 {
+      margin-top: 0;
+      color: #2980b9;
+    }
+    .transformador-dados p {
+      margin: 4px 0;
+    }
   </style>
 </head>
 <body>
@@ -105,166 +118,172 @@
     Carrega ambos os ficheiros CSV para começar.
   </div>
 
-<script>
-  let dadosMeta = [], dadosSerie = [];
-  let metaCarregado = false, serieCarregado = false;
+  <script>
+    let dadosMeta = [], dadosSerie = [];
+    let metaCarregado = false, serieCarregado = false;
 
-  function checkReady() {
-    const ready = metaCarregado && serieCarregado;
-    document.getElementById('id1Input').disabled = !ready;
-    document.getElementById('id2Input').disabled = !ready;
-    document.getElementById('btnComparar').disabled = !ready;
-    if (ready) {
-      document.getElementById('resultado').textContent = 'CSV carregados. Insere os dois IDs para comparar.';
-    }
-  }
-
-  function carregarCSV(inputId, destino, tipo) {
-    const input = document.getElementById(inputId);
-    input.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: res => {
-          destino.length = 0;
-          for(let i=0; i < res.data.length; i++){
-            destino.push(res.data[i]);
-          }
-          if(tipo === 'meta') metaCarregado = true;
-          if(tipo === 'serie') serieCarregado = true;
-          checkReady();
-        },
-        error: err => {
-          document.getElementById('resultado').innerHTML = `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
-        }
-      });
-    });
-  }
-
-  carregarCSV('csvMeta', dadosMeta, 'meta');
-  carregarCSV('csvSerie', dadosSerie, 'serie');
-
-  function parseNum(v) {
-    const n = parseFloat((v||'').toString().replace(',', '.').trim());
-    return isNaN(n) ? 0 : n;
-  }
-
-  function calcTaxas(id, massaKg) {
-    const rows = dadosSerie
-      .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
-      .map(r => {
-        const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
-        return { ts: t, lc: parseNum(r.LC_3_8) };
-      })
-      .filter(r => !isNaN(r.ts))
-      .sort((a, b) => a.ts - b.ts);
-
-    if (rows.length < 2) return { taxaNormal: 0, taxa10h: 0 };
-
-    const primeiro = rows[0];
-    const ultimo = rows[rows.length - 1];
-    const massa = parseNum(massaKg) / 1000 || 1;
-
-    const difNormal = ultimo.lc - primeiro.lc;
-    const durNormal = (ultimo.ts - primeiro.ts) / 3600000;
-
-    // Último valor e valor 10h antes
-    const alvoTs = ultimo.ts - 10 * 3600000;
-    let ponto10hAntes = null;
-    for(let i = rows.length - 1; i >= 0; i--) {
-      if (rows[i].ts <= alvoTs) {
-        ponto10hAntes = rows[i];
-        break;
+    function checkReady() {
+      const ready = metaCarregado && serieCarregado;
+      document.getElementById('id1Input').disabled = !ready;
+      document.getElementById('id2Input').disabled = !ready;
+      document.getElementById('btnComparar').disabled = !ready;
+      if (ready) {
+        document.getElementById('resultado').textContent = 'CSV carregados. Insere os dois IDs para comparar.';
       }
     }
-    if (!ponto10hAntes) ponto10hAntes = primeiro;
 
-    const dif10h = ultimo.lc - ponto10hAntes.lc;
-
-    const taxaNormal = durNormal > 0 ? difNormal / durNormal / massa : 0;
-    const taxa10h = 10 > 0 ? dif10h / 10 / massa : 0;
-
-    return {
-      taxaNormal: +taxaNormal.toFixed(3),
-      taxa10h: +taxa10h.toFixed(3),
-      ultimoLC: ultimo.lc,
-      ultimoData: new Date(ultimo.ts).toLocaleString('pt-PT'),
-      ponto10hLC: ponto10hAntes.lc,
-      ponto10hData: new Date(ponto10hAntes.ts).toLocaleString('pt-PT')
-    };
-  }
-
-  document.getElementById('btnComparar').addEventListener('click', () => {
-    const id1 = document.getElementById('id1Input').value.trim();
-    const id2 = document.getElementById('id2Input').value.trim();
-    const out = document.getElementById('resultado');
-
-    if (!id1 || !id2) {
-      out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
-      return;
+    function carregarCSV(inputId, destino, tipo) {
+      const input = document.getElementById(inputId);
+      input.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: res => {
+            destino.length = 0;
+            for(let i=0; i < res.data.length; i++){
+              destino.push(res.data[i]);
+            }
+            if(tipo === 'meta') metaCarregado = true;
+            if(tipo === 'serie') serieCarregado = true;
+            checkReady();
+          },
+          error: err => {
+            document.getElementById('resultado').innerHTML = `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
+          }
+        });
+      });
     }
 
-    const m1 = dadosMeta.find(r => (r.id_secagenscore || '').trim() === id1);
-    const m2 = dadosMeta.find(r => (r.id_secagenscore || '').trim() === id2);
-    if (!m1 || !m2) {
-      out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
-      return;
+    carregarCSV('csvMeta', dadosMeta, 'meta');
+    carregarCSV('csvSerie', dadosSerie, 'serie');
+
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? 0 : n;
     }
 
-    const taxas1 = calcTaxas(id1, m1.massai);
-    const taxas2 = calcTaxas(id2, m2.massai);
+    function getUltimoE10HorasAntes(id) {
+      const rows = dadosSerie
+        .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
+        .map(r => {
+          const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
+          return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
+        })
+        .filter(r => !isNaN(r.ts))
+        .sort((a, b) => a.ts - b.ts);
 
-    let html = `<h2>Comparação ID ${id1} × ID ${id2}</h2><table>
-      <thead><tr>
-        <th>Parâmetro</th>
-        <th>ID ${id1}</th>
-        <th>ID ${id2}</th>
-        <th>Δ (1−2)</th>
-      </tr></thead><tbody>`;
+      if (rows.length < 2) return null;
 
-    // Último LC
-    const ultimoLCdiff = +(taxas1.ultimoLC - taxas2.ultimoLC).toFixed(3);
-    html += `<tr>
-      <td>Último valor LC_3_8</td>
-      <td>${taxas1.ultimoLC} (${taxas1.ultimoData})</td>
-      <td>${taxas2.ultimoLC} (${taxas2.ultimoData})</td>
-      <td class="${ultimoLCdiff>0?'diff-positive':ultimoLCdiff<0?'diff-negative':'diff-neutral'}">${ultimoLCdiff}</td>
-    </tr>`;
+      const ultimo = rows[rows.length - 1];
+      const alvo = ultimo.ts - 10 * 3600 * 1000;
 
-    // Valor 10h antes
-    const lc10hdiff = +(taxas1.ponto10hLC - taxas2.ponto10hLC).toFixed(3);
-    html += `<tr>
-      <td>Valor LC_3_8 10h antes</td>
-      <td>${taxas1.ponto10hLC} (${taxas1.ponto10hData})</td>
-      <td>${taxas2.ponto10hLC} (${taxas2.ponto10hData})</td>
-      <td class="${lc10hdiff>0?'diff-positive':lc10hdiff<0?'diff-negative':'diff-neutral'}">${lc10hdiff}</td>
-    </tr>`;
+      // Encontra o ponto imediatamente anterior ou igual a alvo
+      const anteriores = rows.filter(r => r.ts <= alvo);
+      if (anteriores.length === 0) return null;
 
-    // Taxa normal
-    const taxaNormDiff = +(taxas1.taxaNormal - taxas2.taxaNormal).toFixed(3);
-    html += `<tr>
-      <td>Taxa normal (últ - primeiro) / duração (h) / massa (t)</td>
-      <td>${taxas1.taxaNormal}</td>
-      <td>${taxas2.taxaNormal}</td>
-      <td class="${taxaNormDiff>0?'diff-positive':taxaNormDiff<0?'diff-negative':'diff-neutral'}">${taxaNormDiff}</td>
-    </tr>`;
+      const lc10hAntes = anteriores[anteriores.length - 1];
 
-    // Taxa 10h
-    const taxa10hDiff = +(taxas1.taxa10h - taxas2.taxa10h).toFixed(3);
-    html += `<tr>
-      <td>Taxa 10h (diferença último e 10h antes) / 10h / massa (t)</td>
-      <td>${taxas1.taxa10h}</td>
-      <td>${taxas2.taxa10h}</td>
-      <td class="${taxa10hDiff>0?'diff-positive':taxa10hDiff<0?'diff-negative':'diff-neutral'}">${taxa10hDiff}</td>
-    </tr>`;
+      return {
+        ultimo: { lc: +ultimo.lc.toFixed(3), dataHora: new Date(ultimo.ts).toLocaleString('pt-PT') },
+        dezHorasAntes: { lc: +lc10hAntes.lc.toFixed(3), dataHora: new Date(lc10hAntes.ts).toLocaleString('pt-PT') }
+      };
+    }
 
-    html += `</tbody></table>`;
+    function calcTaxa(id, massaiKg) {
+      const valores = getUltimoE10HorasAntes(id);
+      if (!valores) return { taxa: 0, deltaLC: 0 };
 
-    out.innerHTML = html;
-  });
-</script>
+      const deltaLC = valores.ultimo.lc - valores.dezHorasAntes.lc;
+      const ton = parseNum(massaiKg) / 1000 || 1; // kg para toneladas
+      const taxa = +(deltaLC / (10 * ton)).toFixed(3); // taxa por hora e por tonelada
+
+      return { taxa, deltaLC, ultimo: valores.ultimo, dezHorasAntes: valores.dezHorasAntes };
+    }
+
+    function mostrarDadosMeta(meta) {
+      if (!meta) return '<p>Dados não encontrados.</p>';
+
+      // Ajusta os campos que tens no teu CSV
+      const camposMostrar = ['id_secagenscore','marca','tipo','massat','massai','ano','local'];
+
+      let html = '<div class="transformador-dados">';
+      html += `<h3>Transformador ${meta.id_secagenscore}</h3>`;
+      camposMostrar.forEach(campo => {
+        if(meta[campo]) {
+          html += `<p><strong>${campo.charAt(0).toUpperCase() + campo.slice(1)}:</strong> ${meta[campo]}</p>`;
+        }
+      });
+      html += '</div>';
+      return html;
+    }
+
+    document.getElementById('btnComparar').addEventListener('click', () => {
+      const id1 = document.getElementById('id1Input').value.trim();
+      const id2 = document.getElementById('id2Input').value.trim();
+      const out = document.getElementById('resultado');
+
+      if (!id1 || !id2) {
+        out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
+        return;
+      }
+
+      const m1 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id1);
+      const m2 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id2);
+      if (!m1 || !m2) {
+        out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
+        return;
+      }
+
+      const t1 = calcTaxa(id1, m1.massai);
+      const t2 = calcTaxa(id2, m2.massai);
+
+      // Mostrar dados
+      let html = '';
+      html += mostrarDadosMeta(m1);
+      html += mostrarDadosMeta(m2);
+
+      // Tabela de comparação
+      html += `<h2>Comparação das Taxas de LC_3_8 (Últimas 10h)</h2>
+      <table>
+        <thead><tr>
+          <th>Parâmetro</th>
+          <th>ID ${id1}</th>
+          <th>ID ${id2}</th>
+          <th>Δ (1−2)</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>Último valor LC_3_8</td>
+            <td>${t1.ultimo.lc} (${t1.ultimo.dataHora})</td>
+            <td>${t2.ultimo.lc} (${t2.ultimo.dataHora})</td>
+            <td class="${(t1.ultimo.lc - t2.ultimo.lc) > 0 ? 'diff-positive' : (t1.ultimo.lc - t2.ultimo.lc) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.ultimo.lc - t2.ultimo.lc).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Valor LC_3_8 10h antes</td>
+            <td>${t1.dezHorasAntes.lc} (${t1.dezHorasAntes.dataHora})</td>
+            <td>${t2.dezHorasAntes.lc} (${t2.dezHorasAntes.dataHora})</td>
+            <td class="${(t1.dezHorasAntes.lc - t2.dezHorasAntes.lc) > 0 ? 'diff-positive' : (t1.dezHorasAntes.lc - t2.dezHorasAntes.lc) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.dezHorasAntes.lc - t2.dezHorasAntes.lc).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Diferença LC_3_8 (Último - 10h antes)</td>
+            <td>${t1.deltaLC.toFixed(3)}</td>
+            <td>${t2.deltaLC.toFixed(3)}</td>
+            <td class="${(t1.deltaLC - t2.deltaLC) > 0 ? 'diff-positive' : (t1.deltaLC - t2.deltaLC) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.deltaLC - t2.deltaLC).toFixed(3)}</td>
+          </tr>
+          <tr>
+            <td>Taxa (por hora e tonelada)</td>
+            <td>${t1.taxa}</td>
+            <td>${t2.taxa}</td>
+            <td class="${(t1.taxa - t2.taxa) > 0 ? 'diff-positive' : (t1.taxa - t2.taxa) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.taxa - t2.taxa).toFixed(3)}</td>
+          </tr>
+        </tbody>
+      </table>`;
+
+      out.innerHTML = html;
+    });
+  </script>
 
 </body>
 </html>
