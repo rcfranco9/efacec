@@ -147,7 +147,9 @@
     carregarCSV('csvSerie', dadosSerie, 'serie');
 
     function parseNum(v) {
-      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      if (v === undefined || v === null) return 0;
+      const s = v.toString().replace(',', '.').trim();
+      const n = parseFloat(s);
       return isNaN(n) ? 0 : n;
     }
 
@@ -181,18 +183,26 @@
         (r.id_secagenscore||'').trim() === id &&
         r.LC_3_8 && r.DataHora
       );
-      const lc = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
-      const difLC = lc.length >= 2 ? +(lc[lc.length-1] - lc[0]).toFixed(3) : 0;
-      const ts = rows
+
+      if(rows.length === 0) return { difLC: 0, dur: 0, taxa: 0 };
+
+      const lcValues = rows.map(r => parseNum(r.LC_3_8)).sort((a,b)=>a-b);
+      const difLC = lcValues.length >= 2 ? +(lcValues[lcValues.length-1] - lcValues[0]).toFixed(3) : 0;
+
+      const timestamps = rows
         .map(r => {
           const d = new Date(r.DataHora.replace(' ', 'T'));
           return d.getTime();
         })
         .filter(t => !isNaN(t))
         .sort((a,b) => a - b);
-      const dur = ts.length >= 2 ? +((ts[ts.length-1] - ts[0]) / 36e5).toFixed(2) : 1;
+
+      const dur = timestamps.length >= 2 ? +((timestamps[timestamps.length-1] - timestamps[0]) / 3600000).toFixed(2) : 1;
+
       const ton = parseNum(massaiKg) / 1000 || 1;
-      const taxa = +((difLC) / (dur * ton)).toFixed(2);
+
+      const taxa = dur && ton ? +((difLC) / (dur * ton)).toFixed(3) : 0;
+
       return { difLC, dur, taxa };
     }
 
@@ -213,8 +223,16 @@
         return;
       }
 
+      // Debug meta valores
+      ['potencia','tensao','massat','massai'].forEach(c => {
+        console.log(`Meta ${c}: ID1=${parseNum(m1[c])}, ID2=${parseNum(m2[c])}`);
+      });
+
       const s1 = calcLC(id1, m1.massai);
       const s2 = calcLC(id2, m2.massai);
+
+      console.log('calcLC resultados:', {id1: s1, id2: s2});
+
       const l1 = getLC10HorasAntes(id1);
       const l2 = getLC10HorasAntes(id2);
 
@@ -235,23 +253,24 @@
 
       meta.forEach(c => {
         const v1 = parseNum(m1[c]), v2 = parseNum(m2[c]);
-        const diff = +(v1 - v2).toFixed(2);
+        const diff = +(v1 - v2).toFixed(3);
         html += `<tr>
           <td>${c.charAt(0).toUpperCase() + c.slice(1)}</td>
           <td>${v1}</td>
           <td>${v2}</td>
-          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
+          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff.toFixed(3)}</td>
         </tr>`;
       });
 
       lcKeys.forEach(o => {
-        const v1 = s1[o.k], v2 = s2[o.k];
-        const diff = +(v1 - v2).toFixed(2);
+        const v1 = s1[o.k] || 0;
+        const v2 = s2[o.k] || 0;
+        const diff = +(v1 - v2).toFixed(3);
         html += `<tr>
           <td>${o.label}</td>
-          <td>${v1}</td>
-          <td>${v2}</td>
-          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff}</td>
+          <td>${v1.toFixed(3)}</td>
+          <td>${v2.toFixed(3)}</td>
+          <td class="${diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral'}">${diff.toFixed(3)}</td>
         </tr>`;
       });
 
@@ -259,15 +278,17 @@
         const diffLC10 = +(l1.lc - l2.lc).toFixed(3);
         html += `<tr>
           <td>LC_3_8 10h antes do fim</td>
-          <td>${l1.lc} (${l1.dataHora})</td>
-          <td>${l2.lc} (${l2.dataHora})</td>
-          <td class="${diffLC10>0?'diff-positive':diffLC10<0?'diff-negative':'diff-neutral'}">${diffLC10}</td>
+          <td>${l1.lc.toFixed(3)} (${l1.dataHora})</td>
+          <td>${l2.lc.toFixed(3)} (${l2.dataHora})</td>
+          <td class="${diffLC10>0?'diff-positive':diffLC10<0?'diff-negative':'diff-neutral'}">${diffLC10.toFixed(3)}</td>
         </tr>`;
       }
 
-      html += `</tbody></table>`;
+      html += '</tbody></table>';
+
       out.innerHTML = html;
     });
+
   </script>
 
 </body>
