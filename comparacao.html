@@ -2,8 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Comparar Transformadores com 2 CSV</title>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <title>Comparador de Secagem</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -57,13 +56,6 @@
       border-radius: 8px;
       min-height: 100px;
     }
-    .msg {
-      padding: 12px;
-      background: #fdecea;
-      color: #a94442;
-      border-left: 5px solid #e74c3c;
-      border-radius: 4px;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -81,209 +73,140 @@
     .diff-positive { color: #27ae60; font-weight: bold; }
     .diff-negative { color: #c0392b; font-weight: bold; }
     .diff-neutral  { color: #7f8c8d; }
-    .transformador-dados {
-      margin-bottom: 20px;
-      padding: 15px;
-      background: #ecf0f1;
-      border-radius: 6px;
-    }
-    .transformador-dados h3 {
-      margin-top: 0;
-      color: #2980b9;
-    }
-    .transformador-dados p {
-      margin: 4px 0;
-    }
   </style>
 </head>
 <body>
+  <h1>Comparador de Secagem</h1>
 
-  <h1>Comparar Transformadores</h1>
+  <label>Massa (kg) - Trafo 1:</label>
+  <input type="number" id="massa1" />
 
-  <label for="csvMeta">Ficheiro CSV Metadados:</label>
-  <input type="file" id="csvMeta" accept=".csv" />
+  <label>Potência (MVA) - Trafo 1:</label>
+  <input type="number" id="potencia1" />
 
-  <label for="csvSerie">Ficheiro CSV Séries (LC_3_8 + DataHora):</label>
-  <input type="file" id="csvSerie" accept=".csv" />
+  <label>Tensão (kV) - Trafo 1:</label>
+  <input type="number" id="tensao1" />
 
-  <label for="id1Input">ID Transformador 1 (id_secagenscore):</label>
-  <input type="text" id="id1Input" disabled placeholder="Insere o primeiro ID" />
+  <label>LC inicial - Trafo 1:</label>
+  <input type="number" id="lc1_inicial" />
 
-  <label for="id2Input">ID Transformador 2 (id_secagenscore):</label>
-  <input type="text" id="id2Input" disabled placeholder="Insere o segundo ID" />
+  <label>LC (a 10h do fim) - Trafo 1:</label>
+  <input type="number" id="lc1_10h" />
 
-  <button id="btnComparar" disabled>Comparar</button>
+  <label>LC final - Trafo 1:</label>
+  <input type="number" id="lc1_ultimo" />
 
-  <div id="resultado">
-    Carrega ambos os ficheiros CSV para começar.
-  </div>
+  <label>Duração total (h) - Trafo 1:</label>
+  <input type="number" id="duracao1" />
+
+  <hr>
+
+  <label>Massa (kg) - Trafo 2:</label>
+  <input type="number" id="massa2" />
+
+  <label>Potência (MVA) - Trafo 2:</label>
+  <input type="number" id="potencia2" />
+
+  <label>Tensão (kV) - Trafo 2:</label>
+  <input type="number" id="tensao2" />
+
+  <label>LC inicial - Trafo 2:</label>
+  <input type="number" id="lc2_inicial" />
+
+  <label>LC (a 10h do fim) - Trafo 2:</label>
+  <input type="number" id="lc2_10h" />
+
+  <label>LC final - Trafo 2:</label>
+  <input type="number" id="lc2_ultimo" />
+
+  <label>Duração total (h) - Trafo 2:</label>
+  <input type="number" id="duracao2" />
+
+  <button onclick="comparar()">Comparar</button>
+
+  <div id="resultado"></div>
 
   <script>
-    let dadosMeta = [], dadosSerie = [];
-    let metaCarregado = false, serieCarregado = false;
-
-    function checkReady() {
-      const ready = metaCarregado && serieCarregado;
-      document.getElementById('id1Input').disabled = !ready;
-      document.getElementById('id2Input').disabled = !ready;
-      document.getElementById('btnComparar').disabled = !ready;
-      if (ready) {
-        document.getElementById('resultado').textContent = 'CSV carregados. Insere os dois IDs para comparar.';
-      }
-    }
-
-    function carregarCSV(inputId, destino, tipo) {
-      const input = document.getElementById(inputId);
-      input.addEventListener('change', e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: res => {
-            destino.length = 0;
-            for(let i=0; i < res.data.length; i++){
-              destino.push(res.data[i]);
-            }
-            if(tipo === 'meta') metaCarregado = true;
-            if(tipo === 'serie') serieCarregado = true;
-            checkReady();
-          },
-          error: err => {
-            document.getElementById('resultado').innerHTML = `<div class="msg">Erro ao ler CSV: ${err.message}</div>`;
-          }
-        });
-      });
-    }
-
-    carregarCSV('csvMeta', dadosMeta, 'meta');
-    carregarCSV('csvSerie', dadosSerie, 'serie');
-
     function parseNum(v) {
-      const n = parseFloat((v||'').toString().replace(',', '.').trim());
-      return isNaN(n) ? 0 : n;
+      return parseFloat(v) || 0;
     }
 
-    function getUltimoE10HorasAntes(id) {
-      const rows = dadosSerie
-        .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
-        .map(r => {
-          const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
-          return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
-        })
-        .filter(r => !isNaN(r.ts))
-        .sort((a, b) => a.ts - b.ts);
+    function linha(label, v1, v2) {
+      const diff = +(v1 - v2).toFixed(2);
+      let classe = "diff-neutral";
+      if (diff > 0) classe = "diff-positive";
+      else if (diff < 0) classe = "diff-negative";
 
-      if (rows.length < 2) return null;
+      return `
+        <tr>
+          <td>${label}</td>
+          <td>${v1}</td>
+          <td>${v2}</td>
+          <td class="${classe}">${diff}</td>
+        </tr>`;
+    }
 
-      const ultimo = rows[rows.length - 1];
-      const alvo = ultimo.ts - 10 * 3600 * 1000;
+    function calcularTaxa(deltaLC, massaKg, duracaoH) {
+      const massaTon = parseNum(massaKg) / 1000;
+      if (massaTon === 0 || duracaoH === 0) return 0;
+      return +(deltaLC / (duracaoH * massaTon)).toFixed(2);
+    }
 
-      // Encontra o ponto imediatamente anterior ou igual a alvo
-      const anteriores = rows.filter(r => r.ts <= alvo);
-      if (anteriores.length === 0) return null;
-
-      const lc10hAntes = anteriores[anteriores.length - 1];
-
-      return {
-        ultimo: { lc: +ultimo.lc.toFixed(3), dataHora: new Date(ultimo.ts).toLocaleString('pt-PT') },
-        dezHorasAntes: { lc: +lc10hAntes.lc.toFixed(3), dataHora: new Date(lc10hAntes.ts).toLocaleString('pt-PT') }
+    function comparar() {
+      const t1 = {
+        massa: parseNum(document.getElementById("massa1").value),
+        pot: parseNum(document.getElementById("potencia1").value),
+        tensao: parseNum(document.getElementById("tensao1").value),
+        lc_ini: parseNum(document.getElementById("lc1_inicial").value),
+        lc_10h: parseNum(document.getElementById("lc1_10h").value),
+        lc_fim: parseNum(document.getElementById("lc1_ultimo").value),
+        duracao: parseNum(document.getElementById("duracao1").value),
       };
+
+      const t2 = {
+        massa: parseNum(document.getElementById("massa2").value),
+        pot: parseNum(document.getElementById("potencia2").value),
+        tensao: parseNum(document.getElementById("tensao2").value),
+        lc_ini: parseNum(document.getElementById("lc2_inicial").value),
+        lc_10h: parseNum(document.getElementById("lc2_10h").value),
+        lc_fim: parseNum(document.getElementById("lc2_ultimo").value),
+        duracao: parseNum(document.getElementById("duracao2").value),
+      };
+
+      const delta10h1 = +(t1.lc_10h - t1.lc_fim).toFixed(2);
+      const delta10h2 = +(t2.lc_10h - t2.lc_fim).toFixed(2);
+
+      const taxa10h1 = calcularTaxa(delta10h1, t1.massa, 10);
+      const taxa10h2 = calcularTaxa(delta10h2, t2.massa, 10);
+
+      const deltaTotal1 = +(t1.lc_ini - t1.lc_fim).toFixed(2);
+      const deltaTotal2 = +(t2.lc_ini - t2.lc_fim).toFixed(2);
+
+      const taxaTotal1 = calcularTaxa(deltaTotal1, t1.massa, t1.duracao);
+      const taxaTotal2 = calcularTaxa(deltaTotal2, t2.massa, t2.duracao);
+
+      let html = `
+        <table>
+          <tr>
+            <th>Parâmetro</th>
+            <th>Trafo 1</th>
+            <th>Trafo 2</th>
+            <th>Diferença</th>
+          </tr>`;
+      html += linha("Massa (kg)", t1.massa, t2.massa);
+      html += linha("Potência (MVA)", t1.pot, t2.pot);
+      html += linha("Tensão (kV)", t1.tensao, t2.tensao);
+      html += linha("LC inicial", t1.lc_ini, t2.lc_ini);
+      html += linha("LC a 10h do fim", t1.lc_10h, t2.lc_10h);
+      html += linha("LC final", t1.lc_fim, t2.lc_fim);
+      html += linha("Diferença LC (últimas 10h)", delta10h1, delta10h2);
+      html += linha("Taxa normalizada (últimas 10h)", taxa10h1, taxa10h2);
+      html += linha("Diferença LC total", deltaTotal1, deltaTotal2);
+      html += linha("Taxa normalizada total", taxaTotal1, taxaTotal2);
+      html += `</table>`;
+
+      document.getElementById("resultado").innerHTML = html;
     }
-
-    function calcTaxa(id, massaiKg) {
-      const valores = getUltimoE10HorasAntes(id);
-      if (!valores) return { taxa: 0, deltaLC: 0 };
-
-      const deltaLC = valores.ultimo.lc - valores.dezHorasAntes.lc;
-      const ton = parseNum(massaiKg) / 1000 || 1; // kg para toneladas
-      const taxa = +(deltaLC / (10 * ton)).toFixed(3); // taxa por hora e por tonelada
-
-      return { taxa, deltaLC, ultimo: valores.ultimo, dezHorasAntes: valores.dezHorasAntes };
-    }
-
-    function mostrarDadosMeta(meta) {
-      if (!meta) return '<p>Dados não encontrados.</p>';
-
-      // Ajusta os campos que tens no teu CSV
-      const camposMostrar = ['id_secagenscore','marca','tipo','massat','massai','ano','local'];
-
-      let html = '<div class="transformador-dados">';
-      html += `<h3>Transformador ${meta.id_secagenscore}</h3>`;
-      camposMostrar.forEach(campo => {
-        if(meta[campo]) {
-          html += `<p><strong>${campo.charAt(0).toUpperCase() + campo.slice(1)}:</strong> ${meta[campo]}</p>`;
-        }
-      });
-      html += '</div>';
-      return html;
-    }
-
-    document.getElementById('btnComparar').addEventListener('click', () => {
-      const id1 = document.getElementById('id1Input').value.trim();
-      const id2 = document.getElementById('id2Input').value.trim();
-      const out = document.getElementById('resultado');
-
-      if (!id1 || !id2) {
-        out.innerHTML = `<div class="msg">Por favor, insere os dois IDs.</div>`;
-        return;
-      }
-
-      const m1 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id1);
-      const m2 = dadosMeta.find(r => (r.id_secagenscore||'').trim() === id2);
-      if (!m1 || !m2) {
-        out.innerHTML = `<div class="msg">Um ou ambos os IDs não existem nos metadados.</div>`;
-        return;
-      }
-
-      const t1 = calcTaxa(id1, m1.massai);
-      const t2 = calcTaxa(id2, m2.massai);
-
-      // Mostrar dados
-      let html = '';
-      html += mostrarDadosMeta(m1);
-      html += mostrarDadosMeta(m2);
-
-      // Tabela de comparação
-      html += `<h2>Comparação das Taxas de LC_3_8 (Últimas 10h)</h2>
-      <table>
-        <thead><tr>
-          <th>Parâmetro</th>
-          <th>ID ${id1}</th>
-          <th>ID ${id2}</th>
-          <th>Δ (1−2)</th>
-        </tr></thead>
-        <tbody>
-          <tr>
-            <td>Último valor LC_3_8</td>
-            <td>${t1.ultimo.lc} (${t1.ultimo.dataHora})</td>
-            <td>${t2.ultimo.lc} (${t2.ultimo.dataHora})</td>
-            <td class="${(t1.ultimo.lc - t2.ultimo.lc) > 0 ? 'diff-positive' : (t1.ultimo.lc - t2.ultimo.lc) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.ultimo.lc - t2.ultimo.lc).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Valor LC_3_8 10h antes</td>
-            <td>${t1.dezHorasAntes.lc} (${t1.dezHorasAntes.dataHora})</td>
-            <td>${t2.dezHorasAntes.lc} (${t2.dezHorasAntes.dataHora})</td>
-            <td class="${(t1.dezHorasAntes.lc - t2.dezHorasAntes.lc) > 0 ? 'diff-positive' : (t1.dezHorasAntes.lc - t2.dezHorasAntes.lc) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.dezHorasAntes.lc - t2.dezHorasAntes.lc).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Diferença LC_3_8 (Último - 10h antes)</td>
-            <td>${t1.deltaLC.toFixed(3)}</td>
-            <td>${t2.deltaLC.toFixed(3)}</td>
-            <td class="${(t1.deltaLC - t2.deltaLC) > 0 ? 'diff-positive' : (t1.deltaLC - t2.deltaLC) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.deltaLC - t2.deltaLC).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Taxa (por hora e tonelada)</td>
-            <td>${t1.taxa}</td>
-            <td>${t2.taxa}</td>
-            <td class="${(t1.taxa - t2.taxa) > 0 ? 'diff-positive' : (t1.taxa - t2.taxa) < 0 ? 'diff-negative' : 'diff-neutral'}">${(t1.taxa - t2.taxa).toFixed(3)}</td>
-          </tr>
-        </tbody>
-      </table>`;
-
-      out.innerHTML = html;
-    });
   </script>
-
 </body>
 </html>
