@@ -151,7 +151,7 @@
     if (!isNaN(difLC) && !isNaN(duracao) && !isNaN(massaiTon) && massaiTon !== 0)
       taxaLC = (difLC / (duracao * massaiTon)).toFixed(2);
 
-    // ➕ Nas últimas 10 horas
+    // Últimas 10 horas
     const dadosOrdenados = serie
       .filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
       .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
@@ -165,13 +165,15 @@
     let difLC10h = 'Insuficiente';
     let taxa10h = 'N/A';
 
-    const lc10h = ultimos
-      .map(l => Number(l.LC_3_8))
-      .filter(n => !isNaN(n))
-      .sort((a,b) => a - b);
+    const lcOrdenado10h = ultimos
+      .filter(l => !isNaN(Number(l.LC_3_8)))
+      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 
-    if (lc10h.length >= 2 && !isNaN(massaiTon) && massaiTon !== 0) {
-      difLC10h = (lc10h[lc10h.length - 1] - lc10h[0]).toFixed(3);
+    if (lcOrdenado10h.length >= 2 && !isNaN(massaiTon) && massaiTon !== 0) {
+      const lcInicial = Number(lcOrdenado10h[0].LC_3_8);
+      const lcFinal = Number(lcOrdenado10h[lcOrdenado10h.length - 1].LC_3_8);
+
+      difLC10h = (lcFinal - lcInicial).toFixed(3);
       taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
     }
 
