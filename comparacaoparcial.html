@@ -70,6 +70,22 @@
       font-weight: bold;
       font-size: 14px;
     }
+    .transformador-dados {
+  background: #fdfdfd;
+  border: 1px solid #ccc;
+  padding: 15px 20px;
+  margin-top: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: background 0.3s;
+}
+.transformador-dados:hover {
+  background: #f0f8ff;
+}
+.transformador-dados strong {
+  color: #2c3e50;
+}
+
   </style>
 </head>
 <body>
@@ -219,7 +235,7 @@
       const pe551 = minPE(id, 'PE_5_5_1');
 
       html += `
-        <div class="item">
+        <div class="transformador-dados">
           <strong>#${i+1} — ID:</strong> ${id}<br>
           <strong>Projecto:</strong> ${m.subprojecto||'N/A'}<br>
           <strong>Duração total (h):</strong> ${stats.dur}<br>
