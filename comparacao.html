@@ -15,8 +15,8 @@
       border-radius: 10px;
     }
     h1 {
-      color: #2c3e50;
       text-align: center;
+      color: #2c3e50;
       margin-bottom: 30px;
     }
     label {
@@ -32,6 +32,7 @@
       border-radius: 5px;
       border: 1px solid #bbb;
       font-size: 16px;
+      box-sizing: border-box;
     }
     button {
       margin-top: 20px;
@@ -39,6 +40,7 @@
       color: white;
       border: none;
       font-weight: bold;
+      transition: background-color 0.3s ease;
       cursor: pointer;
     }
     button:hover:not(:disabled) {
@@ -74,16 +76,17 @@
       margin-top: 20px;
     }
     th, td {
-      padding: 10px;
-      border-bottom: 1px solid #ccc;
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
     }
     th {
-      background: #2980b9;
-      color: white;
+      background-color: #2980b9;
+      color: #fff;
     }
-    .diff-positive { color: green; font-weight: bold; }
-    .diff-negative { color: red; font-weight: bold; }
-    .diff-neutral  { color: gray; }
+    .diff-positive { color: #27ae60; font-weight: bold; }
+    .diff-negative { color: #c0392b; font-weight: bold; }
+    .diff-neutral  { color: #7f8c8d; }
   </style>
 </head>
 <body>
@@ -91,16 +94,16 @@
 <h1>Comparar Transformadores</h1>
 
 <label>CSV de Metadados:</label>
-<input type="file" id="csvMeta" accept=".csv">
+<input type="file" id="csvMeta" accept=".csv" />
 
-<label>CSV de Séries (LC_3_8 + DataHora):</label>
-<input type="file" id="csvSerie" accept=".csv">
+<label>CSV de Séries:</label>
+<input type="file" id="csvSerie" accept=".csv" />
 
-<label>ID Transformador 1:</label>
-<input type="text" id="id1" disabled>
+<label>Nome Transformador 1 (subprojecto):</label>
+<input type="text" id="nome1" disabled />
 
-<label>ID Transformador 2:</label>
-<input type="text" id="id2" disabled>
+<label>Nome Transformador 2 (subprojecto):</label>
+<input type="text" id="nome2" disabled />
 
 <button id="btnComparar" disabled>Comparar</button>
 
@@ -113,42 +116,6 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
-
-function maxTEfromSerie(id) {
-  const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-  const valores = [];
-
-  dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .forEach(linha => {
-      colunas.forEach(col => {
-        const raw = linha[col];
-        const val = parseFloat((raw || '').toString().replace(',', '.').trim());
-        if (!isNaN(val) && val > 0 && val <= 140) {
-          valores.push(val);
-        }
-      });
-    });
-
-  return valores.length > 0 ? Math.max(...valores) : null;
-}
-
-  function minPE_4_17(id) {
-  const valores = dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .map(r => parseFloat((r.PE_4_17 || '').toString().replace(',', '.').trim()))
-    .filter(v => !isNaN(v) && v > 0.1);
-  return valores.length ? Math.min(...valores) : null;
-}
-
-function minPE_5_5_1(id) {
-  const valores = dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .map(r => parseFloat((r.PE_5_5_1 || '').toString().replace(',', '.').trim()))
-    .filter(v => !isNaN(v) && v > 0.1);
-  return valores.length ? Math.min(...valores) : null;
-}
-
 
 function getSerie(id) {
   return dadosSerie
@@ -171,7 +138,6 @@ function calcTaxa(id, massaKg) {
   const anterior = serie.findLast(r => r.ts <= alvo) || serie[0];
   const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
-
   const deltaTotal = +(serie[serie.length - 1].lc - serie[0].lc).toFixed(3);
   const duracao = (serie[serie.length - 1].ts - serie[0].ts) / 3600000;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
@@ -179,9 +145,31 @@ function calcTaxa(id, massaKg) {
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
 
+function maxTE(id) {
+  const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+  const valores = [];
+  dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .forEach(linha => {
+      colunas.forEach(col => {
+        const val = parseNum(linha[col]);
+        if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
+      });
+    });
+  return valores.length > 0 ? Math.max(...valores) : null;
+}
+
+function minPE(id, campo) {
+  return dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .map(r => parseNum(r[campo]))
+    .filter(v => !isNaN(v) && v > 0.1)
+    .reduce((min, val) => Math.min(min, val), Infinity);
+}
+
 function mostrarDadosMeta(meta) {
   const campos = ['id_secagenscore','marca','tipo','tensao','potencia','massat','massai','ano','local'];
-  let html = '<div class="transformador-dados"><h3>Transformador ' + meta.id_secagenscore + '</h3>';
+  let html = `<div class="transformador-dados"><h3>${meta.subprojecto}</h3>`;
   campos.forEach(c => {
     if (meta[c]) html += `<p><strong>${c}:</strong> ${meta[c]}</p>`;
   });
@@ -193,6 +181,12 @@ function diffClass(v) {
   if (v > 0) return 'diff-positive';
   if (v < 0) return 'diff-negative';
   return 'diff-neutral';
+}
+
+function checkReady() {
+  const ready = dadosMeta.length && dadosSerie.length;
+  ['nome1', 'nome2', 'btnComparar'].forEach(id => document.getElementById(id).disabled = !ready);
+  if (ready) document.getElementById('resultado').textContent = 'CSV carregados. Insere os nomes dos transformadores.';
 }
 
 document.getElementById('csvMeta').addEventListener('change', e => {
@@ -213,89 +207,65 @@ document.getElementById('csvSerie').addEventListener('change', e => {
   });
 });
 
-function checkReady() {
-  const ready = dadosMeta.length && dadosSerie.length;
-  document.getElementById('id1').disabled = !ready;
-  document.getElementById('id2').disabled = !ready;
-  document.getElementById('btnComparar').disabled = !ready;
-  if (ready) {
-    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois IDs.';
-  }
-}
-
 document.getElementById('btnComparar').addEventListener('click', () => {
-  const id1 = document.getElementById('id1').value.trim();
-  const id2 = document.getElementById('id2').value.trim();
+  const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
+  const nome2 = document.getElementById('nome2').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
 
-  const m1 = dadosMeta.find(r => (r.id_secagenscore || '').trim() === id1);
-  const m2 = dadosMeta.find(r => (r.id_secagenscore || '').trim() === id2);
+  const m1 = dadosMeta.find(r => (r.subprojecto || '').trim().toLowerCase() === nome1);
+  const m2 = dadosMeta.find(r => (r.subprojecto || '').trim().toLowerCase() === nome2);
 
   if (!m1 || !m2) {
-    out.innerHTML = '<p>IDs não encontrados.</p>';
+    out.innerHTML = `<p>Um ou ambos os nomes não foram encontrados nos metadados.</p>`;
     return;
   }
 
+  const id1 = (m1.id_secagenscore || '').trim();
+  const id2 = (m2.id_secagenscore || '').trim();
+
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
-  const te1 = maxTEfromSerie(id1);
-  const te2 = maxTEfromSerie(id2);
-  const pe1_417 = minPE_4_17(id1);
-  const pe2_417 = minPE_4_17(id2);
-
-  const pe1_551 = minPE_5_5_1(id1);
-  const pe2_551 = minPE_5_5_1(id2);
-
-
+  const te1 = maxTE(id1);
+  const te2 = maxTE(id2);
+  const pe1_417 = minPE(id1, 'PE_4_17');
+  const pe2_417 = minPE(id2, 'PE_4_17');
+  const pe1_551 = minPE(id1, 'PE_5_5_1');
+  const pe2_551 = minPE(id2, 'PE_5_5_1');
 
   let html = mostrarDadosMeta(m1) + mostrarDadosMeta(m2);
 
-  html += `<h2>Comparação</h2>
-  <table>
-    <thead>
-      <tr><th>Parâmetro</th><th>${id1}</th><th>${id2}</th><th>Δ (1−2)</th></tr>
-    </thead><tbody>`;
+  let html = '';
 
-  if (t1 && t2) {
-    html += `
-      <tr><td>Δ LC_3_8 (últ. 10h)</td><td>${t1.delta10h}</td><td>${t2.delta10h}</td><td class="${diffClass(t1.delta10h - t2.delta10h)}">${(t1.delta10h - t2.delta10h).toFixed(3)}</td></tr>
-      <tr><td>Taxa (últ. 10h)</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td><td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td></tr>
-      <tr><td>Δ LC_3_8 total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td><td class="${diffClass(t1.deltaTotal - t2.deltaTotal)}">${(t1.deltaTotal - t2.deltaTotal).toFixed(3)}</td></tr>
-      <tr><td>Taxa total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td><td class="${diffClass(t1.taxaTotal - t2.taxaTotal)}">${(t1.taxaTotal - t2.taxaTotal).toFixed(4)}</td></tr>
-      <tr><td>Duração total (h)</td><td>${t1.duracao.toFixed(2)}</td><td>${t2.duracao.toFixed(2)}</td><td class="${diffClass(t1.duracao - t2.duracao)}">${(t1.duracao - t2.duracao).toFixed(2)}</td></tr>
-    `;
-  }
+html += `
+  <div class="transformador-dados">
+    <h3>${m1.subprojecto}</h3>
+    <p><strong>ID:</strong> ${id1}</p>
+    <p><strong>Marca:</strong> ${m1.marca || 'N/A'}</p>
+    <p><strong>Tipo:</strong> ${m1.tipo || 'N/A'}</p>
+    <p><strong>Tensão:</strong> ${m1.tensao || 'N/A'}</p>
+    <p><strong>Potência:</strong> ${m1.potencia || 'N/A'}</p>
+    <p><strong>Massat:</strong> ${m1.massat || 'N/A'}</p>
+    <p><strong>Massai:</strong> ${m1.massai || 'N/A'}</p>
+    <p><strong>Ano:</strong> ${m1.ano || 'N/A'}</p>
+    <p><strong>Local:</strong> ${m1.local || 'N/A'}</p>
+  </div>`;
 
-  html += `
-    <tr>
-      <td>Máx TE_5_4_X (até 140)</td>
-      <td>${te1 !== null ? te1.toFixed(2) : 'N/A'}</td>
-      <td>${te2 !== null ? te2.toFixed(2) : 'N/A'}</td>
-      <td class="${(te1 !== null && te2 !== null) ? diffClass(te1 - te2) : ''}">
-        ${(te1 !== null && te2 !== null) ? (te1 - te2).toFixed(2) : 'N/A'}
-      </td>
-    </tr>
-    <tr>
-  <td>Mín PE_4_17 (>0.1)</td>
-  <td>${pe1_417 !== null ? pe1_417.toFixed(3) : 'N/A'}</td>
-  <td>${pe2_417 !== null ? pe2_417.toFixed(3) : 'N/A'}</td>
-  <td class="${(pe1_417 !== null && pe2_417 !== null) ? diffClass(pe1_417 - pe2_417) : ''}">
-    ${(pe1_417 !== null && pe2_417 !== null) ? (pe1_417 - pe2_417).toFixed(3) : 'N/A'}
-  </td>
-</tr>
-<tr>
-  <td>Mín PE_5_5_1 (>0.1)</td>
-  <td>${pe1_551 !== null ? pe1_551.toFixed(3) : 'N/A'}</td>
-  <td>${pe2_551 !== null ? pe2_551.toFixed(3) : 'N/A'}</td>
-  <td class="${(pe1_551 !== null && pe2_551 !== null) ? diffClass(pe1_551 - pe2_551) : ''}">
-    ${(pe1_551 !== null && pe2_551 !== null) ? (pe1_551 - pe2_551).toFixed(3) : 'N/A'}
-  </td>
-</tr>
+html += `
+  <div class="transformador-dados">
+    <h3>${m2.subprojecto}</h3>
+    <p><strong>ID:</strong> ${id2}</p>
+    <p><strong>Marca:</strong> ${m2.marca || 'N/A'}</p>
+    <p><strong>Tipo:</strong> ${m2.tipo || 'N/A'}</p>
+    <p><strong>Tensão:</strong> ${m2.tensao || 'N/A'}</p>
+    <p><strong>Potência:</strong> ${m2.potencia || 'N/A'}</p>
+    <p><strong>Massat:</strong> ${m2.massat || 'N/A'}</p>
+    <p><strong>Massai:</strong> ${m2.massai || 'N/A'}</p>
+    <p><strong>Ano:</strong> ${m2.ano || 'N/A'}</p>
+    <p><strong>Local:</strong> ${m2.local || 'N/A'}</p>
+  </div>`;
 
-  </tbody></table>`;
-
-  out.innerHTML = html;
 });
 </script>
+
 </body>
 </html>
