@@ -65,10 +65,10 @@
 
 <h1>Consulta Transformador</h1>
 
-<label for="csvFile1">CSV de Metadados:</label>
+<label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
 
-<label for="csvFile2">CSV de Séries (LC_3_8 + DataHora):</label>
+<label for="csvFile2">CSV2:</label>
 <input type="file" id="csvFile2" accept=".csv" />
 
 <label for="nomeInput">Nome do transformador (subprojecto):</label>
@@ -223,16 +223,17 @@
       <p><strong>ID:</strong> ${id}</p>
       <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
       <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'}</p>
-      <p><strong>Massat:</strong> ${meta.massat || 'N/A'}</p>
-      <p><strong>Massai:</strong> ${massaiTon.toFixed(3)} t</p>
+      <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'}</p>
+      <p><strong>Massa isolantes:</strong> ${massaiTon.toFixed(3)} t</p>
       <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
       <hr>
-      <p><strong>Taxa LC normalizada:</strong> ${taxaLC}</p>
-      <p><strong>Taxa LC nas últimas 10h:</strong> ${taxa10h}</p>
+      <p><strong>Taxa de remocao de água:</strong> ${taxaLC}</p>
+      <p><strong>Taxa de remocao de água nas ultimas 10h:</strong> ${taxa10h}</p>
       <hr>
-      <p><strong>Máximo valor TE_5_4_1 até TE_5_4_6:</strong> ${maxTE}</p>
-      <p><strong>Menor valor PE_5_5_1:</strong> ${textoMinPE_5_5_1}</p>
-      <p><strong>Menor valor PE_4_17:</strong> ${textoMinPE_4_17}</p>
+      <p><strong>Máximo valor de temperatura nas sondas:</strong> ${maxTE}</p>
+      <hr>
+      <p><strong>Menor valor de pressão :</strong> ${textoMinPE_5_5_1}</p>
+      <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17}</p>
     `;
   }
 </script>
