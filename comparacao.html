@@ -164,7 +164,7 @@
 
     function parseNum(v) {
       const n = parseFloat((v||'').toString().replace(',', '.').trim());
-      return isNaN(n) ? 0 : n;
+      return isNaN(n) ? NaN : n;
     }
 
     function getUltimoE10HorasAntes(id) {
@@ -174,7 +174,7 @@
           const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
           return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
         })
-        .filter(r => !isNaN(r.ts))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
         .sort((a, b) => a.ts - b.ts);
 
       if (rows.length < 2) return null;
@@ -200,7 +200,7 @@
           const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
           return { ...r, ts: t, lc: parseNum(r.LC_3_8) };
         })
-        .filter(r => !isNaN(r.ts))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
         .sort((a, b) => a.ts - b.ts);
 
       if (rows.length < 2) return null;
@@ -219,8 +219,7 @@
     function calcTaxa(id, massaiKg) {
       const valores10h = getUltimoE10HorasAntes(id);
       const valoresTotal = getInicioFim(id);
-
-      const massat = parseNum(massaiKg) / 1000 || 1; // converte para toneladas
+      const massat = parseNum(massaiKg) / 1000 || 1;
 
       let taxa10h = 0, deltaLC10h = 0;
       if (valores10h) {
@@ -235,29 +234,31 @@
       }
 
       return {
-        taxa10h,
-        deltaLC10h,
-        ultimo10h: valores10h ? valores10h.ultimo : null,
-        dezHorasAntes: valores10h ? valores10h.dezHorasAntes : null,
-        taxaTotal,
-        deltaLCTotal,
-        inicioTotal: valoresTotal ? valoresTotal.inicio : null,
-        fimTotal: valoresTotal ? valoresTotal.fim : null,
-        horasTotais: valoresTotal ? valoresTotal.horasTotais : 0
+        taxa10h, deltaLC10h,
+        ultimo10h: valores10h?.ultimo || null,
+        dezHorasAntes: valores10h?.dezHorasAntes || null,
+        taxaTotal, deltaLCTotal,
+        inicioTotal: valoresTotal?.inicio || null,
+        fimTotal: valoresTotal?.fim || null,
+        horasTotais: valoresTotal?.horasTotais || 0
       };
+    }
+
+    function maxTE(meta) {
+      const colunas = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
+      const valores = colunas.map(c => parseNum(meta[c])).filter(v => !isNaN(v));
+      const maxOriginal = valores.length ? Math.max(...valores) : 0;
+      return { valorFinal: Math.min(maxOriginal, 140), original: maxOriginal };
     }
 
     function mostrarDadosMeta(meta) {
       if (!meta) return '<p>Dados não encontrados.</p>';
-
-      // Tensao e potencia antes das massas
       const camposMostrar = ['id_secagenscore', 'marca', 'tipo', 'tensao', 'potencia', 'massat', 'massai', 'ano', 'local'];
-
       let html = '<div class="transformador-dados">';
       html += `<h3>Transformador ${meta.id_secagenscore}</h3>`;
       camposMostrar.forEach(campo => {
-        if(meta[campo] !== undefined && meta[campo] !== '') {
-          html += `<p><strong>${campo.charAt(0).toUpperCase() + campo.slice(1)}:</strong> ${meta[campo]}</p>`;
+        if(meta[campo]) {
+          html += `<p><strong>${campo}:</strong> ${meta[campo]}</p>`;
         }
       });
       html += '</div>';
@@ -289,13 +290,11 @@
 
       const t1 = calcTaxa(id1, m1.massai);
       const t2 = calcTaxa(id2, m2.massai);
+      const te1 = maxTE(m1);
+      const te2 = maxTE(m2);
 
-      // Mostrar dados dos transformadores
-      let html = '';
-      html += mostrarDadosMeta(m1);
-      html += mostrarDadosMeta(m2);
+      let html = mostrarDadosMeta(m1) + mostrarDadosMeta(m2);
 
-      // Tabela de comparação
       html += `<h2>Comparação das Taxas de LC_3_8</h2>
       <table>
         <thead><tr>
@@ -306,25 +305,13 @@
         </tr></thead>
         <tbody>
           <tr>
-            <td>Último valor LC_3_8 (últimas 10h)</td>
-            <td>${t1.ultimo10h ? t1.ultimo10h.lc.toFixed(3) : 'N/A'}</td>
-            <td>${t2.ultimo10h ? t2.ultimo10h.lc.toFixed(3) : 'N/A'}</td>
-            <td class="${diffClass((t1.ultimo10h?.lc || 0) - (t2.ultimo10h?.lc || 0))}">${((t1.ultimo10h?.lc || 0) - (t2.ultimo10h?.lc || 0)).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Valor LC_3_8 10h antes</td>
-            <td>${t1.dezHorasAntes ? t1.dezHorasAntes.lc.toFixed(3) : 'N/A'}</td>
-            <td>${t2.dezHorasAntes ? t2.dezHorasAntes.lc.toFixed(3) : 'N/A'}</td>
-            <td class="${diffClass((t1.dezHorasAntes?.lc || 0) - (t2.dezHorasAntes?.lc || 0))}">${((t1.dezHorasAntes?.lc || 0) - (t2.dezHorasAntes?.lc || 0)).toFixed(3)}</td>
-          </tr>
-          <tr>
-            <td>Δ LC_3_8 nas últimas 10h</td>
+            <td>Δ LC_3_8 (últ. 10h)</td>
             <td>${t1.deltaLC10h.toFixed(3)}</td>
             <td>${t2.deltaLC10h.toFixed(3)}</td>
             <td class="${diffClass(t1.deltaLC10h - t2.deltaLC10h)}">${(t1.deltaLC10h - t2.deltaLC10h).toFixed(3)}</td>
           </tr>
           <tr>
-            <td>Taxa (últimas 10h) </td>
+            <td>Taxa (últ. 10h)</td>
             <td>${t1.taxa10h.toFixed(4)}</td>
             <td>${t2.taxa10h.toFixed(4)}</td>
             <td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td>
@@ -336,7 +323,7 @@
             <td class="${diffClass(t1.deltaLCTotal - t2.deltaLCTotal)}">${(t1.deltaLCTotal - t2.deltaLCTotal).toFixed(3)}</td>
           </tr>
           <tr>
-            <td>Taxa total </td>
+            <td>Taxa total</td>
             <td>${t1.taxaTotal.toFixed(4)}</td>
             <td>${t2.taxaTotal.toFixed(4)}</td>
             <td class="${diffClass(t1.taxaTotal - t2.taxaTotal)}">${(t1.taxaTotal - t2.taxaTotal).toFixed(4)}</td>
@@ -347,7 +334,12 @@
             <td>${t2.horasTotais.toFixed(2)}</td>
             <td class="${diffClass(t1.horasTotais - t2.horasTotais)}">${(t1.horasTotais - t2.horasTotais).toFixed(2)}</td>
           </tr>
-          
+          <tr>
+            <td>Máx TE_5_4_X (até 140)</td>
+            <td>${te1.valorFinal}</td>
+            <td>${te2.valorFinal}</td>
+            <td class="${diffClass(te1.valorFinal - te2.valorFinal)}">${(te1.valorFinal - te2.valorFinal).toFixed(2)}</td>
+          </tr>
         </tbody>
       </table>`;
 
