@@ -114,13 +114,25 @@ function parseNum(v) {
   return isNaN(n) ? NaN : n;
 }
 
-function maxTE(meta) {
+function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-  const valores = colunas
-    .map(c => parseNum(meta[c]))
-    .filter(v => !isNaN(v) && v > 0 && v <= 140);
-  return valores.length ? Math.max(...valores) : null;
+  const valores = [];
+
+  dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .forEach(linha => {
+      colunas.forEach(col => {
+        const raw = linha[col];
+        const val = parseFloat((raw || '').toString().replace(',', '.').trim());
+        if (!isNaN(val) && val > 0 && val <= 140) {
+          valores.push(val);
+        }
+      });
+    });
+
+  return valores.length > 0 ? Math.max(...valores) : null;
 }
+
 function getSerie(id) {
   return dadosSerie
     .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
@@ -209,8 +221,9 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
-  const te1 = maxTE(m1);
-  const te2 = maxTE(m2);
+  const te1 = maxTEfromSerie(id1);
+  const te2 = maxTEfromSerie(id2);
+
 
   let html = mostrarDadosMeta(m1) + mostrarDadosMeta(m2);
 
