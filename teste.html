@@ -259,49 +259,27 @@
   });
    document.getElementById("btnExportarPDF").addEventListener("click", async () => {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "px",
-    format: "a4"
-  });
+  const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
 
-  const resultado = document.getElementById("resultado");
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let cursorY = 20;
 
-  await html2canvas(resultado, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
+  const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const imgWidth = pageWidth - 40; // margem lateral
-    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+  for (let i = 0; i < transformadores.length; i++) {
+    const el = transformadores[i];
 
-    let position = 0;
-    let remainingHeight = imgHeight;
+    await html2canvas(el, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = doc.getImageProperties(imgData);
 
-    const canvasHeightPx = canvas.height;
-    const pageHeightPx = (pageHeight * canvas.height) / imgHeight;
+      const imgWidth = pageWidth - 40; // margens laterais
+      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
 
-    while (position < canvasHeightPx) {
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = Math.min(pageHeightPx, canvasHeightPx - position);
+      // Se não couber na página atual, cria nova
+      if (cursorY + imgHeight >
 
-      const ctx = pageCanvas.getContext("2d");
-      ctx.drawImage(canvas, 0, -position);
-
-      const pageImgData = pageCanvas.toDataURL("image/png");
-      doc.addImage(pageImgData, "PNG", 20, 20, imgWidth, (pageCanvas.height * imgWidth) / canvas.width);
-
-      position += pageHeightPx;
-      if (position < canvasHeightPx) doc.addPage();
-    }
-
-    const pot = document.getElementById("potenciaInput").value.trim().replace(/\s+/g, "_");
-    const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
-    doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
-  });
-});
 
 
 
