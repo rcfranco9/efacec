@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <title>Consulta Transformador por Nome</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -76,6 +79,8 @@
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
+  <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
+
 
 <script>
   let dadosCSV1 = [], dadosCSV2 = [];
@@ -235,7 +240,34 @@
       <p><strong>Menor valor de pressão :</strong> ${textoMinPE_5_5_1}</p>
       <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17}</p>
     `;
+    document.getElementById("btnExportarPDF").style.display = 'inline-block';
   }
+ 
+  const btnExportarPDF = document.getElementById("btnExportarPDF");
+
+  btnExportarPDF.addEventListener("click", async () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+      format: "a4"
+    });
+
+    const resultado = document.getElementById("resultado");
+
+    await html2canvas(resultado, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = doc.getImageProperties(imgData);
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      doc.addImage(imgData, "PNG", 20, 20, pdfWidth - 40, pdfHeight);
+      const nome = document.getElementById("nomeInput").value.trim().replace(/\s+/g, "_");
+      doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
+    });
+  });
+
+
 </script>
 
 </body>
