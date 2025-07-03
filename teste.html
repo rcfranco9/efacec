@@ -1,94 +1,279 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8" />
-<title>Consulta Transformador</title>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <meta charset="UTF-8" />
+  <title>Consulta Transformador por Nome</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
   body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
+    font-family: 'Roboto', 'Segoe UI', sans-serif;
+    max-width: 850px;
+    margin: 40px auto;
+    background: #f2f2f2;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    color: #333;
   }
-  #resultado {
+
+  h1 {
+    text-align: center;
+    color: #e60028;
+    margin-bottom: 25px;
+    font-weight: 700;
+    font-size: 28px;
+  }
+
+  label {
+    font-weight: 600;
+    display: block;
     margin-top: 20px;
-    padding: 15px;
-    border: 2px solid #333;
-    max-width: 400px;
-    background: #f9f9f9;
+    color: #444;
   }
+
   input, button {
-    padding: 6px 10px;
-    margin: 5px 0;
+    padding: 10px;
+    width: 100%;
+    margin-top: 5px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+  }
+
+  input:focus {
+    border-color: #e60028;
+    outline: none;
+    box-shadow: 0 0 5px rgba(230, 0, 40, 0.3);
+  }
+
+  button {
+    margin-top: 18px;
+    background-color: #e60028;
+    color: white;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    background-color: #b3001f;
+  }
+
+  button:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+  }
+
+  #resultado {
+    margin-top: 35px;
+    padding: 25px;
+    background: white;
+    border-left: 6px solid #e60028;
+    border-radius: 8px;
+    line-height: 1.6;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  }
+
+  #resultado h2 {
+    color: #e60028;
+    font-size: 22px;
+    margin-bottom: 15px;
+  }
+
+  strong {
+    color: #2c3e50;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 20px 0;
   }
 </style>
+
+    
+  </style>
 </head>
 <body>
+<img src="https://www.efacec.pt/wp-content/themes/efacec/images/logo.png" alt="Efacec" style="height: 60px; display: block; margin: 0 auto 20px;">
 
 <h1>Consulta Transformador</h1>
 
-<label for="csvFile">Escolhe o ficheiro CSV:</label><br>
-<input type="file" id="csvFile" accept=".csv" /><br><br>
+<label for="csvFile1">CSV1:</label>
+<input type="file" id="csvFile1" accept=".csv" />
 
-<label for="idInput">Insere o ID do transformador (id_secagenscore):</label><br>
-<input type="text" id="idInput" disabled placeholder="Insere o ID" />
-<button onclick="buscarDados()" disabled id="btnBuscar">Procurar</button>
+<label for="csvFile2">CSV2:</label>
+<input type="file" id="csvFile2" accept=".csv" />
 
-<div id="resultado">Por favor, carrega o ficheiro CSV antes de procurar.</div>
+<label for="nomeInput">Nome do transformador (subprojecto):</label>
+<input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
+<button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
+
+<div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
 
 <script>
-  let dadosCSV = [];
+  let dadosCSV1 = [], dadosCSV2 = [];
 
-  // Ao escolher o ficheiro CSV
-  document.getElementById('csvFile').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  function ativarInputSePronto() {
+    const btn = document.getElementById('btnBuscar');
+    const input = document.getElementById('nomeInput');
+    const aviso = document.getElementById('resultado');
+    if (dadosCSV1.length && dadosCSV2.length) {
+      btn.disabled = false;
+      input.disabled = false;
+      aviso.textContent = 'Ficheiros carregados. Insere o nome do transformador.';
+    }
+  }
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const texto = event.target.result;
+  function carregarCSV(id, destino, callback) {
+    document.getElementById(id).addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        Papa.parse(event.target.result, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(res) {
+            destino.length = 0;
+            res.data.forEach(row => destino.push(row));
+            callback();
+          }
+        });
+      };
+      reader.readAsText(file);
+    });
+  }
 
-      Papa.parse(texto, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(resultado) {
-          dadosCSV = resultado.data;
-          console.log("CSV carregado!", dadosCSV);
-          document.getElementById('resultado').textContent = 'CSV carregado. Insere o ID e procura.';
-          document.getElementById('idInput').disabled = false;
-          document.getElementById('btnBuscar').disabled = false;
+  carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
+  carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
+
+  function buscarPorNome() {
+    const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
+    const out = document.getElementById('resultado');
+
+    if (!nome) {
+      out.textContent = 'Por favor, insere o nome do transformador.';
+      return;
+    }
+
+    const meta = dadosCSV1.find(l => (l.subprojecto || '').trim().toLowerCase() === nome);
+    if (!meta) {
+      out.textContent = 'Transformador não encontrado nos metadados.';
+      return;
+    }
+
+    const id = meta.id_secagenscore?.trim();
+    if (!id) {
+      out.textContent = 'Transformador sem ID válido.';
+      return;
+    }
+
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (!serie.length) {
+      out.textContent = 'Nenhum dado encontrado nas séries para este transformador.';
+      return;
+    }
+
+    const valoresLC = serie
+      .map(l => Number(l.LC_3_8))
+      .filter(n => !isNaN(n));
+    const difLC = valoresLC.length >= 2
+      ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3)
+      : 'Insuficiente';
+
+    const datas = serie
+      .map(l => new Date(l.DataHora))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+    if (datas.length < 2) {
+      out.textContent = 'Dados de DataHora insuficientes.';
+      return;
+    }
+
+    const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
+    const massaiTon = Number(meta.massai) / 1000;
+
+    let taxaLC = 'N/A';
+    if (!isNaN(difLC) && !isNaN(duracao) && !isNaN(massaiTon) && massaiTon !== 0)
+      taxaLC = (difLC / (duracao * massaiTon)).toFixed(2);
+
+    const dadosOrdenados = serie
+      .filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
+      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+    const final = new Date(dadosOrdenados[dadosOrdenados.length - 1].DataHora);
+    const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
+    const ultimos = dadosOrdenados.filter(l =>
+      new Date(l.DataHora) >= inicial && new Date(l.DataHora) <= final
+    );
+
+    let difLC10h = 'Insuficiente';
+    let taxa10h = 'N/A';
+
+    const lcOrdenado10h = ultimos
+      .filter(l => !isNaN(Number(l.LC_3_8)))
+      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+    if (lcOrdenado10h.length >= 2 && !isNaN(massaiTon) && massaiTon !== 0) {
+      const lcInicial = Number(lcOrdenado10h[0].LC_3_8);
+      const lcFinal = Number(lcOrdenado10h[lcOrdenado10h.length - 1].LC_3_8);
+
+      difLC10h = (lcFinal - lcInicial).toFixed(3);
+      taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
+    }
+
+    const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
+    let maxTE = null;
+    serie.forEach(linha => {
+      colunasTE.forEach(col => {
+        const val = Number(linha[col]);
+        if (!isNaN(val) && val > 0 && val <= 140) {
+          if (maxTE === null || val > maxTE) maxTE = val;
         }
       });
-    };
-    reader.readAsText(file);
-  });
+    });
+    maxTE = maxTE !== null ? maxTE.toFixed(3) : 'N/A';
 
-  function buscarDados() {
-    const idInput = document.getElementById('idInput').value.trim();
-    const resultadoDiv = document.getElementById('resultado');
+    let minPE_5_5_1 = null;
+    let minPE_4_17 = null;
 
-    if (dadosCSV.length === 0) {
-      resultadoDiv.textContent = 'Carrega primeiro o ficheiro CSV.';
-      return;
-    }
+    serie.forEach(linha => {
+      const val1 = Number(linha.PE_5_5_1);
+      if (!isNaN(val1) && val1 > 0.1) {
+        if (minPE_5_5_1 === null || val1 < minPE_5_5_1) minPE_5_5_1 = val1;
+      }
+      const val2 = Number(linha.PE_4_17);
+      if (!isNaN(val2) && val2 > 0.1) {
+        if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
+      }
+    });
 
-    if (!idInput) {
-      resultadoDiv.textContent = 'Por favor, insere um ID.';
-      return;
-    }
+    const textoMinPE_5_5_1 = minPE_5_5_1 !== null ? minPE_5_5_1.toFixed(3) : 'N/A';
+    const textoMinPE_4_17 = minPE_4_17 !== null ? minPE_4_17.toFixed(3) : 'N/A';
 
-    const encontrado = dadosCSV.find(linha => linha.id_secagenscore.trim() === idInput);
-
-    if (encontrado) {
-      resultadoDiv.innerHTML = `
-        <h2>Resultados para ID: ${idInput}</h2>
-        <p><strong>Potência:</strong> ${encontrado.potencia}</p>
-        <p><strong>Tensão:</strong> ${encontrado.tensao}</p>
-        <p><strong>Massat:</strong> ${encontrado.massat}</p>
-        <p><strong>Massai:</strong> ${encontrado.massai}</p>
-      `;
-    } else {
-      resultadoDiv.textContent = 'ID não encontrado.';
-    }
+    out.innerHTML = `
+      <h2>Resultados para: ${meta.subprojecto}</h2>
+      <p><strong>ID:</strong> ${id}</p>
+      <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'}</p>
+      <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'}</p>
+      <p><strong>Massa isolantes:</strong> ${massaiTon.toFixed(3)} t</p>
+      <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
+      <hr>
+      <p><strong>Taxa de remoção de água:</strong> ${taxaLC}</p>
+      <p><strong>Taxa de remoção de água nas ultimas 10h:</strong> ${taxa10h}</p>
+      <hr>
+      <p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE}</p>
+      <hr>
+      <p><strong>Menor valor de pressão :</strong> ${textoMinPE_5_5_1}</p>
+      <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17}</p>
+    `;
   }
 </script>
 
