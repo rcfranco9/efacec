@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Comparar Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
@@ -15,8 +15,8 @@
       border-radius: 10px;
     }
     h1 {
-      text-align: center;
       color: #2c3e50;
+      text-align: center;
       margin-bottom: 30px;
     }
     label {
@@ -32,7 +32,6 @@
       border-radius: 5px;
       border: 1px solid #bbb;
       font-size: 16px;
-      box-sizing: border-box;
     }
     button {
       margin-top: 20px;
@@ -40,7 +39,6 @@
       color: white;
       border: none;
       font-weight: bold;
-      transition: background-color 0.3s ease;
       cursor: pointer;
     }
     button:hover:not(:disabled) {
@@ -76,17 +74,16 @@
       margin-top: 20px;
     }
     th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
     }
     th {
-      background-color: #2980b9;
-      color: #fff;
+      background: #2980b9;
+      color: white;
     }
-    .diff-positive { color: #27ae60; font-weight: bold; }
-    .diff-negative { color: #c0392b; font-weight: bold; }
-    .diff-neutral  { color: #7f8c8d; }
+    .diff-positive { color: green; font-weight: bold; }
+    .diff-negative { color: red; font-weight: bold; }
+    .diff-neutral  { color: gray; }
   </style>
 </head>
 <body>
@@ -94,16 +91,16 @@
 <h1>Comparar Transformadores</h1>
 
 <label>CSV de Metadados:</label>
-<input type="file" id="csvMeta" accept=".csv" />
+<input type="file" id="csvMeta" accept=".csv">
 
 <label>CSV de Séries:</label>
-<input type="file" id="csvSerie" accept=".csv" />
+<input type="file" id="csvSerie" accept=".csv">
 
 <label>Nome Transformador 1 (subprojecto):</label>
-<input type="text" id="nome1" disabled />
+<input type="text" id="nome1" disabled>
 
 <label>Nome Transformador 2 (subprojecto):</label>
-<input type="text" id="nome2" disabled />
+<input type="text" id="nome2" disabled>
 
 <button id="btnComparar" disabled>Comparar</button>
 
@@ -111,43 +108,36 @@
 
 <script>
 let dadosMeta = [], dadosSerie = [];
-function checkReady() {
-  const ready = dadosMeta.length && dadosSerie.length;
-  document.getElementById('nome1').disabled = !ready;
-  document.getElementById('nome2').disabled = !ready;
-  document.getElementById('btnComparar').disabled = !ready;
-  if (ready) {
-    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
-  }
-}
-document.getElementById('csvMeta').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => {
-      dadosMeta = res.data;
-      checkReady();
-    }
-  });
-});
 
-document.getElementById('csvSerie').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => {
-      dadosSerie = res.data;
-      checkReady();
-    }
-  });
-});
-
-  
 function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
+}
+
+function maxTEfromSerie(id) {
+  const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+  const valores = [];
+
+  dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .forEach(linha => {
+      colunas.forEach(col => {
+        const val = parseNum(linha[col]);
+        if (!isNaN(val) && val > 0 && val <= 140) {
+          valores.push(val);
+        }
+      });
+    });
+
+  return valores.length > 0 ? Math.max(...valores) : null;
+}
+
+function minPE(id, coluna) {
+  const valores = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .map(r => parseNum(r[coluna]))
+    .filter(v => !isNaN(v) && v > 0.1);
+  return valores.length ? Math.min(...valores) : null;
 }
 
 function getSerie(id) {
@@ -171,43 +161,12 @@ function calcTaxa(id, massaKg) {
   const anterior = serie.findLast(r => r.ts <= alvo) || serie[0];
   const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
+
   const deltaTotal = +(serie[serie.length - 1].lc - serie[0].lc).toFixed(3);
   const duracao = (serie[serie.length - 1].ts - serie[0].ts) / 3600000;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
-}
-
-function maxTE(id) {
-  const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-  const valores = [];
-  dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .forEach(linha => {
-      colunas.forEach(col => {
-        const val = parseNum(linha[col]);
-        if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
-      });
-    });
-  return valores.length > 0 ? Math.max(...valores) : null;
-}
-
-function minPE(id, campo) {
-  return dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .map(r => parseNum(r[campo]))
-    .filter(v => !isNaN(v) && v > 0.1)
-    .reduce((min, val) => Math.min(min, val), Infinity);
-}
-
-function mostrarDadosMeta(meta) {
-  const campos = ['id_secagenscore','marca','tipo','tensao','potencia','massat','massai','ano','local'];
-  let html = `<div class="transformador-dados"><h3>${meta.subprojecto}</h3>`;
-  campos.forEach(c => {
-    if (meta[c]) html += `<p><strong>${c}:</strong> ${meta[c]}</p>`;
-  });
-  html += '</div>';
-  return html;
 }
 
 function diffClass(v) {
@@ -218,8 +177,12 @@ function diffClass(v) {
 
 function checkReady() {
   const ready = dadosMeta.length && dadosSerie.length;
-  ['nome1', 'nome2', 'btnComparar'].forEach(id => document.getElementById(id).disabled = !ready);
-  if (ready) document.getElementById('resultado').textContent = 'CSV carregados. Insere os nomes dos transformadores.';
+  document.getElementById('nome1').disabled = !ready;
+  document.getElementById('nome2').disabled = !ready;
+  document.getElementById('btnComparar').disabled = !ready;
+  if (ready) {
+    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
+  }
 }
 
 document.getElementById('csvMeta').addEventListener('change', e => {
@@ -249,70 +212,55 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const m2 = dadosMeta.find(r => (r.subprojecto || '').trim().toLowerCase() === nome2);
 
   if (!m1 || !m2) {
-    out.innerHTML = `<p>Um ou ambos os nomes não foram encontrados nos metadados.</p>`;
+    out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>';
     return;
   }
 
-  const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
-const nome2 = document.getElementById('nome2').value.trim().toLowerCase();
-
-const m1 = dadosMeta.find(r => (r.subprojecto || '').trim().toLowerCase() === nome1);
-const m2 = dadosMeta.find(r => (r.subprojecto || '').trim().toLowerCase() === nome2);
-
-if (!m1 || !m2) {
-  out.innerHTML = '<p>Um ou ambos os nomes não foram encontrados nos metadados.</p>';
-  return;
-}
-
-const id1 = (m1.id_secagenscore || '').trim();
-const id2 = (m2.id_secagenscore || '').trim();
-
-if (!id1 || !id2) {
-  out.innerHTML = '<p>Um ou ambos os transformadores não têm ID válido.</p>';
-  return;
-}
-
-
+  const id1 = (m1.id_secagenscore || '').trim();
+  const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
-  const te1 = maxTE(id1);
-  const te2 = maxTE(id2);
+  const te1 = maxTEfromSerie(id1);
+  const te2 = maxTEfromSerie(id2);
   const pe1_417 = minPE(id1, 'PE_4_17');
   const pe2_417 = minPE(id2, 'PE_4_17');
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  //let html = mostrarDadosMeta(m1) + mostrarDadosMeta(m2);
+  let html = '';
 
-let html = '';
-html += `
-  <div class="transformador-dados">
-    <h3>${m1.subprojecto}</h3>
-    <p><strong>ID:</strong> ${id1}</p>
-    <p><strong>Marca:</strong> ${m1.marca || 'N/A'}</p>
-    <p><strong>Tipo:</strong> ${m1.tipo || 'N/A'}</p>
-    <p><strong>Tensão:</strong> ${m1.tensao || 'N/A'}</p>
-    <p><strong>Potência:</strong> ${m1.potencia || 'N/A'}</p>
-    <p><strong>Massat:</strong> ${m1.massat || 'N/A'}</p>
-    <p><strong>Massai:</strong> ${m1.massai || 'N/A'}</p>
-    <p><strong>Ano:</strong> ${m1.ano || 'N/A'}</p>
-    <p><strong>Local:</strong> ${m1.local || 'N/A'}</p>
-  </div>`;
+  [m1, m2].forEach((m, i) => {
+    html += `
+    <div class="transformador-dados">
+      <h3>${m.subprojecto || 'Sem nome'}</h3>
+      <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
+      <p><strong>Marca:</strong> ${m.marca || 'N/A'}</p>
+      <p><strong>Tipo:</strong> ${m.tipo || 'N/A'}</p>
+      <p><strong>Tensão:</strong> ${m.tensao || 'N/A'}</p>
+      <p><strong>Potência:</strong> ${m.potencia || 'N/A'}</p>
+      <p><strong>Massat:</strong> ${m.massat || 'N/A'}</p>
+      <p><strong>Massai:</strong> ${m.massai || 'N/A'}</p>
+      <p><strong>Ano:</strong> ${m.ano || 'N/A'}</p>
+      <p><strong>Local:</strong> ${m.local || 'N/A'}</p>
+    </div>`;
+  });
 
-html += `
-  <div class="transformador-dados">
-    <h3>${m2.subprojecto}</h3>
-    <p><strong>ID:</strong> ${id2}</p>
-    <p><strong>Marca:</strong> ${m2.marca || 'N/A'}</p>
-    <p><strong>Tipo:</strong> ${m2.tipo || 'N/A'}</p>
-    <p><strong>Tensão:</strong> ${m2.tensao || 'N/A'}</p>
-    <p><strong>Potência:</strong> ${m2.potencia || 'N/A'}</p>
-    <p><strong>Massat:</strong> ${m2.massat || 'N/A'}</p>
-    <p><strong>Massai:</strong> ${m2.massai || 'N/A'}</p>
-    <p><strong>Ano:</strong> ${m2.ano || 'N/A'}</p>
-    <p><strong>Local:</strong> ${m2.local || 'N/A'}</p>
-  </div>`;
+  html += `<h2>Comparação</h2>
+  <table>
+    <thead><tr><th>Parâmetro</th><th>${id1}</th><th>${id2}</th><th>Δ (1−2)</th></tr></thead>
+    <tbody>
+      <tr><td>Δ LC_3_8 (últ. 10h)</td><td>${t1.delta10h}</td><td>${t2.delta10h}</td><td class="${diffClass(t1.delta10h - t2.delta10h)}">${(t1.delta10h - t2.delta10h).toFixed(3)}</td></tr>
+      <tr><td>Taxa (últ. 10h)</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td><td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td></tr>
+      <tr><td>Δ LC_3_8 total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td><td class="${diffClass(t1.deltaTotal - t2.deltaTotal)}">${(t1.deltaTotal - t2.deltaTotal).toFixed(3)}</td></tr>
+      <tr><td>Taxa total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td><td class="${diffClass(t1.taxaTotal - t2.taxaTotal)}">${(t1.taxaTotal - t2.taxaTotal).toFixed(4)}</td></tr>
+      <tr><td>Duração total (h)</td><td>${t1.duracao.toFixed(2)}</td><td>${t2.duracao.toFixed(2)}</td><td class="${diffClass(t1.duracao - t2.duracao)}">${(t1.duracao - t2.duracao).toFixed(2)}</td></tr>
+      <tr><td>Máx TE_5_4_X</td><td>${te1?.toFixed(2) || 'N/A'}</td><td>${te2?.toFixed(2) || 'N/A'}</td><td class="${diffClass((te1 ?? 0) - (te2 ?? 0))}">${((te1 ?? 0) - (te2 ?? 0)).toFixed(2)}</td></tr>
+      <tr><td>Mín PE_4_17 (>0.1)</td><td>${pe1_417?.toFixed(3) || 'N/A'}</td><td>${pe2_417?.toFixed(3) || 'N/A'}</td><td class="${diffClass((pe1_417 ?? 0) - (pe2_417 ?? 0))}">${((pe1_417 ?? 0) - (pe2_417 ?? 0)).toFixed(3)}</td></tr>
+      <tr><td>Mín PE_5_5_1 (>0.1)</td><td>${pe1_551?.toFixed(3) || 'N/A'}</td><td>${pe2_551?.toFixed(3) || 'N/A'}</td><td class="${diffClass((pe1_551 ?? 0) - (pe2_551 ?? 0))}">${((pe1_551 ?? 0) - (pe2_551 ?? 0)).toFixed(3)}</td></tr>
+    </tbody>
+  </table>`;
 
+  out.innerHTML = html;
 });
 </script>
 
