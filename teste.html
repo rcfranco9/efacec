@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <title>Comparar Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -106,6 +109,9 @@
 <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os dois ficheiros CSV.</div>
+<button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
+
+
 
 <script>
 let dadosMeta = [], dadosSerie = [];
@@ -260,7 +266,32 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   </table>`;
 
   out.innerHTML = html;
+  document.getElementById("btnExportarPDF").style.display = 'inline-block';
+
 });
+  document.getElementById("btnExportarPDF").addEventListener("click", async () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "px",
+    format: "a4"
+  });
+
+  const resultado = document.getElementById("resultado");
+
+  await html2canvas(resultado, { scale: 2 }).then(canvas => {
+    const imgData = canvas.toDataURL("image/png");
+    const imgProps = doc.getImageProperties(imgData);
+    const pdfWidth = doc.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    doc.addImage(imgData, "PNG", 20, 20, pdfWidth - 40, pdfHeight);
+    const nome1 = document.getElementById("nome1").value.trim().replace(/\s+/g, "_");
+    const nome2 = document.getElementById("nome2").value.trim().replace(/\s+/g, "_");
+    doc.save(`Comparacao_${nome1 || 'A'}_vs_${nome2 || 'B'}.pdf`);
+  });
+});
+
 </script>
 
 </body>
