@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Filtrar Transformadores com Taxa LC Garantida</title>
+  <title>Filtragem de Transformadores </title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     body {
@@ -76,10 +76,10 @@
 
   <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
 
-  <label for="csvMeta">1) CSV de Metadados:</label>
+  <label for="csvMeta">1) CSV1:</label>
   <input type="file" id="csvMeta" accept=".csv">
 
-  <label for="csvSerie">2) CSV de Séries (LC_3_8 + DataHora):</label>
+  <label for="csvSerie">2) CSV2:</label>
   <input type="file" id="csvSerie" accept=".csv">
 
   <label for="potenciaInput">Potência (ex: 140):</label>
@@ -221,16 +221,13 @@
       html += `
         <div class="item">
           <strong>#${i+1} — ID:</strong> ${id}<br>
-          <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
-          <strong>Massai:</strong> ${mTon} t<br>
-          <strong>Δ LC_3_8 (últ - 10h antes):</strong> ${stats.delta10h}<br>
-          <strong>Taxa LC (últimas 10h):</strong> ${stats.taxa10h}<br>
-          <strong>Δ LC_3_8 total:</strong> ${stats.difLC}<br>
+          <strong>Projecto:</strong> ${m.subprojecto||'N/A'}<br>
           <strong>Duração total (h):</strong> ${stats.dur}<br>
-          <strong>Taxa LC total:</strong> ${stats.taxa}<br>
-          <strong>Máx TE_5_4_X (≤140):</strong> ${teMax}<br>
-          <strong>Mín PE_5_5_1 (>0.1):</strong> ${pe551}<br>
-          <strong>Mín PE_4_17  (>0.1):</strong> ${pe417}
+          <strong>Taxa de remoção de água:</strong> ${stats.taxa}<br>
+          <strong>Taxa de remoção de água nas ultimas 10h:</strong> ${stats.taxa10h}<br>
+          <strong>Maior valor de temepratura nas sondas:</strong> ${teMax}<br>
+          <strong>Menor valor de pressão:</strong> ${pe551}<br>
+          <strong>Menor valor de vácuo fino:</strong> ${pe417}
         </div>
       `;
     });
