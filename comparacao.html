@@ -247,7 +247,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   html += `<h2>Comparação</h2>
   <table>
-    <thead><tr><th>Parâmetro</th><th>${id1}</th><th>${id2}</th><th>Δ (1−2)</th></tr></thead>
+    <thead><tr><th>Parâmetro</th><th>${id1}</th><th>${id2}</th></tr></thead>
     <tbody>
       <tr><td>Δ LC_3_8 (últ. 10h)</td><td>${t1.delta10h}</td><td>${t2.delta10h}</td><td class="${diffClass(t1.delta10h - t2.delta10h)}">${(t1.delta10h - t2.delta10h).toFixed(3)}</td></tr>
       <tr><td>Taxa (últ. 10h)</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td><td class="${diffClass(t1.taxa10h - t2.taxa10h)}">${(t1.taxa10h - t2.taxa10h).toFixed(4)}</td></tr>
