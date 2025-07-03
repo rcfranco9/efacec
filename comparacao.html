@@ -237,8 +237,8 @@ document.getElementById('btnComparar').addEventListener('click', () => {
       <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
       <p><strong>Tensão:</strong> ${m.tensao || 'N/A'}</p>
       <p><strong>Potência:</strong> ${m.potencia || 'N/A'}</p>
-      <p><strong>Massat:</strong> ${m.massat || 'N/A'}</p>
-      <p><strong>Massai:</strong> ${m.massai || 'N/A'}</p>
+      <p><strong>Massa transformador:</strong> ${m.massat || 'N/A'}</p>
+      <p><strong>Massa dos isolantes:</strong> ${m.massai || 'N/A'}</p>
     </div>`;
   });
 
@@ -251,11 +251,11 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 </tr>
    <tbody>
     <tr><td>Taxa total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
-    <tr><td>Taxa de remoção de agua nas ultimas 10h (</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td></tr>
+    <tr><td>Taxa de remoção de água nas ultimas 10h (</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td></tr>
     <tr><td>Duração total (h)</td><td>${t1.duracao.toFixed(2)}</td><td>${t2.duracao.toFixed(2)}</td></tr>
-    <tr><td></td><td>${te1?.toFixed(2) || 'N/A'}</td><td>${te2?.toFixed(2) || 'N/A'}</td></tr>
-    <tr><td>Mín PE_4_17 (>0.1)</td><td>${pe1_417?.toFixed(3) || 'N/A'}</td><td>${pe2_417?.toFixed(3) || 'N/A'}</td></tr>
-    <tr><td>Mín PE_5_5_1 (>0.1)</td><td>${pe1_551?.toFixed(3) || 'N/A'}</td><td>${pe2_551?.toFixed(3) || 'N/A'}</td></tr>
+    <tr><td>Massimo valor de temperatura nas sondas</td><td>${te1?.toFixed(2) || 'N/A'}</td><td>${te2?.toFixed(2) || 'N/A'}</td></tr>
+    <tr><td>Menor valor de pressão</td><td>${pe1_417?.toFixed(3) || 'N/A'}</td><td>${pe2_417?.toFixed(3) || 'N/A'}</td></tr>
+    <tr><td>Menor valor de vácuo fino</td><td>${pe1_551?.toFixed(3) || 'N/A'}</td><td>${pe2_551?.toFixed(3) || 'N/A'}</td></tr>
     </tbody>
   </table>`;
 
