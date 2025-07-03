@@ -120,7 +120,31 @@ function checkReady() {
     document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
   }
 }
+document.getElementById('csvMeta').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  Papa.parse(f, {
+    header: true, skipEmptyLines: true,
+    complete: res => {
+      dadosMeta = res.data;
+      checkReady();
+    }
+  });
+});
 
+document.getElementById('csvSerie').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  Papa.parse(f, {
+    header: true, skipEmptyLines: true,
+    complete: res => {
+      dadosSerie = res.data;
+      checkReady();
+    }
+  });
+});
+
+  
 function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
