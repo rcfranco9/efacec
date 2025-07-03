@@ -133,6 +133,23 @@ function maxTEfromSerie(id) {
   return valores.length > 0 ? Math.max(...valores) : null;
 }
 
+  function minPE_4_17(id) {
+  const valores = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .map(r => parseFloat((r.PE_4_17 || '').toString().replace(',', '.').trim()))
+    .filter(v => !isNaN(v) && v > 0.1);
+  return valores.length ? Math.min(...valores) : null;
+}
+
+function minPE_5_5_1(id) {
+  const valores = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .map(r => parseFloat((r.PE_5_5_1 || '').toString().replace(',', '.').trim()))
+    .filter(v => !isNaN(v) && v > 0.1);
+  return valores.length ? Math.min(...valores) : null;
+}
+
+
 function getSerie(id) {
   return dadosSerie
     .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
@@ -223,6 +240,12 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const t2 = calcTaxa(id2, m2.massai);
   const te1 = maxTEfromSerie(id1);
   const te2 = maxTEfromSerie(id2);
+  const pe1_417 = minPE_4_17(id1);
+  const pe2_417 = minPE_4_17(id2);
+
+  const pe1_551 = minPE_5_5_1(id1);
+  const pe2_551 = minPE_5_5_1(id2);
+
 
 
   let html = mostrarDadosMeta(m1) + mostrarDadosMeta(m2);
@@ -252,6 +275,23 @@ document.getElementById('btnComparar').addEventListener('click', () => {
         ${(te1 !== null && te2 !== null) ? (te1 - te2).toFixed(2) : 'N/A'}
       </td>
     </tr>
+    <tr>
+  <td>Mín PE_4_17 (>0.1)</td>
+  <td>${pe1_417 !== null ? pe1_417.toFixed(3) : 'N/A'}</td>
+  <td>${pe2_417 !== null ? pe2_417.toFixed(3) : 'N/A'}</td>
+  <td class="${(pe1_417 !== null && pe2_417 !== null) ? diffClass(pe1_417 - pe2_417) : ''}">
+    ${(pe1_417 !== null && pe2_417 !== null) ? (pe1_417 - pe2_417).toFixed(3) : 'N/A'}
+  </td>
+</tr>
+<tr>
+  <td>Mín PE_5_5_1 (>0.1)</td>
+  <td>${pe1_551 !== null ? pe1_551.toFixed(3) : 'N/A'}</td>
+  <td>${pe2_551 !== null ? pe2_551.toFixed(3) : 'N/A'}</td>
+  <td class="${(pe1_551 !== null && pe2_551 !== null) ? diffClass(pe1_551 - pe2_551) : ''}">
+    ${(pe1_551 !== null && pe2_551 !== null) ? (pe1_551 - pe2_551).toFixed(3) : 'N/A'}
+  </td>
+</tr>
+
   </tbody></table>`;
 
   out.innerHTML = html;
