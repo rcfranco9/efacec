@@ -5,7 +5,7 @@
   <title>Filtrar Transformadores com Taxa LC Garantida</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-   body {
+    body {
       font-family: 'Segoe UI', sans-serif;
       max-width: 900px;
       margin: 40px auto;
@@ -64,25 +64,13 @@
       border-left: 5px solid #e74c3c;
       border-radius: 4px;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
+    .aviso-limite {
+      color: #c0392b;
+      font-style: italic;
+      font-weight: bold;
+      font-size: 14px;
     }
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-    th {
-      background-color: #2980b9;
-      color: #fff;
-    }
-    .diff-positive { color: #27ae60; font-weight: bold; }
-    .diff-negative { color: #c0392b; font-weight: bold; }
-    .diff-neutral  { color: #7f8c8d; }
-    
-    </style>
+  </style>
 </head>
 <body>
 
@@ -105,120 +93,128 @@
   <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
 
   <script>
- let dadosMeta = [], dadosSerie = [];
+    let dadosMeta = [], dadosSerie = [];
 
-  function checkReady() {
-    const ok = dadosMeta.length && dadosSerie.length;
-    ['potenciaInput','tensaoInput','btnFiltrar']
-      .forEach(id => document.getElementById(id).disabled = !ok);
-    if (ok) {
-      document.getElementById('resultado')
-        .textContent = 'CSV carregados. Insere potência e tensão.';
-    }
-  }
-
-  document.getElementById('csvMeta').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosMeta = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  document.getElementById('csvSerie').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosSerie = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  // sempre retorna número (0 se inválido)
-  function parseNum(v) {
-    const n = parseFloat((v||'').toString().replace(',', '.').trim());
-    return isNaN(n) ? 0 : n;
-  }
-
-  // calcula diferença LC entre último valor e valor 10h antes, duração e taxa
-  function calcLC(id, massaiKg) {
-    const linhas = dadosSerie.filter(r =>
-      (r.id_secagenscore||'').trim() === id &&
-      r.LC_3_8 && r.DataHora
-    );
-
-    const registos = linhas.map(r => ({
-      valor: parseNum(r.LC_3_8),
-      ts: new Date(r.DataHora).getTime()
-    })).filter(r => !isNaN(r.ts));
-
-    if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
-
-    registos.sort((a,b) => a.ts - b.ts);
-
-    const ultimo = registos[registos.length - 1];
-    const alvoTS = ultimo.ts - 10 * 3600000; // 10 horas antes em ms
-
-    let anterior = null;
-    for (let i = registos.length - 1; i >= 0; i--) {
-      if (registos[i].ts <= alvoTS) {
-        anterior = registos[i];
-        break;
+    function checkReady() {
+      const ok = dadosMeta.length && dadosSerie.length;
+      ['potenciaInput','tensaoInput','btnFiltrar']
+        .forEach(id => document.getElementById(id).disabled = !ok);
+      if (ok) {
+        document.getElementById('resultado')
+          .textContent = 'CSV carregados. Insere potência e tensão.';
       }
     }
 
-    if (!anterior) anterior = registos[0];
-
-    const difLC = +(ultimo.valor - anterior.valor).toFixed(3);
-
-    const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
-
-    const ton = parseNum(massaiKg) / 1000 || 1;
-
-    const taxa = +((difLC) / (dur * ton)).toFixed(2);
-
-    return { difLC, dur, taxa };
-  }
-
-  document.getElementById('btnFiltrar').addEventListener('click', () => {
-    const pot = document.getElementById('potenciaInput').value.trim();
-    const ten = document.getElementById('tensaoInput').value.trim();
-    const out = document.getElementById('resultado');
-    if (!pot || !ten) {
-      out.textContent = 'Preenche ambos os campos.'; return;
-    }
-
-    const encontrados = dadosMeta.filter(r =>
-      (r.potencia||'').trim() === pot &&
-      (r.tensao  ||'').trim() === ten
-    );
-    if (!encontrados.length) {
-      out.textContent = 'Nenhum transformador encontrado.'; return;
-    }
-
-    let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-    encontrados.forEach((m, i) => {
-      const id = (m.id_secagenscore||'').trim();
-      const stats = calcLC(id, m.massai);
-      const mTon = (parseNum(m.massai)/1000).toFixed(3);
-      html += `
-        <div class="item">
-          <strong>#${i+1} — ID:</strong> ${id}<br>
-          <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
-          <strong>Massai:</strong> ${mTon} t<br>
-          <strong>Δ LC_3_8 (últ - 10h antes):</strong> ${stats.difLC}<br>
-          <strong>Duração (h):</strong> ${stats.dur}<br>
-          <strong>Taxa LC normalizada:</strong> ${stats.taxa}
-        </div>
-      `;
+    document.getElementById('csvMeta').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
+      });
+      r.readAsText(f);
     });
 
-    out.innerHTML = html;
-  });
-  </script>
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
 
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? 0 : n;
+    }
+
+    function calcLC(id, massaiKg) {
+      const linhas = dadosSerie.filter(r =>
+        (r.id_secagenscore||'').trim() === id &&
+        r.LC_3_8 && r.DataHora
+      );
+
+      const registos = linhas.map(r => ({
+        valor: parseNum(r.LC_3_8),
+        ts: new Date(r.DataHora).getTime()
+      })).filter(r => !isNaN(r.ts));
+
+      if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0 };
+
+      registos.sort((a,b) => a.ts - b.ts);
+
+      const ultimo = registos[registos.length - 1];
+      const alvoTS = ultimo.ts - 10 * 3600000;
+
+      let anterior = null;
+      for (let i = registos.length - 1; i >= 0; i--) {
+        if (registos[i].ts <= alvoTS) {
+          anterior = registos[i];
+          break;
+        }
+      }
+      if (!anterior) anterior = registos[0];
+
+      const difLC = +(ultimo.valor - anterior.valor).toFixed(3);
+      const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
+      const ton = parseNum(massaiKg) / 1000 || 1;
+      const taxa = +((difLC) / (dur * ton)).toFixed(2);
+
+      return { difLC, dur, taxa };
+    }
+
+    function maxTE(r) {
+      const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      const valores = colunas.map(k => parseNum(r[k]));
+      const maxOriginal = Math.max(...valores);
+      return {
+        valorFinal: Math.min(maxOriginal, 140),
+        ultrapassou: maxOriginal > 140,
+        valorOriginal: maxOriginal
+      };
+    }
+
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.'; return;
+      }
+
+      const encontrados = dadosMeta.filter(r =>
+        (r.potencia||'').trim() === pot &&
+        (r.tensao  ||'').trim() === ten
+      );
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.'; return;
+      }
+
+      let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLC(id, m.massai);
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
+        const temp = maxTE(m);
+
+        html += `
+          <div class="item">
+            <strong>#${i+1} — ID:</strong> ${id}<br>
+            <strong>Subprojecto:</strong> ${m.subprojecto||'N/A'}<br>
+            <strong>Massai:</strong> ${mTon} t<br>
+            <strong>Δ LC_3_8 (últ - 10h antes):</strong> ${stats.difLC}<br>
+            <strong>Duração (h):</strong> ${stats.dur}<br>
+            <strong>Taxa LC normalizada:</strong> ${stats.taxa}<br>
+            <strong>Máx TE_5_4_X (limite 140):</strong> ${temp.valorFinal}
+            ${temp.ultrapassou ? `<div class="aviso-limite">⚠ Valor original: ${temp.valorOriginal} (acima de 140!)</div>` : ''}
+          </div>
+        `;
+      });
+
+      out.innerHTML = html;
+    });
+  </script>
 </body>
 </html>
