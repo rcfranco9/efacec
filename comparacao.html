@@ -76,6 +76,7 @@
     th, td {
       padding: 10px;
       border-bottom: 1px solid #ccc;
+      text-align: center;
     }
     th {
       background: #2980b9;
@@ -247,16 +248,20 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   html += `<h2>Comparação</h2>
   <table>
-    <thead><tr><th>Parâmetro</th><th>${id1}</th><th>${id2}</th></tr></thead>
-    <tbody>
-     <tr><td>Δ LC_3_8 (últ. 10h)</td><td>${t1.delta10h}</td><td>${t2.delta10h}</td></tr>
-<tr><td>Taxa (últ. 10h)</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td></tr>
-<tr><td>Δ LC_3_8 total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
-<tr><td>Taxa total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
-<tr><td>Duração total (h)</td><td>${t1.duracao.toFixed(2)}</td><td>${t2.duracao.toFixed(2)}</td></tr>
-<tr><td>Máx TE_5_4_X</td><td>${te1?.toFixed(2) || 'N/A'}</td><td>${te2?.toFixed(2) || 'N/A'}</td></tr>
-<tr><td>Mín PE_4_17 (>0.1)</td><td>${pe1_417?.toFixed(3) || 'N/A'}</td><td>${pe2_417?.toFixed(3) || 'N/A'}</td></tr>
-<tr><td>Mín PE_5_5_1 (>0.1)</td><td>${pe1_551?.toFixed(3) || 'N/A'}</td><td>${pe2_551?.toFixed(3) || 'N/A'}</td></tr>
+    <tr>
+  <th>Parâmetro</th>
+  <th>${m1.subprojecto || id1}</th>
+  <th>${m2.subprojecto || id2}</th>
+</tr>
+   <tbody>
+    <tr><td>Δ LC_3_8 (últ. 10h)</td><td>${t1.delta10h}</td><td>${t2.delta10h}</td></tr>
+    <tr><td>Taxa (últ. 10h)</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td></tr>
+    <tr><td>Δ LC_3_8 total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
+    <tr><td>Taxa total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
+    <tr><td>Duração total (h)</td><td>${t1.duracao.toFixed(2)}</td><td>${t2.duracao.toFixed(2)}</td></tr>
+    <tr><td>Máx TE_5_4_X</td><td>${te1?.toFixed(2) || 'N/A'}</td><td>${te2?.toFixed(2) || 'N/A'}</td></tr>
+    <tr><td>Mín PE_4_17 (>0.1)</td><td>${pe1_417?.toFixed(3) || 'N/A'}</td><td>${pe2_417?.toFixed(3) || 'N/A'}</td></tr>
+    <tr><td>Mín PE_5_5_1 (>0.1)</td><td>${pe1_551?.toFixed(3) || 'N/A'}</td><td>${pe2_551?.toFixed(3) || 'N/A'}</td></tr>
     </tbody>
   </table>`;
 
