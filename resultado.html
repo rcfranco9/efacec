@@ -223,23 +223,25 @@
     const textoMinPE_5_5_1 = minPE_5_5_1 !== null ? minPE_5_5_1.toFixed(3) : 'N/A';
     const textoMinPE_4_17 = minPE_4_17 !== null ? minPE_4_17.toFixed(3) : 'N/A';
 
-    out.innerHTML = `
-      <h2>Resultados para: ${meta.subprojecto}</h2>
-      <p><strong>ID:</strong> ${id}</p>
-      <p><strong>Potência:</strong> ${meta.potencia || 'N/A'}</p>
-      <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'}</p>
-      <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'}</p>
-      <p><strong>Massa isolantes:</strong> ${massaiTon.toFixed(3)} t</p>
-      <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
-      <hr>
-      <p><strong>Taxa de remoção de água:</strong> ${taxaLC}</p>
-      <p><strong>Taxa de remoção de água nas ultimas 10h:</strong> ${taxa10h}</p>
-      <hr>
-      <p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE}</p>
-      <hr>
-      <p><strong>Menor valor de pressão :</strong> ${textoMinPE_5_5_1}</p>
-      <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17}</p>
-    `;
+out.innerHTML = `
+  <h2>Resultados para: ${meta.subprojecto}</h2>
+  <p><strong>ID:</strong> ${id}</p>
+  <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+  <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+  <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+  <p><strong>Massa isolantes:</strong> ${massaiTon.toFixed(3)} t</p>
+  <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
+  <hr>
+  <p><strong>Quantidade de remoção de água:</strong> ${difLC} %</p>
+  <p><strong>Taxa de remoção de água:</strong> ${taxaLC} %/h/t</p>
+  <p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${taxa10h} %/h/t</p>
+  <hr>
+  <p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE} ºC</p>
+  <hr>
+  <p><strong>Menor valor de pressão:</strong> ${textoMinPE_5_5_1} mbar</p>
+  <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17} mbar</p>
+`;
+
     document.getElementById("btnExportarPDF").style.display = 'inline-block';
   }
  
