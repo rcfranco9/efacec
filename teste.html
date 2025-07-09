@@ -1,225 +1,260 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Filtragem de Transformadores</title>
+  <meta charset="UTF-8" />
+  <title>Consulta Transformador por Nome</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
       max-width: 900px;
       margin: 40px auto;
-      background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
-      padding: 30px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      background: #f5f5f5;
+      padding: 20px 30px;
       border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
     h1 {
-      color: #2c3e50;
       text-align: center;
-      margin-bottom: 30px;
+      color: #2c3e50;
     }
     label {
+      font-weight: bold;
       display: block;
       margin-top: 20px;
-      font-weight: 600;
       color: #34495e;
     }
     input, button {
       padding: 10px;
       width: 100%;
-      margin-top: 8px;
+      margin-top: 5px;
       border-radius: 5px;
       border: 1px solid #bbb;
-      font-size: 16px;
+      font-size: 15px;
       box-sizing: border-box;
     }
     button {
-      margin-top: 20px;
+      margin-top: 15px;
       background-color: #2980b9;
       color: white;
       border: none;
       font-weight: bold;
-      transition: background-color 0.3s ease;
+      cursor: pointer;
     }
     button:hover:not(:disabled) {
       background-color: #3498db;
     }
     button:disabled {
-      background-color: #95a5a6;
+      background-color: #aaa;
       cursor: not-allowed;
     }
     #resultado {
       margin-top: 30px;
       padding: 20px;
-      background: #fff;
       border: 2px solid #ccc;
+      background: #fff;
       border-radius: 8px;
-      min-height: 100px;
+      line-height: 1.6;
     }
-    .transformador-dados {
-      background: #fdfdfd;
-      border: 1px solid #ccc;
-      padding: 15px 20px;
-      margin-top: 20px;
+    .bloco-transformador {
+      margin-top: 25px;
+      padding: 15px;
+      background: #ecf0f1;
       border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-      transition: background 0.3s;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
     }
-    .transformador-dados:hover {
-      background: #f0f8ff;
+    .bloco-transformador h3 {
+      margin-top: 0;
+      color: #2c3e50;
     }
-    .transformador-dados strong {
+    strong {
       color: #2c3e50;
     }
   </style>
 </head>
 <body>
-  <h1>Filtrar Transformadores com Taxa LC Garantida</h1>
-  <label for="csvMeta">1) CSV1:</label>
-  <input type="file" id="csvMeta" accept=".csv">
-  <label for="csvSerie">2) CSV2:</label>
-  <input type="file" id="csvSerie" accept=".csv">
-  <label for="potenciaInput">Potência (ex: 140):</label>
-  <input type="text" id="potenciaInput" placeholder="Potência" disabled>
-  <label for="tensaoInput">Tensão (ex: 240.5):</label>
-  <input type="text" id="tensaoInput" placeholder="Tensão" disabled>
-  <button id="btnFiltrar" disabled>Procurar</button>
-  
-  <div id="resultado">Carrega primeiro os dois ficheiros CSV.</div>
-  <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
-  <script>
-  let dadosMeta = [], dadosSerie = [];
+<h1>Consulta Transformador</h1>
 
-  function checkReady() {
-    const ok = dadosMeta.length && dadosSerie.length;
-    ['potenciaInput','tensaoInput','btnFiltrar'].forEach(id => document.getElementById(id).disabled = !ok);
-    if (ok) {
-      document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
+<label for="csvFile1">CSV1:</label>
+<input type="file" id="csvFile1" accept=".csv" />
+
+<label for="csvFile2">CSV2:</label>
+<input type="file" id="csvFile2" accept=".csv" />
+
+<label for="nomeInput">Nome do transformador (subprojecto):</label>
+<input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
+<button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
+
+<div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
+<button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
+
+<script>
+  let dadosCSV1 = [], dadosCSV2 = [];
+
+  function formatNum(v, dec = 3) {
+    const n = parseFloat(v);
+    if (isNaN(n) || n === 0) return 'N/A';
+    const f = n.toFixed(dec);
+    return parseFloat(f).toString();
+  }
+
+  function ativarInputSePronto() {
+    const btn = document.getElementById('btnBuscar');
+    const input = document.getElementById('nomeInput');
+    const aviso = document.getElementById('resultado');
+    if (dadosCSV1.length && dadosCSV2.length) {
+      btn.disabled = false;
+      input.disabled = false;
+      aviso.textContent = 'Ficheiros carregados. Insere o nome do transformador.';
     }
   }
 
-  document.getElementById('csvMeta').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosMeta = res.data; checkReady(); }
+  function carregarCSV(id, destino, callback) {
+    document.getElementById(id).addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        Papa.parse(event.target.result, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(res) {
+            destino.length = 0;
+            res.data.forEach(row => destino.push(row));
+            callback();
+          }
+        });
+      };
+      reader.readAsText(file);
     });
-    r.readAsText(f);
-  });
-
-  document.getElementById('csvSerie').addEventListener('change', e => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosSerie = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  function parseNum(v) {
-    const n = parseFloat((v||'').toString().replace(',', '.').trim());
-    return isNaN(n) ? NaN : n;
   }
 
-  function calcLC(id, massaiKg) {
-    const linhas = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora);
-    const registos = linhas.map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
-      .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
-    if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0, delta10h: 0, taxa10h: 0 };
-    registos.sort((a,b) => a.ts - b.ts);
-    const ultimo = registos[registos.length - 1];
-    const alvoTS = ultimo.ts - 10 * 3600000;
-    let anterior10h = registos[0];
-    for (let i = registos.length - 1; i >= 0; i--) {
-      if (registos[i].ts <= alvoTS) { anterior10h = registos[i]; break; }
-    }
-    const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
-    const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
-    const ton = parseNum(massaiKg) / 1000 || 1;
-    const taxa = +((ultimo.valor - registos[0].valor) / (dur * ton)).toFixed(2);
-    const taxa10h = +(delta10h / (10 * ton)).toFixed(2);
-    return { difLC: +(ultimo.valor - registos[0].valor).toFixed(3), dur, taxa, delta10h, taxa10h };
-  }
+  carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
+  carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 
-  function maxTEfromSerie(id) {
-    const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const valores = [];
-    dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
-      .forEach(linha => colunas.forEach(col => {
-        const val = parseNum(linha[col]);
-        if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
-      }));
-    return valores.length > 0 ? Math.max(...valores).toFixed(2) : 'N/A';
-  }
-
-  function minPE(id, coluna) {
-    const valores = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
-      .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
-    return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
-  }
-
-  document.getElementById('btnFiltrar').addEventListener('click', () => {
-    const pot = document.getElementById('potenciaInput').value.trim();
-    const ten = document.getElementById('tensaoInput').value.trim();
+  function buscarPorNome() {
+    const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
     const out = document.getElementById('resultado');
-    if (!pot || !ten) return out.textContent = 'Preenche ambos os campos.';
-    const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
-    if (!encontrados.length) return out.textContent = 'Nenhum transformador encontrado.';
-    let html = `<strong>${encontrados.length} transformador(es):</strong><br>`;
-    encontrados.forEach((m, i) => {
-      const id = (m.id_secagenscore||'').trim();
-      const stats = calcLC(id, m.massai);
-      const mTon = (parseNum(m.massai)/1000).toFixed(3);
-      const teMax = maxTEfromSerie(id);
-      const pe417 = minPE(id, 'PE_4_17');
-      const pe551 = minPE(id, 'PE_5_5_1');
-      html += `<div class="transformador-dados">
-        <strong>#${i+1} — ID:</strong> ${id}<br>
-        <strong>Projecto:</strong> ${m.subprojecto||'N/A'}<br>
-        <strong>Duração total (h):</strong> ${stats.dur}<br>
-        <strong>Taxa de remoção de água:</strong> ${stats.taxa}<br>
-        <strong>Taxa de remoção de água nas ultimas 10h:</strong> ${stats.taxa10h}<br>
-        <strong>Maior valor de temperatura nas sondas:</strong> ${teMax}<br>
-        <strong>Menor valor de pressão:</strong> ${pe551}<br>
-        <strong>Menor valor de vácuo fino:</strong> ${pe417}
+
+    if (!nome) {
+      out.textContent = 'Por favor, insere o nome do transformador.';
+      return;
+    }
+
+    const encontrados = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
+
+    if (!encontrados.length) {
+      out.textContent = 'Transformador não encontrado nos metadados.';
+      return;
+    }
+
+    let html = `<h2>Resultados para: <strong>${encontrados[0].subprojecto}</strong></h2>`;
+
+    encontrados.forEach((meta, index) => {
+      const id = meta.id_secagenscore?.trim();
+      if (!id) return;
+
+      const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+      if (!serie.length) return;
+
+      const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
+      const difLC = valoresLC.length >= 2 ? valoresLC[valoresLC.length - 1] - valoresLC[0] : 0;
+
+      const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+      if (datas.length < 2) return;
+
+      const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
+      const massaiTon = Number(meta.massai) / 1000;
+
+      const taxaLC = (difLC / (duracao * massaiTon));
+
+      const dadosOrdenados = serie.filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
+        .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+      const final = new Date(dadosOrdenados[dadosOrdenados.length - 1].DataHora);
+      const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
+      const ultimos = dadosOrdenados.filter(l =>
+        new Date(l.DataHora) >= inicial && new Date(l.DataHora) <= final
+      );
+
+      const lcOrdenado10h = ultimos.filter(l => !isNaN(Number(l.LC_3_8)))
+        .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+      let difLC10h = 0, taxa10h = 0;
+      if (lcOrdenado10h.length >= 2) {
+        const lcInicial = Number(lcOrdenado10h[0].LC_3_8);
+        const lcFinal = Number(lcOrdenado10h[lcOrdenado10h.length - 1].LC_3_8);
+        difLC10h = lcFinal - lcInicial;
+        taxa10h = difLC10h / (10 * massaiTon);
+      }
+
+      const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      let maxTE = null;
+      serie.forEach(linha => {
+        colunasTE.forEach(col => {
+          const val = Number(linha[col]);
+          if (!isNaN(val) && val > 0 && val <= 140) {
+            if (maxTE === null || val > maxTE) maxTE = val;
+          }
+        });
+      });
+
+      let minPE_5_5_1 = null, minPE_4_17 = null;
+      serie.forEach(linha => {
+        const val1 = Number(linha.PE_5_5_1);
+        if (!isNaN(val1) && val1 > 0.1) {
+          if (minPE_5_5_1 === null || val1 < minPE_5_5_1) minPE_5_5_1 = val1;
+        }
+        const val2 = Number(linha.PE_4_17);
+        if (!isNaN(val2) && val2 > 0.1) {
+          if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
+        }
+      });
+
+      html += `
+      <div class="bloco-transformador">
+        <h3>#${index + 1} — ID: ${id}</h3>
+        <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+        <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+        <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+        <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
+        <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+        <hr>
+        <p><strong>Quantidade de remoção de água:</strong> ${formatNum(difLC)} %</p>
+        <p><strong>Taxa de remoção de água:</strong> ${formatNum(taxaLC)} %/h/t</p>
+        <p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(taxa10h)} %/h/t</p>
+        <hr>
+        <p><strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+        <p><strong>Menor valor de pressão:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+        <p><strong>Menor valor de vácuo fino:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
       </div>`;
     });
-    out.innerHTML = html;
-    document.getElementById('btnExportarPDF').style.display = 'inline-block';
-  });
 
-  document.getElementById("btnExportarPDF").addEventListener("click", async () => {
-    const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
-    const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let cursorY = 20;
-    const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
-    for (let i = 0; i < transformadores.length; i++) {
-      const el = transformadores[i];
-      await html2canvas(el, { scale: 2 }).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-        const imgProps = doc.getImageProperties(imgData);
-        const imgWidth = pageWidth - 40;
-        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-        if (cursorY + imgHeight > pageHeight - 20) {
-          doc.addPage();
-          cursorY = 20;
-        }
-        doc.addImage(imgData, "PNG", 20, cursorY, imgWidth, imgHeight);
-        cursorY += imgHeight + 10;
-      });
-    }
-    const pot = document.getElementById("potenciaInput").value.trim().replace(/\s+/g, "_");
-    const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
-    doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
+    out.innerHTML = html;
+    document.getElementById("btnExportarPDF").style.display = 'inline-block';
+  }
+
+  const btnExportarPDF = document.getElementById("btnExportarPDF");
+  btnExportarPDF.addEventListener("click", async () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
+    const resultado = document.getElementById("resultado");
+
+    await html2canvas(resultado, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = doc.getImageProperties(imgData);
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      doc.addImage(imgData, "PNG", 20, 20, pdfWidth - 40, pdfHeight);
+      const nome = document.getElementById("nomeInput").value.trim().replace(/\s+/g, "_");
+      doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
+    });
   });
-  </script>
+</script>
+
 </body>
 </html>
