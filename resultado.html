@@ -229,18 +229,19 @@ out.innerHTML = `
   <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
   <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
   <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-  <p><strong>Massa isolantes:</strong> ${massaiTon.toFixed(3)} t</p>
-  <p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>
+  <p><strong>Massa isolantes:</strong> ${massaiTon > 0 ? massaiTon.toFixed(3) + ' t' : 'N/A'}</p>
+  <p><strong>Duração total:</strong> ${duracao > 0 ? duracao.toFixed(2) + ' h' : 'N/A'}</p>
   <hr>
-  <p><strong>Quantidade de remoção de água:</strong> ${difLC} %</p>
-  <p><strong>Taxa de remoção de água:</strong> ${taxaLC} %/h/t</p>
-  <p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${taxa10h} %/h/t</p>
+  ${(!isNaN(difLC) && Number(difLC) !== 0 ? `<p><strong>Quantidade de remoção de água:</strong> ${difLC} %</p>` : '')}
+  ${(!isNaN(taxaLC) && Number(taxaLC) !== 0 ? `<p><strong>Taxa de remoção de água:</strong> ${taxaLC} %/h/t</p>` : '')}
+  ${(!isNaN(taxa10h) && Number(taxa10h) !== 0 ? `<p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${taxa10h} %/h/t</p>` : '')}
   <hr>
-  <p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE} ºC</p>
+  ${(!isNaN(maxTE) && Number(maxTE) !== 0 ? `<p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE} ºC</p>` : '')}
   <hr>
-  <p><strong>Menor valor de pressão:</strong> ${textoMinPE_5_5_1} mbar</p>
-  <p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17} mbar</p>
+  ${(!isNaN(minPE_5_5_1) && Number(minPE_5_5_1) > 0.1 ? `<p><strong>Menor valor de pressão:</strong> ${textoMinPE_5_5_1} mbar</p>` : '')}
+  ${(!isNaN(minPE_4_17) && Number(minPE_4_17) > 0.1 ? `<p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17} mbar</p>` : '')}
 `;
+
 
     document.getElementById("btnExportarPDF").style.display = 'inline-block';
   }
