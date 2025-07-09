@@ -6,11 +6,10 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      max-width: 800px;
+      max-width: 900px;
       margin: 40px auto;
       background: #f5f5f5;
       padding: 20px 30px;
@@ -59,8 +58,34 @@
       border-radius: 8px;
       line-height: 1.6;
     }
+    .bloco-transformador {
+      margin-top: 25px;
+      padding: 15px 20px;
+      background: #ecf0f1;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .bloco-transformador h3 {
+      margin-top: 0;
+      background: #d6eaf8;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    .coluna-dados {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .coluna-dados > div {
+      flex: 1 1 45%;
+    }
     strong {
       color: #2c3e50;
+    }
+    hr {
+      margin: 20px 0;
+      border-top: 1px dashed #aaa;
     }
   </style>
 </head>
@@ -79,11 +104,18 @@
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
-  <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
-
+<button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
   let dadosCSV1 = [], dadosCSV2 = [];
+
+  function formatNum(v, dec = 3) {
+    const n = parseFloat(v);
+    if (isNaN(n))return 'N/A';
+    if (n === 0) return '0 (ZERO)';
+    const f = n.toFixed(dec);
+    return parseFloat(f).toString();
+  }
 
   function ativarInputSePronto() {
     const btn = document.getElementById('btnBuscar');
@@ -128,134 +160,107 @@
       return;
     }
 
-    const meta = dadosCSV1.find(l => (l.subprojecto || '').trim().toLowerCase() === nome);
-    if (!meta) {
+    const encontrados = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
+    if (!encontrados.length) {
       out.textContent = 'Transformador não encontrado nos metadados.';
       return;
     }
 
-    const id = meta.id_secagenscore?.trim();
-    if (!id) {
-      out.textContent = 'Transformador sem ID válido.';
-      return;
-    }
+    let html = `<h2>Resultados para: <strong>${encontrados[0].subprojecto}</strong></h2>`;
 
-    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-    if (!serie.length) {
-      out.textContent = 'Nenhum dado encontrado nas séries para este transformador.';
-      return;
-    }
+    encontrados.forEach((meta, index) => {
+      const id = meta.id_secagenscore?.trim();
+      if (!id) return;
 
-    const valoresLC = serie
-      .map(l => Number(l.LC_3_8))
-      .filter(n => !isNaN(n));
-    const difLC = valoresLC.length >= 2
-      ? (valoresLC[valoresLC.length - 1] - valoresLC[0]).toFixed(3)
-      : 'Insuficiente';
+      const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+      if (!serie.length) return;
 
-    const datas = serie
-      .map(l => new Date(l.DataHora))
-      .filter(d => !isNaN(d.getTime()))
-      .sort((a, b) => a - b);
-    if (datas.length < 2) {
-      out.textContent = 'Dados de DataHora insuficientes.';
-      return;
-    }
+      const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
+      const difLC = valoresLC.length >= 2 ? valoresLC[valoresLC.length - 1] - valoresLC[0] : 0;
 
-    const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
-    const massaiTon = Number(meta.massai) / 1000;
+      const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+      if (datas.length < 2) return;
 
-    let taxaLC = 'N/A';
-    if (!isNaN(difLC) && !isNaN(duracao) && !isNaN(massaiTon) && massaiTon !== 0)
-      taxaLC = (difLC / (duracao * massaiTon)).toFixed(2);
+      const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
+      const massaiTon = Number(meta.massai) / 1000;
+      const taxaLC = (difLC / (duracao * massaiTon));
 
-    const dadosOrdenados = serie
-      .filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
-      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+      const final = new Date(datas[datas.length - 1]);
+      const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
+      const ultimos = serie.filter(l => {
+        const d = new Date(l.DataHora);
+        return !isNaN(d) && d >= inicial && d <= final;
+      }).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 
-    const final = new Date(dadosOrdenados[dadosOrdenados.length - 1].DataHora);
-    const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
-    const ultimos = dadosOrdenados.filter(l =>
-      new Date(l.DataHora) >= inicial && new Date(l.DataHora) <= final
-    );
+      let difLC10h = 0, taxa10h = 0;
+      if (ultimos.length >= 2) {
+        const lcInicial = Number(ultimos[0].LC_3_8);
+        const lcFinal = Number(ultimos[ultimos.length - 1].LC_3_8);
+        difLC10h = lcFinal - lcInicial;
+        taxa10h = difLC10h / (10 * massaiTon);
+      }
 
-    let difLC10h = 'Insuficiente';
-    let taxa10h = 'N/A';
+      const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      let maxTE = null;
+      serie.forEach(linha => {
+        colunasTE.forEach(col => {
+          const val = Number(linha[col]);
+          if (!isNaN(val) && val > 0 && val <= 140) {
+            if (maxTE === null || val > maxTE) maxTE = val;
+          }
+        });
+      });
 
-    const lcOrdenado10h = ultimos
-      .filter(l => !isNaN(Number(l.LC_3_8)))
-      .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
-
-    if (lcOrdenado10h.length >= 2 && !isNaN(massaiTon) && massaiTon !== 0) {
-      const lcInicial = Number(lcOrdenado10h[0].LC_3_8);
-      const lcFinal = Number(lcOrdenado10h[lcOrdenado10h.length - 1].LC_3_8);
-
-      difLC10h = (lcFinal - lcInicial).toFixed(3);
-      taxa10h = (difLC10h / (10 * massaiTon)).toFixed(2);
-    }
-
-    const colunasTE = ['TE_5_4_1', 'TE_5_4_2', 'TE_5_4_3', 'TE_5_4_4', 'TE_5_4_5', 'TE_5_4_6'];
-    let maxTE = null;
-    serie.forEach(linha => {
-      colunasTE.forEach(col => {
-        const val = Number(linha[col]);
-        if (!isNaN(val) && val > 0 && val <= 140) {
-          if (maxTE === null || val > maxTE) maxTE = val;
+      let minPE_5_5_1 = null, minPE_4_17 = null;
+      serie.forEach(linha => {
+        const val1 = Number(linha.PE_5_5_1);
+        if (!isNaN(val1) && val1 > 0.1) {
+          if (minPE_5_5_1 === null || val1 < minPE_5_5_1) minPE_5_5_1 = val1;
+        }
+        const val2 = Number(linha.PE_4_17);
+        if (!isNaN(val2) && val2 > 0.1) {
+          if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
         }
       });
+
+      html += `
+      <div class="bloco-transformador">
+        <h3>#${index + 1} — ID: ${id}</h3>
+        <div class="coluna-dados">
+          <div>
+            <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+            <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+            <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+            <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
+          </div>
+          <div>
+            <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+            <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+            <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} </p>
+            <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} </p>
+          </div>
+        </div>
+        <hr>
+        <div class="coluna-dados">
+          <div>
+            <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+          </div>
+          <div>
+            <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+            <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+          </div>
+        </div>
+      </div>`;
     });
-    maxTE = maxTE !== null ? maxTE.toFixed(3) : 'N/A';
 
-    let minPE_5_5_1 = null;
-    let minPE_4_17 = null;
-
-    serie.forEach(linha => {
-      const val1 = Number(linha.PE_5_5_1);
-      if (!isNaN(val1) && val1 > 0.1) {
-        if (minPE_5_5_1 === null || val1 < minPE_5_5_1) minPE_5_5_1 = val1;
-      }
-      const val2 = Number(linha.PE_4_17);
-      if (!isNaN(val2) && val2 > 0.1) {
-        if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
-      }
-    });
-
-    const textoMinPE_5_5_1 = minPE_5_5_1 !== null ? minPE_5_5_1.toFixed(3) : 'N/A';
-    const textoMinPE_4_17 = minPE_4_17 !== null ? minPE_4_17.toFixed(3) : 'N/A';
-
-out.innerHTML = `
-  <h2>Resultados para: ${meta.subprojecto}</h2>
-  <p><strong>ID:</strong> ${id}</p>
-  <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-  <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-  <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-  <p><strong>Massa isolantes:</strong> ${massaiTon > 0 ? massaiTon.toFixed(3) + ' t' : 'N/A'}</p>
-  <p><strong>Duração total:</strong> ${duracao > 0 ? duracao.toFixed(2) + ' h' : 'N/A'}</p>
-  <hr>
-  ${(!isNaN(difLC) && Number(difLC) !== 0 ? `<p><strong>Quantidade de remoção de água:</strong> ${difLC} %</p>` : '')}
-  ${(!isNaN(taxaLC) && Number(taxaLC) !== 0 ? `<p><strong>Taxa de remoção de água:</strong> ${taxaLC} %/h/t</p>` : '')}
-  ${(!isNaN(taxa10h) && Number(taxa10h) !== 0 ? `<p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${taxa10h} %/h/t</p>` : '')}
-  <hr>
-  ${(!isNaN(maxTE) && Number(maxTE) !== 0 ? `<p><strong>Maior valor de temperatura nas sondas:</strong> ${maxTE} ºC</p>` : '')}
-  <hr>
-  ${(!isNaN(minPE_5_5_1) && Number(minPE_5_5_1) > 0.1 ? `<p><strong>Menor valor de pressão:</strong> ${textoMinPE_5_5_1} mbar</p>` : '')}
-  ${(!isNaN(minPE_4_17) && Number(minPE_4_17) > 0.1 ? `<p><strong>Menor valor de vácuo fino:</strong> ${textoMinPE_4_17} mbar</p>` : '')}
-`;
-
-
+    out.innerHTML = html;
     document.getElementById("btnExportarPDF").style.display = 'inline-block';
   }
- 
-  const btnExportarPDF = document.getElementById("btnExportarPDF");
 
+  const btnExportarPDF = document.getElementById("btnExportarPDF");
   btnExportarPDF.addEventListener("click", async () => {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: "a4"
-    });
-
+    const doc = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
     const resultado = document.getElementById("resultado");
 
     await html2canvas(resultado, { scale: 2 }).then(canvas => {
@@ -269,8 +274,6 @@ out.innerHTML = `
       doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
     });
   });
-
-
 </script>
 
 </body>
