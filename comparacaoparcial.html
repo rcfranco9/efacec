@@ -150,9 +150,10 @@
     const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
     const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
     const ton = parseNum(massaiKg) / 1000 || 1;
-    const taxa = +((ultimo.valor - registos[0].valor) / (dur * ton)).toFixed(2);
+    const difLC = +ultimo.valor.toFixed(3); // assume LC inicial = 0
+    const taxa = +(difLC / (dur * ton)).toFixed(2);
     const taxa10h = +(delta10h / (10 * ton)).toFixed(2);
-    return { difLC: +(ultimo.valor - registos[0].valor).toFixed(3), dur, taxa, delta10h, taxa10h };
+    return { difLC, dur, taxa, delta10h, taxa10h };
   }
 
   function maxTEfromSerie(id) {
