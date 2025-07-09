@@ -111,7 +111,8 @@
 
   function formatNum(v, dec = 3) {
     const n = parseFloat(v);
-    if (isNaN(n) || n === 0) return 'N/A';
+    if (isNaN(n))return 'N/A';
+    if (n === 0) return '0 (ZERO)';
     const f = n.toFixed(dec);
     return parseFloat(f).toString();
   }
@@ -242,7 +243,7 @@
         <hr>
         <div class="coluna-dados">
           <div>
-            <p><strong>🌡Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+            <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
           </div>
           <div>
             <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
