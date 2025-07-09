@@ -60,17 +60,32 @@
     }
     .bloco-transformador {
       margin-top: 25px;
-      padding: 15px;
+      padding: 15px 20px;
       background: #ecf0f1;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.05);
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
     .bloco-transformador h3 {
       margin-top: 0;
-      color: #2c3e50;
+      background: #d6eaf8;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 18px;
+    }
+    .coluna-dados {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .coluna-dados > div {
+      flex: 1 1 45%;
     }
     strong {
       color: #2c3e50;
+    }
+    hr {
+      margin: 20px 0;
+      border-top: 1px dashed #aaa;
     }
   </style>
 </head>
@@ -145,7 +160,6 @@
     }
 
     const encontrados = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
-
     if (!encontrados.length) {
       out.textContent = 'Transformador não encontrado nos metadados.';
       return;
@@ -168,25 +182,19 @@
 
       const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
       const massaiTon = Number(meta.massai) / 1000;
-
       const taxaLC = (difLC / (duracao * massaiTon));
 
-      const dadosOrdenados = serie.filter(l => l.DataHora && !isNaN(new Date(l.DataHora)))
-        .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
-
-      const final = new Date(dadosOrdenados[dadosOrdenados.length - 1].DataHora);
+      const final = new Date(datas[datas.length - 1]);
       const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
-      const ultimos = dadosOrdenados.filter(l =>
-        new Date(l.DataHora) >= inicial && new Date(l.DataHora) <= final
-      );
-
-      const lcOrdenado10h = ultimos.filter(l => !isNaN(Number(l.LC_3_8)))
-        .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+      const ultimos = serie.filter(l => {
+        const d = new Date(l.DataHora);
+        return !isNaN(d) && d >= inicial && d <= final;
+      }).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 
       let difLC10h = 0, taxa10h = 0;
-      if (lcOrdenado10h.length >= 2) {
-        const lcInicial = Number(lcOrdenado10h[0].LC_3_8);
-        const lcFinal = Number(lcOrdenado10h[lcOrdenado10h.length - 1].LC_3_8);
+      if (ultimos.length >= 2) {
+        const lcInicial = Number(ultimos[0].LC_3_8);
+        const lcFinal = Number(ultimos[ultimos.length - 1].LC_3_8);
         difLC10h = lcFinal - lcInicial;
         taxa10h = difLC10h / (10 * massaiTon);
       }
@@ -217,19 +225,30 @@
       html += `
       <div class="bloco-transformador">
         <h3>#${index + 1} — ID: ${id}</h3>
-        <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-        <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-        <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-        <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
-        <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+        <div class="coluna-dados">
+          <div>
+            <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+            <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+            <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+            <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
+          </div>
+          <div>
+            <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+            <p><strong>Água removida:</strong> ${formatNum(difLC)} %</p>
+            <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} %/h/t</p>
+            <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} %/h/t</p>
+          </div>
+        </div>
         <hr>
-        <p><strong>Quantidade de remoção de água:</strong> ${formatNum(difLC)} %</p>
-        <p><strong>Taxa de remoção de água:</strong> ${formatNum(taxaLC)} %/h/t</p>
-        <p><strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(taxa10h)} %/h/t</p>
-        <hr>
-        <p><strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
-        <p><strong>Menor valor de pressão:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
-        <p><strong>Menor valor de vácuo fino:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+        <div class="coluna-dados">
+          <div>
+            <p><strong>🌡Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+          </div>
+          <div>
+            <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+            <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+          </div>
+        </div>
       </div>`;
     });
 
