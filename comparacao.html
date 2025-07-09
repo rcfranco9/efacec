@@ -168,8 +168,7 @@ function calcTaxa(id, massaKg) {
   const anterior = serie.findLast(r => r.ts <= alvo) || serie[0];
   const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
-
-  const deltaTotal = +(serie[serie.length - 1].lc - serie[0].lc).toFixed(3);
+  const deltaTotal = +serie[serie.length - 1].lc.toFixed(3); // LC inicial = 0
   const duracao = (serie[serie.length - 1].ts - serie[0].ts) / 3600000;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
