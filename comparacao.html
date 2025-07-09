@@ -237,16 +237,17 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   let html = '';
 
   [m1, m2].forEach((m, i) => {
-    html += `
-    <div class="transformador-dados">
-      <h3>${m.subprojecto || 'Sem nome'}</h3>
-      <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
-      <p><strong>Tensão:</strong> ${m.tensao || 'N/A'}</p>
-      <p><strong>Potência:</strong> ${m.potencia || 'N/A'}</p>
-      <p><strong>Massa transformador:</strong> ${m.massat || 'N/A'}</p>
-      <p><strong>Massa dos isolantes:</strong> ${m.massai || 'N/A'}</p>
-    </div>`;
-  });
+  html += `
+  <div class="transformador-dados">
+    <h3>${m.subprojecto || 'Sem nome'}</h3>
+    <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
+    <p><strong>Tensão:</strong> ${m.tensao || 'N/A'} kV</p>
+    <p><strong>Potência:</strong> ${m.potencia || 'N/A'} kVA</p>
+    <p><strong>Massa transformador:</strong> ${m.massat || 'N/A'} kg</p>
+    <p><strong>Massa dos isolantes:</strong> ${m.massai || 'N/A'} kg</p>
+  </div>`;
+});
+
 
 function formatNum(v, dec = 3) {
   if (isNaN(v) || v === null || v === 0) return 'N/A';
