@@ -176,7 +176,8 @@ function buscarPorNome() {
     if (!serie.length) return;
 
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    const difLC = valoresLC.length >= 2 ? valoresLC[valoresLC.length - 1] - valoresLC[0] : 0;
+    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; // assume LC inicial = 0
+
 
     const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
     if (datas.length < 2) return;
