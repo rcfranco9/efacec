@@ -229,6 +229,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     <h2>Comparação</h2>
     <table>
       <tr><th>Parâmetro</th><th>${m1.subprojecto || id1}</th><th>${m2.subprojecto || id2}</th></tr>
+      <tr><td><strong>ID</strong></td><td>${m1.id_secagenscore}</td><td>${m2.id_secagenscore}</td></tr>
       <tr><td>Duração total (h)</td><td>${formatNum(t1.duracao, 2)}</td><td>${formatNum(t2.duracao, 2)}</td></tr>
       <tr><td>Quantidade de água removida (L)</td><td>${formatNum(t1.deltaTotal)}</td><td>${formatNum(t2.deltaTotal)}</td></tr>
       <tr><td>Taxa total</td><td>${formatNum(t1.taxaTotal)}</td><td>${formatNum(t2.taxaTotal)}</td></tr>
