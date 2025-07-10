@@ -3,87 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <title>Efacec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-/* Fundo suave com gradiente */
-body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-}
+    body {
+      margin: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Rubik', sans-serif;
+    }
 
-/* Caixa central */
-.container {
-  background: #fff;
-  padding: 40px 50px;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
-  text-align: center;
-  width: 320px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  will-change: transform;
-}
+    .container {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      padding: 50px 60px;
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      max-width: 350px;
+      width: 90%;
+    }
 
-.container:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 30px 60px rgba(102, 126, 234, 0.5);
-}
+    .container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+    }
 
-h1 {
-  margin-bottom: 35px;
-  color: #2c3e50;
-  font-weight: 800;
-  font-size: 1.8rem;
-  letter-spacing: 1px;
-}
+    h1 {
+      color: #fff;
+      font-size: 2rem;
+      margin-bottom: 35px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
 
-/* Botões com efeito moderno e sombras */
-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  border: none;
-  border-radius: 14px;
-  padding: 14px 0;
-  margin: 14px 0;
-  width: 100%;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 8px 15px rgba(118, 75, 162, 0.3);
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
-  user-select: none;
-}
+    button {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 14px;
+      margin: 12px 0;
+      width: 100%;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
 
-button:hover {
-  background: linear-gradient(135deg, #5a6ce6 0%, #623b9b 100%);
-  box-shadow: 0 12px 20px rgba(98, 59, 155, 0.5);
-  transform: translateY(-3px);
-}
+    button:hover {
+      background: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+    }
 
-button:active {
-  transform: translateY(1px);
-  box-shadow: 0 6px 10px rgba(98, 59, 155, 0.4);
-}
-
-/* Remove o foco azul padrão do navegador e cria um foco personalizado */
-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.6);
-}
-
+    button:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h1>Escolhe uma opção:</h1>
-
-    <button onclick="location.href='resultado.html'">resultado</button>
-    <button onclick="location.href='comparacao.html'">comparação</button>
-    <button onclick="location.href='comparacaoparcial.html'">filtros</button>
+    <h1>Escolhe uma opção</h1>
+    <button onclick="location.href='resultado.html'">Ver Resultados</button>
+    <button onclick="location.href='comparacao.html'">Comparar Transformadores</button>
+    <button onclick="location.href='comparacaoparcial.html'">Aplicar Filtro</button>
   </div>
 
 </body>
