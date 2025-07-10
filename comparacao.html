@@ -236,7 +236,14 @@ const m2 = candidatos2[0];
   const id1 = (m1.id_secagenscore || '').trim();
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
-  const t2 = calcTaxa(id2, m2.massai);
+const t2 = calcTaxa(id2, m2.massai);
+
+if (!t1 || !t2) {
+  out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
+  document.getElementById("btnExportarPDF").style.display = 'none';
+  return;
+}
+
   const te1 = maxTEfromSerie(id1);
   const te2 = maxTEfromSerie(id2);
   const pe1_417 = minPE(id1, 'PE_4_17');
