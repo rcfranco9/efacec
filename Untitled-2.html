@@ -8,55 +8,56 @@
     body {
       margin: 0;
       height: 100vh;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
       display: flex;
       justify-content: center;
       align-items: center;
       font-family: 'Rubik', sans-serif;
+      color: #f5f5f5;
     }
 
     .container {
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+      background-color: #1c1f26;
+      border: 2px solid #444;
       padding: 50px 60px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
       text-align: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      max-width: 350px;
+      max-width: 360px;
       width: 90%;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
 
     .container:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
     }
 
     h1 {
-      color: #fff;
       font-size: 2rem;
-      margin-bottom: 35px;
       font-weight: 800;
-      letter-spacing: 1px;
+      margin-bottom: 30px;
+      color: #ffffff;
     }
 
     button {
-      background: rgba(255, 255, 255, 0.25);
-      color: #fff;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
+      background-color: #f0f0f0;
+      color: #1c1f26;
+      border: none;
+      border-radius: 10px;
       padding: 14px;
       margin: 12px 0;
       width: 100%;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     button:hover {
-      background: rgba(255, 255, 255, 0.4);
+      background-color: #ffffff;
       transform: translateY(-2px);
+      box-shadow: 0 8px 15px rgba(255, 255, 255, 0.1);
     }
 
     button:focus {
@@ -69,9 +70,9 @@
 
   <div class="container">
     <h1>Escolhe uma opção</h1>
-    <button onclick="location.href='resultado.html'">Ver Resultados</button>
-    <button onclick="location.href='comparacao.html'">Comparar Transformadores</button>
-    <button onclick="location.href='comparacaoparcial.html'">Aplicar Filtro</button>
+    <button onclick="location.href='resultado.html'">📊 Ver Resultados</button>
+    <button onclick="location.href='comparacao.html'">⚖️ Comparar Transformadores</button>
+    <button onclick="location.href='comparacaoparcial.html'">🔍 Aplicar Filtros</button>
   </div>
 
 </body>
