@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Efacec</title>
+  <title>Painel Técnico - Efacec</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     body {
@@ -11,9 +11,28 @@
       background-color: #f9fafb;
       color: #1f2937;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      height: 100vh;
+      padding: 60px 20px;
+    }
+
+    .header {
+      max-width: 960px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #111827;
+    }
+
+    .header p {
+      font-size: 15px;
+      color: #4b5563;
+      line-height: 1.6;
     }
 
     .container {
@@ -22,7 +41,7 @@
       flex-wrap: wrap;
       justify-content: center;
       max-width: 960px;
-      padding: 40px 20px;
+      width: 100%;
     }
 
     .card {
@@ -60,10 +79,15 @@
 </head>
 <body>
 
+  <div class="header">
+    <h1>Painel Técnico – Transformadores Efacec</h1>
+    <p>Bem-vindo ao sistema de análise e comparação de transformadores. Abaixo pode consultar resultados técnicos, aplicar filtros ou comparar unidades de forma detalhada.</p>
+  </div>
+
   <div class="container">
     <a class="card" href="resultado.html">
       <h2>Ver Resultados</h2>
-      <p>Acede às medições técnicas e valores recolhidos.</p>
+      <p>Consulta os dados informativos do transformador, os valores recolhidos e os respetivos resultados.</p>
     </a>
 
     <a class="card" href="comparacao.html">
@@ -72,8 +96,8 @@
     </a>
 
     <a class="card" href="comparacaoparcial.html">
-      <h2>llllllAplicar Filtros</h2>
-      <p>Filtra por potência, tensão ou outros critérios técnicos.</p>
+      <h2>Aplicar Filtros</h2>
+      <p>pppppFiltra por potência e tensão, obtendo todos os tranaformadores com essas características.</p>
     </a>
   </div>
 
