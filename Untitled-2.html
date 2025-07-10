@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Efacec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -11,64 +12,86 @@
     }
 
     body {
-      font-family: system-ui, sans-serif;
-      background-color: #f7f9fa;
-      color: #111;
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f6f8;
+      color: #1d1d1f;
       height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      padding: 20px;
     }
 
     .panel {
-      border: 1px solid #ccc;
-      background-color: #fff;
-      width: 600px;
-      padding: 40px 50px;
+      background-color: #ffffff;
+      border: 1px solid #d1d5db;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 560px;
       display: grid;
       grid-template-columns: 1fr;
-      gap: 24px;
+      gap: 28px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
     }
 
     .panel h1 {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 600;
-      color: #222;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #e5e7eb;
       padding-bottom: 12px;
-      margin-bottom: 8px;
+      color: #2c3e50;
     }
 
     .action-group {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
 
     .action-group button {
       text-align: left;
-      background-color: #e9ecef;
-      border: 1px solid #ccc;
+      background-color: #f0f2f5;
+      border: 1px solid #cbd5e1;
       padding: 14px 18px;
       font-size: 15px;
       font-weight: 500;
+      border-radius: 6px;
+      color: #1e293b;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: background-color 0.2s ease, transform 0.1s ease;
     }
 
     .action-group button:hover {
-      background-color: #dbe1e5;
+      background-color: #e2e8f0;
+      transform: translateY(-1px);
     }
 
     .action-group button:active {
-      background-color: #cbd5db;
+      background-color: #d1dbe8;
+      transform: translateY(1px);
+    }
+
+    @media (max-width: 600px) {
+      .panel {
+        padding: 36px 28px;
+      }
+
+      .panel h1 {
+        font-size: 20px;
+      }
+
+      .action-group button {
+        font-size: 14px;
+        padding: 12px 14px;
+      }
     }
   </style>
 </head>
 <body>
 
   <div class="panel">
-    <h1>Efacec · Operações</h1>
+    <h1>Efacec · Painel de Operações</h1>
     <div class="action-group">
       <button onclick="location.href='resultado.html'">Ver Resultados Técnicos</button>
       <button onclick="location.href='comparacao.html'">Comparar Transformadores</button>
