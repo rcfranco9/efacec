@@ -1,102 +1,80 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Efacec</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
+      margin: 0;
       font-family: 'Inter', sans-serif;
-      background-color: #f4f6f8;
-      color: #1d1d1f;
-      height: 100vh;
+      background-color: #f9fafb;
+      color: #1f2937;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      height: 100vh;
     }
 
-    .panel {
+    .container {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 960px;
+      padding: 40px 20px;
+    }
+
+    .card {
       background-color: #ffffff;
-      border: 1px solid #d1d5db;
-      padding: 48px 40px;
-      width: 100%;
-      max-width: 560px;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 28px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-    }
-
-    .panel h1 {
-      font-size: 22px;
-      font-weight: 600;
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 12px;
-      color: #2c3e50;
-    }
-
-    .action-group {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      width: 280px;
+      height: 180px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-    }
-
-    .action-group button {
-      text-align: left;
-      background-color: #f0f2f5;
-      border: 1px solid #cbd5e1;
-      padding: 14px 18px;
-      font-size: 15px;
-      font-weight: 500;
-      border-radius: 6px;
-      color: #1e293b;
+      justify-content: space-between;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
       cursor: pointer;
-      transition: background-color 0.2s ease, transform 0.1s ease;
+      text-decoration: none;
     }
 
-    .action-group button:hover {
-      background-color: #e2e8f0;
-      transform: translateY(-1px);
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+      transform: translateY(-4px);
     }
 
-    .action-group button:active {
-      background-color: #d1dbe8;
-      transform: translateY(1px);
+    .card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #111827;
     }
 
-    @media (max-width: 600px) {
-      .panel {
-        padding: 36px 28px;
-      }
-
-      .panel h1 {
-        font-size: 20px;
-      }
-
-      .action-group button {
-        font-size: 14px;
-        padding: 12px 14px;
-      }
+    .card p {
+      font-size: 14px;
+      color: #4b5563;
     }
   </style>
 </head>
 <body>
 
-  <div class="panel">
-    <h1>Efacec · Painel de Operações</h1>
-    <div class="action-group">
-      <button onclick="location.href='resultado.html'">Ver Resultados Técnicos</button>
-      <button onclick="location.href='comparacao.html'">Comparar Transformadores</button>
-      <button onclick="location.href='comparacaoparcial.html'">rrrrAplicar Filtros Avançados</button>
-    </div>
+  <div class="container">
+    <a class="card" href="resultado.html">
+      <h2>Ver Resultados</h2>
+      <p>Acede às medições técnicas e valores recolhidos.</p>
+    </a>
+
+    <a class="card" href="comparacao.html">
+      <h2>Comparar Transformadores</h2>
+      <p>Seleciona dois transformadores e compara os seus indicadores.</p>
+    </a>
+
+    <a class="card" href="comparacaoparcial.html">
+      <h2>rrrrrrAplicar Filtros</h2>
+      <p>Filtra por potência, tensão ou outros critérios técnicos.</p>
+    </a>
   </div>
 
 </body>
