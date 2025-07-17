@@ -99,6 +99,10 @@
 <label for="csvFile2">CSV2:</label>
 <input type="file" id="csvFile2" accept=".csv" />
 
+<label for="csvFile3">CSV3:</label>
+<input type="file" id="csvFile3" accept=".csv" />
+
+
 <label for="nomeInput">Nome do transformador:</label>
 <input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
@@ -107,7 +111,8 @@
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
-let dadosCSV1 = [], dadosCSV2 = [];
+let dadosCSV1 = [], dadosCSV2 = [], dadosCSV3 = [];
+
 
 function formatNum(v, dec = 3) {
   const n = parseFloat(v);
@@ -121,7 +126,7 @@ function ativarInputSePronto() {
   const btn = document.getElementById('btnBuscar');
   const input = document.getElementById('nomeInput');
   const aviso = document.getElementById('resultado');
-  if (dadosCSV1.length && dadosCSV2.length) {
+  if (dadosCSV1.length && dadosCSV2.length && dadosCSV3.length) {
     btn.disabled = false;
     input.disabled = false;
     aviso.textContent = 'Ficheiros carregados. Insere o nome do transformador.';
@@ -150,6 +155,8 @@ function carregarCSV(id, destino, callback) {
 
 carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
+  carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
+
 
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
@@ -223,6 +230,26 @@ function buscarPorNome() {
         if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
       }
     });
+    // Comparação PFxTAquec vs RFxTAquec
+    const pares = [1, 2, 3, 4, 5, 6];
+    const difsTAquec = [];
+
+    const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (serieRef.length) {
+      pares.forEach(n => {
+        const pf = `PF${n}TAquec`, rf = `RF${n}TAquec`;
+        const valoresPF = serie.map(l => Number(l[pf])).filter(v => !isNaN(v));
+        const valoresRF = serieRef.map(l => Number(l[rf])).filter(v => !isNaN(v));
+
+        const len = Math.min(valoresPF.length, valoresRF.length);
+        if (len > 0) {
+          const somaAbs = valoresPF.slice(0, len).reduce((acc, v, i) => acc + Math.abs(v - valoresRF[i]), 0);
+          difsTAquec.push({ n, media: somaAbs / len });
+        } else {
+          difsTAquec.push({ n, media: null });
+        }
+      });
+    }
 
     html += `
     <div class="bloco-transformador">
@@ -251,6 +278,13 @@ function buscarPorNome() {
           <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
         </div>
       </div>
+          if (difsTAquec.length) {
+      html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
+      difsTAquec.forEach(({ n, media }) => {
+        html += `<li><strong>PF${n} vs RF${n}:</strong> ${formatNum(media, 2)} ºC</li>`;
+      });
+      html += `</ul></div>`;
+    }
     </div>`;
   });
 
