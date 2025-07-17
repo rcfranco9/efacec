@@ -232,22 +232,21 @@ function buscarPorNome() {
     const difsTAquec = [];
 
     const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (serieRef.length) {
+      pares.forEach(n => {
+        const pf = `PF${n}TAquec`, rf = `RF${n}TAquec`;
+        const valoresPF = serie.map(l => Number(l[pf])).filter(v => !isNaN(v));
+        const valoresRF = serieRef.map(l => Number(l[rf])).filter(v => !isNaN(v));
 
-    // nova parte que imprime os valores PFxTAquec e RFxTAquec do CSV3 para este id
-let htmlTAquec = `<hr><div><h4>Valores PFxTAquec e RFxTAquec (CSV3) para este ID</h4><ul>`;
-if (serieRef.length) {
-  pares.forEach(n => {
-    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
-    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
-    htmlTAquec += `<li><strong>PF${n}TAquec:</strong> ${pfVal} | <strong>RF${n}TAquec:</strong> ${rfVal}</li>`;
-  });
-} else {
-  htmlTAquec += '<li>Sem dados no CSV3 para este ID.</li>';
-}
-htmlTAquec += `</ul></div>`;
-
-html += htmlTAquec;
-
+        const len = Math.min(valoresPF.length, valoresRF.length);
+        if (len > 0) {
+          const somaAbs = valoresPF.slice(0, len).reduce((acc, v, i) => acc + Math.abs(v - valoresRF[i]), 0);
+          difsTAquec.push({ n, media: somaAbs / len });
+        } else {
+          difsTAquec.push({ n, media: null });
+        }
+      });
+    }
 
     html += `
     <div class="bloco-transformador">
@@ -277,6 +276,13 @@ html += htmlTAquec;
         </div>
       </div>`;
 
+    html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
+    difsTAquec.forEach(({ n, media }) => {
+      html += `<li><strong>PF${n} vs RF${n}:</strong> ${media !== null ? formatNum(media, 2) : 'N/A'} ºC</li>`;
+    });
+    html += `</ul></div>`;
+
+    // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
     html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec (CSV3)</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
@@ -298,8 +304,13 @@ html += htmlTAquec;
     html += `</div></div>`;
 
     html += `</div>`; // fechar .bloco-transformador
+  }); // fecha forEach de encontrados
 
-// Evento exportar PDF - fica fora da função buscarPorNome
+  out.innerHTML = html;
+  document.getElementById("btnExportarPDF").style.display = 'inline-block';
+} // fecha buscarPorNome
+
+// Evento exportar PDF
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 btnExportarPDF.addEventListener("click", async () => {
   const { jsPDF } = window.jspdf;
@@ -324,7 +335,6 @@ btnExportarPDF.addEventListener("click", async () => {
   const nome = document.getElementById("nomeInput").value.trim().replace(/\s+/g, "_");
   doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
 });
-
 </script>
 
 </body>
