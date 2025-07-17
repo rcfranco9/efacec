@@ -251,7 +251,7 @@ function buscarPorNome() {
       });
     }
 
-    html += `
+   html += `
   <div class="bloco-transformador">
     <h3>#${index + 1} — ID: ${id}</h3>
     <div class="coluna-dados">
@@ -277,8 +277,7 @@ function buscarPorNome() {
         <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
         <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
       </div>
-    </div>
-`;
+    </div>`;
 
 if (difsTAquec.length) {
   html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
@@ -288,11 +287,12 @@ if (difsTAquec.length) {
   html += `</ul></div>`;
 }
 
-html += `</div>`; // Fechar .bloco-transformador
+html += `</div>`; // fechar .bloco-transformador
+
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-  }  
+  
 
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 btnExportarPDF.addEventListener("click", async () => {
