@@ -113,7 +113,6 @@
 <script>
 let dadosCSV1 = [], dadosCSV2 = [], dadosCSV3 = [];
 
-
 function formatNum(v, dec = 3) {
   const n = parseFloat(v);
   if (isNaN(n)) return 'N/A';
@@ -155,8 +154,7 @@ function carregarCSV(id, destino, callback) {
 
 carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
-  carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
-
+carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
 
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
@@ -183,8 +181,7 @@ function buscarPorNome() {
     if (!serie.length) return;
 
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; // assume LC inicial = 0
-
+    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; 
 
     const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
     if (datas.length < 2) return;
@@ -230,7 +227,7 @@ function buscarPorNome() {
         if (minPE_4_17 === null || val2 < minPE_4_17) minPE_4_17 = val2;
       }
     });
-    // Comparação PFxTAquec vs RFxTAquec
+
     const pares = [1, 2, 3, 4, 5, 6];
     const difsTAquec = [];
 
@@ -251,48 +248,48 @@ function buscarPorNome() {
       });
     }
 
-   html += `
-  <div class="bloco-transformador">
-    <h3>#${index + 1} — ID: ${id}</h3>
-    <div class="coluna-dados">
-      <div>
-        <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-        <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-        <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-        <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
+    html += `
+    <div class="bloco-transformador">
+      <h3>#${index + 1} — ID: ${id}</h3>
+      <div class="coluna-dados">
+        <div>
+          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+          <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+          <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+          <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
+        </div>
+        <div>
+          <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+          <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+          <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
+          <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
+        </div>
       </div>
-      <div>
-        <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
-        <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
-        <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-        <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-      </div>
-    </div>
-    <hr>
-    <div class="coluna-dados">
-      <div>
-        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
-      </div>
-      <div>
-        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
-        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
-      </div>
-    </div>`;
+      <hr>
+      <div class="coluna-dados">
+        <div>
+          <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+        </div>
+        <div>
+          <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+          <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+        </div>
+      </div>`;
 
-  html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
-  difsTAquec.forEach(({ n, media }) => {
-    html += `<li><strong>PF${n} vs RF${n}:</strong> ${formatNum(media, 2)} ºC</li>`;
-  });
-  html += `</ul></div>`;
+    html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
+    difsTAquec.forEach(({ n, media }) => {
+      html += `<li><strong>PF${n} vs RF${n}:</strong> ${media !== null ? formatNum(media, 2) : 'N/A'} ºC</li>`;
+    });
+    html += `</ul></div>`;
 
-
-html += `</div>`; // fechar .bloco-transformador
-
+    html += `</div>`; // fechar .bloco-transformador
+  }); // fecha forEach de encontrados
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-  
+} // fecha buscarPorNome
 
+// Evento exportar PDF - fica fora da função buscarPorNome
 const btnExportarPDF = document.getElementById("btnExportarPDF");
 btnExportarPDF.addEventListener("click", async () => {
   const { jsPDF } = window.jspdf;
@@ -300,7 +297,8 @@ btnExportarPDF.addEventListener("click", async () => {
   const resultado = document.getElementById("resultado");
   const blocos = Array.from(resultado.querySelectorAll(".bloco-transformador"));
 
-  for (const bloco of blocos) {
+  for (let i = 0; i < blocos.length; i++) {
+    const bloco = blocos[i];
     const canvas = await html2canvas(bloco, { scale: 2 });
     const imgData = canvas.toDataURL("image/png");
     const imgProps = doc.getImageProperties(imgData);
@@ -308,12 +306,15 @@ btnExportarPDF.addEventListener("click", async () => {
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
     doc.addImage(imgData, "PNG", 20, 20, pdfWidth, pdfHeight);
-    doc.addPage();
+    if (i < blocos.length - 1) {
+      doc.addPage();
+    }
   }
 
   const nome = document.getElementById("nomeInput").value.trim().replace(/\s+/g, "_");
   doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
 });
+
 </script>
 
 </body>
