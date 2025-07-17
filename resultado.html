@@ -301,24 +301,26 @@ function buscarPorNome() {
         const rfVal = rfRaw !== undefined ? Number(rfRaw) : NaN;
 
         let indiceStr = 'N/A';
-        if (!isNaN(pfVal) && !isNaN(rfVal)) {
-          const diff = rfVal - pfVal;
 
-          if (diff >= 5) indiceStr = '100%';
-          else if (diff <= -5) indiceStr = '0%';
-          else {
-            const proporcao = (diff + 5) / 10;
-            const indice = Math.round(proporcao * 100);
-            indiceStr = `${indice}%`;
-          }
-        }
 
-        html += `<p><strong>PF${n}TAquec:</strong> ${pfRaw ?? 'N/A'} &nbsp;&nbsp; <strong>RF${n}TAquec:</strong> ${rfRaw ?? 'N/A'} &nbsp;&nbsp; <strong>Índice:</strong> ${indiceStr}</p>`;
-      }
+  if (!isNaN(pfVal) && !isNaN(rfVal)) {
+    if (pfVal === 0 && rfVal === 0) {
+      indiceStr = 'N/A';
     } else {
-      html += `<p>Sem dados PFxTAquec ou RFxTAquec para este ID.</p>`;
+      const diff = rfVal - pfVal;
+      if (diff >= 5) indiceStr = '100%';
+      else if (diff <= -5) indiceStr = '0%';
+      else {
+        const proporcao = (diff + 5) / 10; // linear entre -5 e +5
+        const indice = Math.round(proporcao * 100);
+        indiceStr = `${indice}%`;
+      }
     }
-    html += `</div></div>`;
+  }
+
+  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+}
+html += `</ul></div>`;
 
     html += `</div>`; // fechar .bloco-transformador
   }); // fecha forEach de encontrados
