@@ -277,18 +277,27 @@ html += htmlTAquec;
         </div>
       </div>`;
 
-    html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
-    difsTAquec.forEach(({ n, media }) => {
-      html += `<li><strong>PF${n} vs RF${n}:</strong> ${media !== null ? formatNum(media, 2) : 'N/A'} ºC</li>`;
-    });
-    html += `</ul></div>`;
+    html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec (CSV3)</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
+      }
+    } else {
+      html += `<p>Sem dados PFxTAquec para este ID.</p>`;
+    }
+    html += `</div><div><h4>Valores RFxTAquec (CSV3)</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
+      }
+    } else {
+      html += `<p>Sem dados RFxTAquec para este ID.</p>`;
+    }
+    html += `</div></div>`;
 
     html += `</div>`; // fechar .bloco-transformador
-  }); // fecha forEach de encontrados
-
-  out.innerHTML = html;
-  document.getElementById("btnExportarPDF").style.display = 'inline-block';
-} // fecha buscarPorNome
 
 // Evento exportar PDF - fica fora da função buscarPorNome
 const btnExportarPDF = document.getElementById("btnExportarPDF");
