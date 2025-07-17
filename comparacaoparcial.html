@@ -2,14 +2,14 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Filtragem e Comparação Avançada de Transformadores</title>
+  <title>Filtragem de Transformadores com Índices PF/RF</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      max-width: 1000px;
+      max-width: 900px;
       margin: 40px auto;
       background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
       padding: 30px;
@@ -73,49 +73,38 @@
     .transformador-dados:hover {
       background: #f0f8ff;
     }
-    .transformador-dados strong {
-      color: #2c3e50;
-    }
     table {
-      border-collapse: collapse;
       width: 100%;
-      margin-top: 10px;
-      font-size: 14px;
+      border-collapse: collapse;
+      margin-top: 15px;
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 6px 8px;
+      border: 1px solid #bbb;
+      padding: 6px 10px;
       text-align: center;
-      vertical-align: middle;
+      font-size: 14px;
     }
     th {
       background-color: #2980b9;
       color: white;
-      font-weight: 600;
     }
-    .indice-positivo {
-      background-color: #d4edda;
-      color: #155724;
-      font-weight: bold;
-    }
-    .indice-negativo {
-      background-color: #f8d7da;
-      color: #721c24;
-      font-weight: bold;
+    strong {
+      color: #2c3e50;
     }
   </style>
 </head>
 <body>
-  <h1>Filtragem e Comparação Avançada de Transformadores</h1>
 
-  <label for="csvMeta">1) CSV1 (Metadados):</label>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
+
+  <label for="csvMeta">1) CSV1 (Meta):</label>
   <input type="file" id="csvMeta" accept=".csv" />
-  
-  <label for="csvSerie">2) CSV2 (Séries de dados):</label>
+
+  <label for="csvSerie">2) CSV2 (Série):</label>
   <input type="file" id="csvSerie" accept=".csv" />
-  
-  <label for="csvPfRf">3) CSV3 (PF e RF):</label>
-  <input type="file" id="csvPfRf" accept=".csv" />
+
+  <label for="csv3">3) CSV3 (PFxTAquec, RFxTAquec, PFxPRem, RFxPRem):</label>
+  <input type="file" id="csv3" accept=".csv" />
 
   <label for="potenciaInput">Potência (ex: 140):</label>
   <input type="text" id="potenciaInput" placeholder="Potência" disabled />
@@ -123,298 +112,254 @@
   <label for="tensaoInput">Tensão (ex: 240.5):</label>
   <input type="text" id="tensaoInput" placeholder="Tensão" disabled />
 
-  <button id="btnFiltrar" disabled>Procurar e Comparar</button>
+  <button id="btnFiltrar" disabled>Procurar</button>
 
-  <div id="resultado">Carrega os três ficheiros CSV para começar.</div>
-  <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
+  <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
 
-<script>
-  let dadosMeta = [], dadosSerie = [], dadosPfRf = [];
+  <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
-  function parseNum(v) {
-    const n = parseFloat((v || '').toString().replace(',', '.').trim());
-    return isNaN(n) ? NaN : n;
-  }
+  <script>
+    let dadosMeta = [], dadosSerie = [], dadosPF = [];
 
-  function formatNum(v, dec = 3) {
-    if (v === null || v === undefined || isNaN(v)) return 'N/A';
-    if (v === 0) return '0';
-    return parseFloat(v).toFixed(dec);
-  }
-
-  // Função para calcular taxa, duração, etc (igual ao que já tinhas)
-  function calcTaxa(id, massaiKg) {
-    const serie = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora)
-      .map(r => ({ts: new Date(r.DataHora.replace(' ', 'T')).getTime(), lc: parseNum(r.LC_3_8)}))
-      .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
-      .sort((a,b) => a.ts - b.ts);
-    if (serie.length < 2) return null;
-
-    const ton = parseNum(massaiKg) / 1000 || 1;
-    const ultimo = serie[serie.length - 1];
-    const alvo = ultimo.ts - 10 * 3600 * 1000;
-    let anterior = serie.findLast(r => r.ts <= alvo);
-    if (!anterior) anterior = serie[0];
-    const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
-    const deltaTotal = +ultimo.lc.toFixed(3);
-    const duracao = (ultimo.ts - serie[0].ts) / 3600000;
-    const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
-    const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
-    return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
-  }
-
-  function maxTEfromSerie(id) {
-    const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const valores = [];
-    dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id)
-      .forEach(r => colunas.forEach(c => {
-        const v = parseNum(r[c]);
-        if (!isNaN(v) && v > 0 && v <= 140) valores.push(v);
-      }));
-    return valores.length ? Math.max(...valores) : null;
-  }
-
-  function minPE(id, coluna) {
-    const vals = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id)
-      .map(r => parseNum(r[coluna]))
-      .filter(v => !isNaN(v) && v > 0.1);
-    return vals.length ? Math.min(...vals) : null;
-  }
-
-  // Cálculo do índice 0 a 100% conforme regra PF, RF e tolerância 5
-  // Se RF >= PF + 5 -> 100%
-  // Se RF <= PF - 5 -> 0%
-  // Se RF == PF -> 50%
-  // Linear interpolação entre esses valores
-  function calcularIndice(pf, rf) {
-    if (isNaN(pf) || isNaN(rf)) return null;
-    const delta = rf - pf;
-    if (delta >= 5) return 100;
-    if (delta <= -5) return 0;
-    // interpolar entre 0 e 100, com 50 no delta=0
-    return Math.round(50 + (delta * 10));
-  }
-
-  // Controlar habilitação dos inputs e botão
-  function checkReady() {
-    const ok = dadosMeta.length && dadosSerie.length && dadosPfRf.length;
-    ['potenciaInput','tensaoInput','btnFiltrar'].forEach(id => {
-      document.getElementById(id).disabled = !ok;
-    });
-    if (ok) {
-      document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão e clica em Procurar.';
+    function formatNum(v, dec = 3) {
+      const n = parseFloat(v);
+      if (isNaN(n) || n === 0) return 'N/A';
+      const f = n.toFixed(dec);
+      return parseFloat(f).toString();
     }
-  }
 
-  // Carregar os 3 CSVs
-  ['csvMeta','csvSerie','csvPfRf'].forEach(id => {
-    document.getElementById(id).addEventListener('change', e => {
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? NaN : n;
+    }
+
+    function checkReady() {
+      const ok = dadosMeta.length && dadosSerie.length && dadosPF.length;
+      ['potenciaInput','tensaoInput','btnFiltrar'].forEach(id => document.getElementById(id).disabled = !ok);
+      if (ok) {
+        document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
+      }
+    }
+
+    function calcLC(id, massaiKg) {
+      const linhas = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora);
+      const registos = linhas.map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
+      if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0, delta10h: 0, taxa10h: 0 };
+      registos.sort((a,b) => a.ts - b.ts);
+      const ultimo = registos[registos.length - 1];
+      const alvoTS = ultimo.ts - 10 * 3600000;
+      let anterior10h = registos[0];
+      for (let i = registos.length - 1; i >= 0; i--) {
+        if (registos[i].ts <= alvoTS) { anterior10h = registos[i]; break; }
+      }
+      const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
+      const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
+      const ton = parseNum(massaiKg) / 1000 || 1;
+      const difLC = +ultimo.valor.toFixed(3);
+      const taxa = +(difLC / (dur * ton)).toFixed(2);
+      const taxa10h = +(delta10h / (10 * ton)).toFixed(2);
+      return { difLC, dur, taxa, delta10h, taxa10h };
+    }
+
+    function maxTEfromSerie(id) {
+      const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      const valores = [];
+      dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
+        .forEach(linha => colunas.forEach(col => {
+          const val = parseNum(linha[col]);
+          if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
+        }));
+      return valores.length > 0 ? Math.max(...valores).toFixed(2) : 'N/A';
+    }
+
+    function minPE(id, coluna) {
+      const valores = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
+        .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
+      return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
+    }
+
+    // Função que calcula o índice de PF vs RF conforme a regra que especificaste:
+    // Se RF >= PF + 5 => 100%
+    // Se RF <= PF - 5 => 0%
+    // Se RF == PF => 50%
+    // Valores intermédios interpolados linearmente entre 0 e 100%
+    function calculaIndice(pf, rf) {
+      if (isNaN(pf) || isNaN(rf)) return 'N/A';
+      const diff = rf - pf;
+      if (diff >= 5) return '100%';
+      if (diff <= -5) return '0%';
+      // interpolação linear: 0% em -5, 50% em 0, 100% em +5
+      const proporcao = (diff + 5) / 10; // entre 0 e 1
+      const indice = Math.round(proporcao * 100);
+      return `${indice}%`;
+    }
+
+    // Pega os dados PF e RF do csv3 para o id dado
+    // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
+    function pegaDadosPF(id) {
+      const reg = dadosPF.find(r => (r.id_secagenscore||'').trim() === id);
+      if (!reg) return null;
+      // Extrair os 6 valores de cada grupo:
+      const PFxTAquec = [], RFxTAquec = [], PFxPRem = [], RFxPRem = [];
+      for(let n=1; n<=6; n++) {
+        PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
+        RFxTAquec.push(parseNum(reg[`RF${n}TAquec`]));
+        PFxPRem.push(parseNum(reg[`PF${n}PRem`]));
+        RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
+      }
+      return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
+    }
+
+    document.getElementById('csvMeta').addEventListener('change', e => {
       const f = e.target.files[0];
       if (!f) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        Papa.parse(ev.target.result, {
-          header: true, skipEmptyLines: true,
-          complete: res => {
-            if (id === 'csvMeta') dadosMeta = res.data;
-            else if (id === 'csvSerie') dadosSerie = res.data;
-            else dadosPfRf = res.data;
-            checkReady();
-          }
-        });
-      };
-      reader.readAsText(f);
-    });
-  });
-
-  // Evento botão procurar e comparar
-  document.getElementById('btnFiltrar').addEventListener('click', () => {
-    const pot = document.getElementById('potenciaInput').value.trim();
-    const ten = document.getElementById('tensaoInput').value.trim();
-    const out = document.getElementById('resultado');
-    if (!pot || !ten) {
-      out.textContent = 'Por favor preenche potência e tensão.';
-      return;
-    }
-
-    const encontrados = dadosMeta.filter(r => 
-      (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten
-    );
-    if (!encontrados.length) {
-      out.textContent = 'Nenhum transformador encontrado com esses filtros.';
-      document.getElementById('btnExportarPDF').style.display = 'none';
-      return;
-    }
-
-    if (encontrados.length < 2) {
-      out.textContent = 'Foram encontrados menos de 2 transformadores. Para comparação precisa de pelo menos 2.';
-      document.getElementById('btnExportarPDF').style.display = 'none';
-      return;
-    }
-
-    // Considera só os primeiros 2 para comparação
-    const t1 = encontrados[0];
-    const t2 = encontrados[1];
-
-    const id1 = (t1.id_secagenscore || '').trim();
-    const id2 = (t2.id_secagenscore || '').trim();
-
-    const taxa1 = calcTaxa(id1, t1.massai);
-    const taxa2 = calcTaxa(id2, t2.massai);
-    if (!taxa1 || !taxa2) {
-      out.textContent = 'Dados insuficientes para calcular taxas.';
-      document.getElementById('btnExportarPDF').style.display = 'none';
-      return;
-    }
-
-    const tempMax1 = maxTEfromSerie(id1);
-    const tempMax2 = maxTEfromSerie(id2);
-    const pe417_1 = minPE(id1, 'PE_4_17');
-    const pe417_2 = minPE(id2, 'PE_4_17');
-    const pe551_1 = minPE(id1, 'PE_5_5_1');
-    const pe551_2 = minPE(id2, 'PE_5_5_1');
-
-    // Função para pegar todos PFxTAquec e RFxTAquec e PFxPRem, RFxPRem pares para um id e montar linhas da tabela com índices
-    function montarTabelaIndices(id1, id2) {
-      // Filtrar colunas que comecem com PF ou RF e terminem em TAquec ou PRem
-      const pfColsTAquec = Object.keys(dadosPfRf[0] || {}).filter(c => c.match(/^PF\d+TAquec$/));
-      const rfColsTAquec = Object.keys(dadosPfRf[0] || {}).filter(c => c.match(/^RF\d+TAquec$/));
-      const pfColsPRem = Object.keys(dadosPfRf[0] || {}).filter(c => c.match(/^PF\d+PRem$/));
-      const rfColsPRem = Object.keys(dadosPfRf[0] || {}).filter(c => c.match(/^RF\d+PRem$/));
-
-      // Sort para manter ordem numérica crescente
-      pfColsTAquec.sort();
-      rfColsTAquec.sort();
-      pfColsPRem.sort();
-      rfColsPRem.sort();
-
-      // Buscar linhas dos dois transformadores no CSV3
-      const linha1 = dadosPfRf.find(r => (r.id_secagenscore||'').trim() === id1) || {};
-      const linha2 = dadosPfRf.find(r => (r.id_secagenscore||'').trim() === id2) || {};
-
-      // Montar linhas da tabela
-      let html = `<table><thead><tr>
-        <th>Parâmetro</th>
-        <th>Transformador 1 (ID: ${id1})</th>
-        <th>Transformador 2 (ID: ${id2})</th>
-        <th>Índice (%)</th>
-      </tr></thead><tbody>`;
-
-      // Função auxiliar para calcular índice para um par PF-RF
-      function indiceParaPar(pfVal, rfVal) {
-        if (pfVal === undefined || rfVal === undefined) return 'N/A';
-        const pfN = parseNum(pfVal);
-        const rfN = parseNum(rfVal);
-        const idx = calcularIndice(pfN, rfN);
-        if (idx === null) return 'N/A';
-        if (idx >= 70) return `<td class="indice-positivo">${idx}%</td>`;
-        else if (idx <= 30) return `<td class="indice-negativo">${idx}%</td>`;
-        return `<td>${idx}%</td>`;
-      }
-
-      // Acrescentar pares PFxTAquec + RFxTAquec
-      for (let i=0; i < pfColsTAquec.length; i++) {
-        const pfCol = pfColsTAquec[i];
-        const rfCol = pfCol.replace('PF','RF');
-        const valPf1 = linha1[pfCol] ?? 'N/A';
-        const valRf1 = linha1[rfCol] ?? 'N/A';
-        const valPf2 = linha2[pfCol] ?? 'N/A';
-        const valRf2 = linha2[rfCol] ?? 'N/A';
-        html += `<tr>
-          <td>${pfCol.replace(/^PF/, '')} TAquec</td>
-          <td>${valPf1} / ${valRf1}</td>
-          <td>${valPf2} / ${valRf2}</td>
-          ${indiceParaPar(valPf1, valRf1)}
-        </tr>`;
-      }
-
-      // Acrescentar pares PFxPRem + RFxPRem
-      for (let i=0; i < pfColsPRem.length; i++) {
-        const pfCol = pfColsPRem[i];
-        const rfCol = pfCol.replace('PF','RF');
-        const valPf1 = linha1[pfCol] ?? 'N/A';
-        const valRf1 = linha1[rfCol] ?? 'N/A';
-        const valPf2 = linha2[pfCol] ?? 'N/A';
-        const valRf2 = linha2[rfCol] ?? 'N/A';
-        html += `<tr>
-          <td>${pfCol.replace(/^PF/, '')} PRem</td>
-          <td>${valPf1} / ${valRf1}</td>
-          <td>${valPf2} / ${valRf2}</td>
-          ${indiceParaPar(valPf1, valRf1)}
-        </tr>`;
-      }
-
-      html += `</tbody></table>`;
-      return html;
-    }
-
-    // Montar HTML completo da comparação
-    let html = `
-      <div class="transformador-dados">
-        <h2>Transformador 1 (ID: ${id1})</h2>
-        <p><strong>Subprojecto:</strong> ${t1.subprojecto || 'N/A'}</p>
-        <p><strong>Massa isolantes:</strong> ${formatNum(parseNum(t1.massai),3)} kg</p>
-        <p><strong>Duração total:</strong> ${formatNum(taxa1.duracao,2)} h</p>
-        <p><strong>Água removida:</strong> ${formatNum(taxa1.deltaTotal,3)} L</p>
-        <p><strong>Taxa remoção total:</strong> ${formatNum(taxa1.taxaTotal,4)} L/(h*t)</p>
-        <p><strong>Taxa remoção últimas 10h:</strong> ${formatNum(taxa1.taxa10h,4)} L/(h*t)</p>
-        <p><strong>Maior temperatura:</strong> ${formatNum(tempMax1,2)} ºC</p>
-        <p><strong>Menor pressão PE_4_17:</strong> ${formatNum(pe417_1,3)} mbar</p>
-        <p><strong>Menor pressão PE_5_5_1:</strong> ${formatNum(pe551_1,3)} mbar</p>
-      </div>
-      <div class="transformador-dados">
-        <h2>Transformador 2 (ID: ${id2})</h2>
-        <p><strong>Subprojecto:</strong> ${t2.subprojecto || 'N/A'}</p>
-        <p><strong>Massa isolantes:</strong> ${formatNum(parseNum(t2.massai),3)} kg</p>
-        <p><strong>Duração total:</strong> ${formatNum(taxa2.duracao,2)} h</p>
-        <p><strong>Água removida:</strong> ${formatNum(taxa2.deltaTotal,3)} L</p>
-        <p><strong>Taxa remoção total:</strong> ${formatNum(taxa2.taxaTotal,4)} L/(h*t)</p>
-        <p><strong>Taxa remoção últimas 10h:</strong> ${formatNum(taxa2.taxa10h,4)} L/(h*t)</p>
-        <p><strong>Maior temperatura:</strong> ${formatNum(tempMax2,2)} ºC</p>
-        <p><strong>Menor pressão PE_4_17:</strong> ${formatNum(pe417_2,3)} mbar</p>
-        <p><strong>Menor pressão PE_5_5_1:</strong> ${formatNum(pe551_2,3)} mbar</p>
-      </div>
-
-      <h2>Comparação de PFxTAquec, RFxTAquec e PFxPRem, RFxPRem</h2>
-      ${montarTabelaIndices(id1, id2)}
-    `;
-
-    out.innerHTML = html;
-    document.getElementById('btnExportarPDF').style.display = 'inline-block';
-  });
-
-  document.getElementById('btnExportarPDF').addEventListener('click', async () => {
-    const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
-    const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let cursorY = 20;
-
-    const out = document.getElementById('resultado');
-    const children = Array.from(out.children);
-
-    for (const el of children) {
-      await html2canvas(el, { scale: 2 }).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-        const imgProps = doc.getImageProperties(imgData);
-        const imgWidth = pageWidth - 40;
-        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-
-        if (cursorY + imgHeight > pageHeight - 20) {
-          doc.addPage();
-          cursorY = 20;
-        }
-        doc.addImage(imgData, "PNG", 20, cursorY, imgWidth, imgHeight);
-        cursorY += imgHeight + 10;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
       });
-    }
+      r.readAsText(f);
+    });
 
-    const pot = document.getElementById('potenciaInput').value.trim().replace(/\s+/g, '_');
-    const ten = document.getElementById('tensaoInput').value.trim().replace(/\s+/g, '_');
-    doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
-  });
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
 
-</script>
+    document.getElementById('csv3').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosPF = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
+
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.';
+        return;
+      }
+
+      const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.';
+        return;
+      }
+
+      let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
+
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLC(id, m.massai);
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
+        const teMax = maxTEfromSerie(id);
+        const pe417 = minPE(id, 'PE_4_17');
+        const pe551 = minPE(id, 'PE_5_5_1');
+
+        // Pegar dados PF e RF do csv3
+        const dadosPFRF = pegaDadosPF(id);
+
+        html += `<div class="transformador-dados">
+          <strong>#${i+1} — ID:</strong> ${id}<br>
+          <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
+          <strong>Massa dos isolantes:</strong> ${formatNum(mTon, 3)} t<br>
+          <strong>Duração total:</strong> ${formatNum(stats.dur, 2)} h<br>
+          <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
+          <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
+          <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+          <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
+          <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
+
+        if(dadosPFRF) {
+          html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+          <table><thead>
+            <tr>
+              <th>Nº</th>
+              <th>PFxTAquec</th>
+              <th>RFxTAquec</th>
+              <th>Índice</th>
+            </tr>
+          </thead><tbody>`;
+          for(let j=0; j<6; j++) {
+            html += `<tr>
+              <td>${j+1}</td>
+              <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+              <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+              <td>${calculaIndice(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+            </tr>`;
+          }
+          html += `</tbody></table>`;
+
+          html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+          <table><thead>
+            <tr>
+              <th>Nº</th>
+              <th>PFxPRem</th>
+              <th>RFxPRem</th>
+              <th>Índice</th>
+            </tr>
+          </thead><tbody>`;
+          for(let j=0; j<6; j++) {
+            html += `<tr>
+              <td>${j+1}</td>
+              <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+              <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+              <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+            </tr>`;
+          }
+          html += `</tbody></table>`;
+        } else {
+          html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
+        }
+
+        html += `</div>`;
+      });
+
+      out.innerHTML = html;
+      document.getElementById('btnExportarPDF').style.display = 'inline-block';
+    });
+
+    document.getElementById("btnExportarPDF").addEventListener("click", async () => {
+      const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
+      const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let cursorY = 20;
+      const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
+      for (let i = 0; i < transformadores.length; i++) {
+        const el = transformadores[i];
+        await html2canvas(el, { scale: 2 }).then(canvas => {
+          const imgData = canvas.toDataURL("image/png");
+          const imgProps = doc.getImageProperties(imgData);
+          const imgWidth = pageWidth - 40;
+          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+          if (cursorY + imgHeight > pageHeight - 20) {
+            doc.addPage();
+            cursorY = 20;
+          }
+          doc.addImage(imgData, "PNG", 20, cursorY, imgWidth, imgHeight);
+          cursorY += imgHeight + 10;
+        });
+      }
+      const pot = document.getElementById("potenciaInput").value.trim().replace(/\s+/g, "_");
+      const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
+      doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
+    });
+  </script>
 
 </body>
 </html>
