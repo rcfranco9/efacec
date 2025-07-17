@@ -326,82 +326,81 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   </table>`;
 
   // Bloco PFxTAquec, RFxTAquec e Índices
-  html += `<hr><h3>Comparação PFxTAquec, RFxTAquec e Índices</h3>`;
-  html += `<table>
-  <thead>
-    <tr>
-      <th>Parâmetro</th>
-      <th>${m1.subprojecto || id1}</th>
-      <th>${m2.subprojecto || id2}</th>
-      <th>Índice ${m1.subprojecto || id1}</th>
-      <th>Índice ${m2.subprojecto || id2}</th>
-    </tr>
-  </thead>
-  <tbody>`;
+  
+html += `<hr><h3>Comparação PFxTAquec e RFxTAquec</h3>`;
+html += `<table>
+<thead>
+  <tr>
+    <th>Parâmetro</th>
+    <th>${m1.subprojecto || id1} PF</th>
+    <th>${m1.subprojecto || id1} RF</th>
+    <th>Índice ${m1.subprojecto || id1}</th>
+    <th>${m2.subprojecto || id2} PF</th>
+    <th>${m2.subprojecto || id2} RF</th>
+    <th>Índice ${m2.subprojecto || id2}</th>
+  </tr>
+</thead>
+<tbody>`;
 
-  for (let n = 1; n <= 6; n++) {
-    const pf1 = parseNum(getValorCampo(id1, `PF${n}TAquec`));
-    const rf1 = parseNum(getValorCampo(id1, `RF${n}TAquec`));
-    const pf2 = parseNum(getValorCampo(id2, `PF${n}TAquec`));
-    const rf2 = parseNum(getValorCampo(id2, `RF${n}TAquec`));
+for (let n = 1; n <= 6; n++) {
+  const pf1 = parseNum(getValorCampo(id1, `PF${n}TAquec`));
+  const rf1 = parseNum(getValorCampo(id1, `RF${n}TAquec`));
+  const pf2 = parseNum(getValorCampo(id2, `PF${n}TAquec`));
+  const rf2 = parseNum(getValorCampo(id2, `RF${n}TAquec`));
 
-    const idx1 = calculaIndice(pf1, rf1);
-    const idx2 = calculaIndice(pf2, rf2);
+  const idx1 = calculaIndice(pf1, rf1);
+  const idx2 = calculaIndice(pf2, rf2);
 
-    html += `<tr>
-      <td>PF${n}TAquec</td>
-      <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
-      <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
-      <td class="${classeIndice(idx1)}">${idx1}</td>
-      <td class="${classeIndice(idx2)}">${idx2}</td>
-    </tr>`;
-    html += `<tr>
-      <td>RF${n}TAquec</td>
-      <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
-      <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
-      <td></td><td></td>
-    </tr>`;
-  }
+  html += `<tr>
+    <td>TAquec ${n}</td>
+    <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
+    <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
+    <td class="${classeIndice(idx1)}">${idx1}</td>
+    <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
+    <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
+    <td class="${classeIndice(idx2)}">${idx2}</td>
+  </tr>`;
+}
 
-  html += `</tbody></table>`;
+html += `</tbody></table>`;
 
-  // Bloco PFxPRem, RFxPRem e Índices (mesma estrutura)
-  html += `<hr><h3>Comparação PFxPRem, RFxPRem e Índices</h3>`;
-  html += `<table>
-  <thead>
-    <tr>
-      <th>Parâmetro</th>
-      <th>${m1.subprojecto || id1}</th>
-      <th>${m2.subprojecto || id2}</th>
-      <th>Índice ${m1.subprojecto || id1}</th>
-      <th>Índice ${m2.subprojecto || id2}</th>
-    </tr>
-  </thead>
-  <tbody>`;
 
-  for (let n = 1; n <= 6; n++) {
-    const pf1 = parseNum(getValorCampo(id1, `PF${n}PRem`));
-    const rf1 = parseNum(getValorCampo(id1, `RF${n}PRem`));
-    const pf2 = parseNum(getValorCampo(id2, `PF${n}PRem`));
-    const rf2 = parseNum(getValorCampo(id2, `RF${n}PRem`));
+html += `<hr><h3>Comparação PFxPRem e RFxPRem</h3>`;
+html += `<table>
+<thead>
+  <tr>
+    <th>Parâmetro</th>
+    <th>${m1.subprojecto || id1} PF</th>
+    <th>${m1.subprojecto || id1} RF</th>
+    <th>Índice ${m1.subprojecto || id1}</th>
+    <th>${m2.subprojecto || id2} PF</th>
+    <th>${m2.subprojecto || id2} RF</th>
+    <th>Índice ${m2.subprojecto || id2}</th>
+  </tr>
+</thead>
+<tbody>`;
 
-    const idx1 = calculaIndice(pf1, rf1);
-    const idx2 = calculaIndice(pf2, rf2);
+for (let n = 1; n <= 6; n++) {
+  const pf1 = parseNum(getValorCampo(id1, `PF${n}PRem`));
+  const rf1 = parseNum(getValorCampo(id1, `RF${n}PRem`));
+  const pf2 = parseNum(getValorCampo(id2, `PF${n}PRem`));
+  const rf2 = parseNum(getValorCampo(id2, `RF${n}PRem`));
 
-    html += `<tr>
-      <td>PF${n}PRem</td>
-      <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
-      <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
-      <td class="${classeIndice(idx1)}">${idx1}</td>
-      <td class="${classeIndice(idx2)}">${idx2}</td>
-    </tr>`;
-    html += `<tr>
-      <td>RF${n}PRem</td>
-      <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
-      <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
-      <td></td><td></td>
-    </tr>`;
-  }
+  const idx1 = calculaIndice(pf1, rf1);
+  const idx2 = calculaIndice(pf2, rf2);
+
+  html += `<tr>
+    <td>PRem ${n}</td>
+    <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
+    <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
+    <td class="${classeIndice(idx1)}">${idx1}</td>
+    <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
+    <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
+    <td class="${classeIndice(idx2)}">${idx2}</td>
+  </tr>`;
+}
+
+html += `</tbody></table>`;
 
   html += `</tbody></table>`;
 
