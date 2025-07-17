@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Comparar Transformadores Completo</title>
+  <title>Filtragem e Comparação de Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -16,7 +16,7 @@
       box-shadow: 0 0 20px rgba(0,0,0,0.1);
       border-radius: 10px;
     }
-    h1, h2 {
+    h1 {
       color: #2c3e50;
       text-align: center;
       margin-bottom: 30px;
@@ -93,7 +93,7 @@
 </head>
 <body>
 
-  <h1>Comparar Transformadores Completo</h1>
+  <h1>Filtragem e Comparação de Transformadores</h1>
 
   <label>1) CSV Meta (dados dos transformadores):</label>
   <input type="file" id="csvMeta" accept=".csv" />
@@ -104,27 +104,26 @@
   <label>3) CSV Parâmetros PF e RF:</label>
   <input type="file" id="csvPfRf" accept=".csv" />
 
-  <label>Nome do transformador 1:</label>
-  <input type="text" id="nome1" disabled />
+  <label>Potência (kVA):</label>
+  <input type="text" id="potenciaInput" disabled />
 
-  <label>Nome do transformador 2:</label>
-  <input type="text" id="nome2" disabled />
+  <label>Tensão (kV):</label>
+  <input type="text" id="tensaoInput" disabled />
 
-  <button id="btnComparar" disabled>Comparar</button>
+  <button id="btnFiltrar" disabled>Procurar Transformadores</button>
 
-  <div id="resultado">Carrega os três ficheiros CSV e introduz os nomes.</div>
+  <div id="resultado">Carrega os três ficheiros CSV e insere potência e tensão para procurar.</div>
   <button id="btnExportarPDF" style="display:none; margin-top:15px;">Exportar PDF</button>
 
 <script>
   let dadosMeta = [], dadosSerie = [], dadosPfRf = [];
 
-  // Função utilitária para parsear número, suportando vírgula decimal
   function parseNum(v) {
     const n = parseFloat((v||'').toString().replace(',', '.').trim());
     return isNaN(n) ? NaN : n;
   }
 
-  // Carregamento CSV Meta
+  // Carregar CSVs
   document.getElementById('csvMeta').addEventListener('change', e => {
     const f = e.target.files[0];
     if (!f) return;
@@ -136,8 +135,6 @@
       }
     });
   });
-
-  // Carregamento CSV Serie
   document.getElementById('csvSerie').addEventListener('change', e => {
     const f = e.target.files[0];
     if (!f) return;
@@ -149,8 +146,6 @@
       }
     });
   });
-
-  // Carregamento CSV PF/RF
   document.getElementById('csvPfRf').addEventListener('change', e => {
     const f = e.target.files[0];
     if (!f) return;
@@ -165,15 +160,14 @@
 
   function verificarReady() {
     const ready = dadosMeta.length > 0 && dadosSerie.length > 0 && dadosPfRf.length > 0;
-    document.getElementById('nome1').disabled = !ready;
-    document.getElementById('nome2').disabled = !ready;
-    document.getElementById('btnComparar').disabled = !ready;
+    document.getElementById('potenciaInput').disabled = !ready;
+    document.getElementById('tensaoInput').disabled = !ready;
+    document.getElementById('btnFiltrar').disabled = !ready;
     if (ready) {
-      document.getElementById('resultado').textContent = 'CSV carregados. Introduz os nomes dos dois transformadores para comparar.';
+      document.getElementById('resultado').textContent = 'CSV carregados. Introduz potência e tensão para procurar.';
     }
   }
 
-  // Cálculo da taxa de remoção de água e duração
   function calcTaxa(id, massaKg) {
     const serie = dadosSerie
       .filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora)
@@ -188,11 +182,11 @@
 
     const ton = (parseNum(massaKg) / 1000) || 1;
     const ultimo = serie[serie.length - 1];
-    const alvo = ultimo.ts - 10 * 3600 * 1000; // 10 horas atrás
+    const alvo = ultimo.ts - 10 * 3600 * 1000;
     const anterior = serie.slice().reverse().find(r => r.ts <= alvo) || serie[0];
 
     const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
-    const duracao = (ultimo.ts - serie[0].ts) / 3600000; // em horas
+    const duracao = (ultimo.ts - serie[0].ts) / 3600000;
     const deltaTotal = +ultimo.lc.toFixed(3);
 
     const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
@@ -201,13 +195,12 @@
     return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
   }
 
-  // Máximo TE_5_4_X
   function maxTEfromSerie(id) {
-    const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+    const cols = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     const valores = [];
     dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
       .forEach(linha => {
-        colunas.forEach(col => {
+        cols.forEach(col => {
           const v = parseNum(linha[col]);
           if (!isNaN(v) && v > 0 && v <= 140) valores.push(v);
         });
@@ -215,158 +208,92 @@
     return valores.length ? Math.max(...valores) : null;
   }
 
-  // Mínimo PE
-  function minPE(id, coluna) {
-    const valores = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
-      .map(r => parseNum(r[coluna]))
-      .filter(v => !isNaN(v) && v > 0.1);
-    return valores.length ? Math.min(...valores) : null;
+  function minPE(id, col) {
+    const vals = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
+      .map(r => parseNum(r[col])).filter(v => !isNaN(v) && v > 0.1);
+    return vals.length ? Math.min(...vals) : null;
   }
 
-  // Cálculo do índice entre PF e RF conforme tua fórmula
   function calcularIndice(pf, rf) {
     const delta = 5;
     if (rf >= pf + delta) return 100;
     if (rf <= pf - delta) return 0;
-    // proporcional, 50% se iguais
     return Math.round(((rf - (pf - delta)) / (2 * delta)) * 100);
   }
 
-  // Formatar número com casas decimais, 'N/A' se inválido ou zero
-  function formatNum(v, dec = 3) {
+  function formatNum(v, dec=3) {
     if (v === null || v === undefined || isNaN(v) || v === 0) return 'N/A';
     return parseFloat(v).toFixed(dec);
   }
 
-  // Botão comparar click
-  document.getElementById('btnComparar').addEventListener('click', () => {
-    const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
-    const nome2 = document.getElementById('nome2').value.trim().toLowerCase();
+  document.getElementById('btnFiltrar').addEventListener('click', () => {
+    const pot = document.getElementById('potenciaInput').value.trim();
+    const ten = document.getElementById('tensaoInput').value.trim();
     const out = document.getElementById('resultado');
-    if (!nome1 || !nome2) {
-      out.innerHTML = '<p style="color:red;">Por favor, introduz os dois nomes dos transformadores.</p>';
+    if (!pot || !ten) {
+      out.innerHTML = '<p style="color:red;">Preenche potência e tensão.</p>';
       return;
     }
 
-    // Filtra transformadores na meta pelo nome
-    const candidatos1 = dadosMeta.filter(r => (r.subprojecto || '').trim().toLowerCase() === nome1)
-      .sort((a,b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore));
-    const candidatos2 = dadosMeta.filter(r => (r.subprojecto || '').trim().toLowerCase() === nome2)
-      .sort((a,b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore));
+    // Filtro por potência e tensão exatos (trim e toLower não usados pois são números, apenas trim)
+    const encontrados = dadosMeta.filter(r =>
+      (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten
+    );
 
-    if (!candidatos1.length || !candidatos2.length) {
-      out.innerHTML = '<p style="color:red;">Transformador(es) não encontrado(s) na meta.</p>';
+    if (!encontrados.length) {
+      out.innerHTML = '<p style="color:red;">Nenhum transformador encontrado para esses valores.</p>';
       return;
     }
 
-    // Pega os melhores candidatos (maior id_secagenscore)
-    const m1 = candidatos1[0];
-    const m2 = candidatos2[0];
+    // Gerar HTML para cada transformador encontrado
+    let html = `<strong>${encontrados.length} transformador(es) encontrados para Potência=${pot} kVA e Tensão=${ten} kV:</strong><br>`;
 
-    const id1 = (m1.id_secagenscore || '').trim();
-    const id2 = (m2.id_secagenscore || '').trim();
+    encontrados.forEach((m, i) => {
+      const id = (m.id_secagenscore || '').trim();
+      if (!id) return;
 
-    // Calcula taxas
-    const t1 = calcTaxa(id1, m1.massai);
-    const t2 = calcTaxa(id2, m2.massai);
+      const taxa = calcTaxa(id, m.massai);
+      const teMax = maxTEfromSerie(id);
+      const pe417 = minPE(id, 'PE_4_17');
+      const pe551 = minPE(id, 'PE_5_5_1');
 
-    if (!t1 || !t2) {
-      out.innerHTML = '<p style="color:red;">Não há dados suficientes para calcular taxas.</p>';
-      return;
-    }
-
-    // Máximos e mínimos
-    const te1 = maxTEfromSerie(id1);
-    const te2 = maxTEfromSerie(id2);
-    const pe1_417 = minPE(id1, 'PE_4_17');
-    const pe2_417 = minPE(id2, 'PE_4_17');
-    const pe1_551 = minPE(id1, 'PE_5_5_1');
-    const pe2_551 = minPE(id2, 'PE_5_5_1');
-
-    // Busca os valores PF e RF no terceiro CSV pelos id_secagenscore e calcula o índice
-    function getPfRf(id, num) {
-      const linha = dadosPfRf.find(r => (r.id_secagenscore || '').trim() === id);
-      if (!linha) return { pf: null, rf: null, indice: 'N/A' };
-      const pf = parseNum(linha[`PF${num}PRem`]);
-      const rf = parseNum(linha[`RF${num}PRem`]);
+      const pfRf = dadosPfRf.find(r => (r.id_secagenscore || '').trim() === id);
+      const pf = pfRf ? parseNum(pfRf['PF1PRem']) : null;
+      const rf = pfRf ? parseNum(pfRf['RF1PRem']) : null;
       const indice = (pf !== null && rf !== null) ? calcularIndice(pf, rf) : 'N/A';
-      return { pf, rf, indice };
-    }
 
-    // Vamos supor que só pedes para PF1 e RF1 (mas pode-se estender para outros índices PF2, RF2 etc)
-    const pfRf1 = getPfRf(id1, 1);
-    const pfRf2 = getPfRf(id2, 1);
+      html += `
+        <div class="transformador-dados">
+          <h3>#${i+1} - ID: ${id}</h3>
+          <p><strong>Subprojecto:</strong> ${m.subprojecto || 'N/A'}</p>
+          <p><strong>Massa isolantes:</strong> ${formatNum(parseNum(m.massai),3)} kg</p>
 
-    let html = `
-      <div class="transformador-dados">
-        <h3>${m1.subprojecto || 'Sem nome'}</h3>
-        <p><strong>ID:</strong> ${id1}</p>
-        <p><strong>Tensão:</strong> ${m1.tensao || 'N/A'} kV</p>
-        <p><strong>Potência:</strong> ${m1.potencia || 'N/A'} kVA</p>
-        <p><strong>Massa transformador:</strong> ${m1.massat || 'N/A'} kg</p>
-        <p><strong>Massa isolantes:</strong> ${m1.massai || 'N/A'} kg</p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Parâmetro</th>
-              <th>Valor</th>
-              <th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Duração total</td><td>${formatNum(t1.duracao,2)}</td><td>h</td></tr>
-            <tr><td>Quantidade de água removida</td><td>${formatNum(t1.deltaTotal)}</td><td>L</td></tr>
-            <tr><td>Taxa de remoção água total</td><td>${formatNum(t1.taxaTotal)}</td><td>L/(h*t)</td></tr>
-            <tr><td>Taxa remoção água últimas 10h</td><td>${formatNum(t1.taxa10h)}</td><td>L/(h*t)</td></tr>
-            <tr><td>Maior temperatura sondas</td><td>${formatNum(te1,2)}</td><td>ºC</td></tr>
-            <tr><td>Menor pressão PE_4_17</td><td>${formatNum(pe1_417,3)}</td><td>mbar</td></tr>
-            <tr><td>Menor pressão PE_5_5_1</td><td>${formatNum(pe1_551,3)}</td><td>mbar</td></tr>
-            <tr><td>PF1PRem</td><td>${pfRf1.pf !== null ? pfRf1.pf.toFixed(3) : 'N/A'}</td><td></td></tr>
-            <tr><td>RF1PRem</td><td>${pfRf1.rf !== null ? pfRf1.rf.toFixed(3) : 'N/A'}</td><td></td></tr>
-            <tr><td>Índice de desempenho</td><td>${pfRf1.indice !== 'N/A' ? pfRf1.indice + '%' : 'N/A'}</td><td></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="transformador-dados">
-        <h3>${m2.subprojecto || 'Sem nome'}</h3>
-        <p><strong>ID:</strong> ${id2}</p>
-        <p><strong>Tensão:</strong> ${m2.tensao || 'N/A'} kV</p>
-        <p><strong>Potência:</strong> ${m2.potencia || 'N/A'} kVA</p>
-        <p><strong>Massa transformador:</strong> ${m2.massat || 'N/A'} kg</p>
-        <p><strong>Massa isolantes:</strong> ${m2.massai || 'N/A'} kg</p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Parâmetro</th>
-              <th>Valor</th>
-              <th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Duração total</td><td>${formatNum(t2.duracao,2)}</td><td>h</td></tr>
-            <tr><td>Quantidade de água removida</td><td>${formatNum(t2.deltaTotal)}</td><td>L</td></tr>
-            <tr><td>Taxa de remoção água total</td><td>${formatNum(t2.taxaTotal)}</td><td>L/(h*t)</td></tr>
-            <tr><td>Taxa remoção água últimas 10h</td><td>${formatNum(t2.taxa10h)}</td><td>L/(h*t)</td></tr>
-            <tr><td>Maior temperatura sondas</td><td>${formatNum(te2,2)}</td><td>ºC</td></tr>
-            <tr><td>Menor pressão PE_4_17</td><td>${formatNum(pe2_417,3)}</td><td>mbar</td></tr>
-            <tr><td>Menor pressão PE_5_5_1</td><td>${formatNum(pe2_551,3)}</td><td>mbar</td></tr>
-            <tr><td>PF1PRem</td><td>${pfRf2.pf !== null ? pfRf2.pf.toFixed(3) : 'N/A'}</td><td></td></tr>
-            <tr><td>RF1PRem</td><td>${pfRf2.rf !== null ? pfRf2.rf.toFixed(3) : 'N/A'}</td><td></td></tr>
-            <tr><td>Índice de desempenho</td><td>${pfRf2.indice !== 'N/A' ? pfRf2.indice + '%' : 'N/A'}</td><td></td></tr>
-          </tbody>
-        </table>
-      </div>
-    `;
+          <table>
+            <thead>
+              <tr><th>Parâmetro</th><th>Valor</th><th>Unidade</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Duração total</td><td>${taxa ? formatNum(taxa.duracao,2) : 'N/A'}</td><td>h</td></tr>
+              <tr><td>Quantidade água removida</td><td>${taxa ? formatNum(taxa.deltaTotal) : 'N/A'}</td><td>L</td></tr>
+              <tr><td>Taxa remoção total</td><td>${taxa ? formatNum(taxa.taxaTotal) : 'N/A'}</td><td>L/(h*t)</td></tr>
+              <tr><td>Taxa remoção últimas 10h</td><td>${taxa ? formatNum(taxa.taxa10h) : 'N/A'}</td><td>L/(h*t)</td></tr>
+              <tr><td>Maior temperatura sondas</td><td>${formatNum(teMax,2)}</td><td>ºC</td></tr>
+              <tr><td>Menor pressão PE_4_17</td><td>${formatNum(pe417,3)}</td><td>mbar</td></tr>
+              <tr><td>Menor pressão PE_5_5_1</td><td>${formatNum(pe551,3)}</td><td>mbar</td></tr>
+              <tr><td>PF1PRem</td><td>${pf !== null ? pf.toFixed(3) : 'N/A'}</td><td></td></tr>
+              <tr><td>RF1PRem</td><td>${rf !== null ? rf.toFixed(3) : 'N/A'}</td><td></td></tr>
+              <tr><td>Índice desempenho</td><td>${indice !== 'N/A' ? indice + '%' : 'N/A'}</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    });
 
     out.innerHTML = html;
-
-    document.getElementById('btnExportarPDF').style.display = 'inline-block';
+    document.getElementById('btnExportarPDF').style.display = encontrados.length > 0 ? 'inline-block' : 'none';
   });
 
-  // Exportar PDF do conteúdo
+  // Exportar PDF
   document.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'px', format: 'a4', orientation: 'portrait' });
@@ -389,7 +316,9 @@
         cursorY += imgHeight + 10;
       });
     }
-    doc.save('Comparacao_Transformadores.pdf');
+    const pot = document.getElementById('potenciaInput').value.trim().replace(/\s+/g, '_');
+    const ten = document.getElementById('tensaoInput').value.trim().replace(/\s+/g, '_');
+    doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
   });
 </script>
 
