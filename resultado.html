@@ -156,7 +156,6 @@ carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
 
-
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
@@ -182,7 +181,7 @@ function buscarPorNome() {
     if (!serie.length) return;
 
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0;
+    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; 
 
     const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
     if (datas.length < 2) return;
@@ -229,63 +228,67 @@ function buscarPorNome() {
       }
     });
 
+    const pares = [1, 2, 3, 4, 5, 6];
+    const difsTAquec = [];
+
     const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
 
+    // nova parte que imprime os valores PFxTAquec e RFxTAquec do CSV3 para este id
+let htmlTAquec = `<hr><div><h4>Valores PFxTAquec e RFxTAquec (CSV3) para este ID</h4><ul>`;
+if (serieRef.length) {
+  pares.forEach(n => {
+    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+    htmlTAquec += `<li><strong>PF${n}TAquec:</strong> ${pfVal} | <strong>RF${n}TAquec:</strong> ${rfVal}</li>`;
+  });
+} else {
+  htmlTAquec += '<li>Sem dados no CSV3 para este ID.</li>';
+}
+htmlTAquec += `</ul></div>`;
+
+html += htmlTAquec;
+
+
     html += `
-      <div class="bloco-transformador">
-        <h3>#${index + 1} — ID: ${id}</h3>
-        <div class="coluna-dados">
-          <div>
-            <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-            <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-            <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-            <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
-          </div>
-          <div>
-            <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
-            <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
-            <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-            <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-          </div>
-        </div>
-        <hr>
-        <div class="coluna-dados">
-          <div>
-            <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
-          </div>
-          <div>
-            <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
-            <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
-          </div>
-        </div>
-        <hr>
+    <div class="bloco-transformador">
+      <h3>#${index + 1} — ID: ${id}</h3>
+      <div class="coluna-dados">
         <div>
-          <h4>Valores PFxTAquec e RFxTAquec</h4>`;
-
-    const pares = [1, 2, 3, 4, 5, 6];
-
-    pares.forEach(n => {
-      const pf = `PF${n}TAquec`;
-      const rf = `RF${n}TAquec`;
-
-      const valoresPF = serie.map(l => l[pf] ?? 'N/A');
-      const valoresRF = serieRef.map(l => l[rf] ?? 'N/A');
-
-      html += `<div><strong>PF${n}TAquec:</strong> ${valoresPF.join(', ')}</div>`;
-      html += `<div><strong>RF${n}TAquec:</strong> ${valoresRF.join(', ')}</div>`;
-    });
-
-    html += `
+          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+          <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+          <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+          <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
         </div>
-      </div>`; // fechar bloco-transformador
+        <div>
+          <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+          <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+          <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
+          <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
+        </div>
+      </div>
+      <hr>
+      <div class="coluna-dados">
+        <div>
+          <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+        </div>
+        <div>
+          <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+          <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+        </div>
+      </div>`;
 
-  }); // fim forEach encontrados
+    html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
+    difsTAquec.forEach(({ n, media }) => {
+      html += `<li><strong>PF${n} vs RF${n}:</strong> ${media !== null ? formatNum(media, 2) : 'N/A'} ºC</li>`;
+    });
+    html += `</ul></div>`;
+
+    html += `</div>`; // fechar .bloco-transformador
+  }); // fecha forEach de encontrados
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-}
-</script>
-
+} // fecha buscarPorNome
 
 // Evento exportar PDF - fica fora da função buscarPorNome
 const btnExportarPDF = document.getElementById("btnExportarPDF");
