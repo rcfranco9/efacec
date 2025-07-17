@@ -292,16 +292,35 @@ function buscarPorNome() {
       </div>`;
 
     // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
-   html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec, RFxTAquec e Índices</h4>`;
-    if (serieRef.length) {
-      for (let n = 1; n <= 6; n++) {
-        const pfRaw = serieRef[0][`PF${n}TAquec`];
-        const rfRaw = serieRef[0][`RF${n}TAquec`];
-        const pfVal = pfRaw !== undefined ? Number(pfRaw) : NaN;
-        const rfVal = rfRaw !== undefined ? Number(rfRaw) : NaN;
+ html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+if (serieRef.length) {
+  for (let n = 1; n <= 6; n++) {
+    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+    html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
+  }
+} else {
+  html += `<p>Sem dados PFxTAquec para este ID.</p>`;
+}
+html += `</div><div><h4>Valores RFxTAquec</h4>`;
+if (serieRef.length) {
+  for (let n = 1; n <= 6; n++) {
+    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+    html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
+  }
+} else {
+  html += `<p>Sem dados RFxTAquec para este ID.</p>`;
+}
+html += `</div></div>`;
 
-        let indiceStr = 'N/A';
+// Agora o cálculo e impressão dos índices
+html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
+for (let n = 1; n <= 6; n++) {
+  const pfValRaw = serieRef[0][`PF${n}TAquec`];
+  const rfValRaw = serieRef[0][`RF${n}TAquec`];
+  const pfVal = Number(pfValRaw);
+  const rfVal = Number(rfValRaw);
 
+  let indiceStr = 'N/A';
 
   if (!isNaN(pfVal) && !isNaN(rfVal)) {
     if (pfVal === 0 && rfVal === 0) {
@@ -321,6 +340,7 @@ function buscarPorNome() {
   html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
 }
 html += `</ul></div>`;
+
 
     html += `</div>`; // fechar .bloco-transformador
   }); // fecha forEach de encontrados
