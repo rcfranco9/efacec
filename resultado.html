@@ -156,6 +156,21 @@ carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
 
+  // Função para calcular índice conforme a tua regra
+function calcularIndice(pf, rf) {
+  const p = parseFloat(pf);
+  const r = parseFloat(rf);
+  if (isNaN(p) || isNaN(r)) return 'N/A';
+  if (r >= p + 5) return 100;
+  if (r <= p - 5) return 0;
+  if (r === p) return 50;
+
+  // interpolação linear para r entre (p-5) e (p+5)
+  let indice = 50 + ((r - p) * 10); // porque (r-p) * (50/5) = (r-p)*10
+  if (indice < 0) indice = 0;
+  if (indice > 100) indice = 100;
+  return Math.round(indice);
+}
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
@@ -277,23 +292,31 @@ function buscarPorNome() {
       </div>`;
 
     // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
-    html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+   html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec, RFxTAquec e Índices</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
-        html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
+        const pfRaw = serieRef[0][`PF${n}TAquec`];
+        const rfRaw = serieRef[0][`RF${n}TAquec`];
+        const pfVal = pfRaw !== undefined ? Number(pfRaw) : NaN;
+        const rfVal = rfRaw !== undefined ? Number(rfRaw) : NaN;
+
+        let indiceStr = 'N/A';
+        if (!isNaN(pfVal) && !isNaN(rfVal)) {
+          const diff = rfVal - pfVal;
+
+          if (diff >= 5) indiceStr = '100%';
+          else if (diff <= -5) indiceStr = '0%';
+          else {
+            const proporcao = (diff + 5) / 10;
+            const indice = Math.round(proporcao * 100);
+            indiceStr = `${indice}%`;
+          }
+        }
+
+        html += `<p><strong>PF${n}TAquec:</strong> ${pfRaw ?? 'N/A'} &nbsp;&nbsp; <strong>RF${n}TAquec:</strong> ${rfRaw ?? 'N/A'} &nbsp;&nbsp; <strong>Índice:</strong> ${indiceStr}</p>`;
       }
     } else {
-      html += `<p>Sem dados PFxTAquec para este ID.</p>`;
-    }
-    html += `</div><div><h4>Valores RFxTAquec</h4>`;
-    if (serieRef.length) {
-      for (let n = 1; n <= 6; n++) {
-        const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
-        html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
-      }
-    } else {
-      html += `<p>Sem dados RFxTAquec para este ID.</p>`;
+      html += `<p>Sem dados PFxTAquec ou RFxTAquec para este ID.</p>`;
     }
     html += `</div></div>`;
 
@@ -302,7 +325,7 @@ function buscarPorNome() {
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-} // fecha buscarPorNome
+}
 
 // Evento exportar PDF
 const btnExportarPDF = document.getElementById("btnExportarPDF");
