@@ -292,7 +292,8 @@ function buscarPorNome() {
       </div>`;
 
     // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
- html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+// Bloco PFxTAquec e RFxTAquec
+html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
 if (serieRef.length) {
   for (let n = 1; n <= 6; n++) {
     const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
@@ -312,56 +313,30 @@ if (serieRef.length) {
 }
 html += `</div></div>`;
 
-// Agora o cálculo e impressão dos índices
+// Índices PFxTAquec vs RFxTAquec
 html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
 for (let n = 1; n <= 6; n++) {
-  const pfValRaw = serieRef[0][`PF${n}TAquec`];
-  const rfValRaw = serieRef[0][`RF${n}TAquec`];
-  const pfVal = Number(pfValRaw);
-  const rfVal = Number(rfValRaw);
+  const pf = Number(serieRef[0][`PF${n}TAquec`]);
+  const rf = Number(serieRef[0][`RF${n}TAquec`]);
 
   let indiceStr = 'N/A';
-
-  if (!isNaN(pfVal) && !isNaN(rfVal)) {
-    if (pfVal === 0 && rfVal === 0) {
+  if (!isNaN(pf) && !isNaN(rf)) {
+    if (pf === 0 && rf === 0) {
       indiceStr = 'N/A';
     } else {
-      const diff = rfVal - pfVal;
+      const diff = rf - pf;
       if (diff >= 5) indiceStr = '100%';
       else if (diff <= -5) indiceStr = '0%';
-      else {
-        const proporcao = (diff + 5) / 10; // linear entre -5 e +5
-        const indice = Math.round(proporcao * 100);
-        indiceStr = `${indice}%`;
-      }
+      else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
     }
   }
-
   html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
 }
 html += `</ul></div>`;
-    html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
-    html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados PFxTAquec para este ID.</p>`;
-}
-html += `</div><div><h4>Valores RFxTAquec</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
-    html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados RFxTAquec para este ID.</p>`;
-}
-html += `</div></div>`;
 
-// Bloco PFxPRem, RFxPRem e Índice
-html += `<hr><div class="coluna-dados"><div><h4>Valores PFxPRem</h4>`;
+// Bloco PFxPRem, RFxPRem e Índices
+html += `<hr><div class="coluna-dados">
+  <div><h4>Valores PFxPRem</h4>`;
 if (serieRef.length) {
   for (let n = 1; n <= 6; n++) {
     const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
@@ -379,31 +354,21 @@ if (serieRef.length) {
 } else {
   html += `<p>Sem dados RFxPRem para este ID.</p>`;
 }
-html += `</div><div><h4>Índice RF/PF (PRem)</h4>`;
-html += `</div><div><h4>Índice PFxPRem vs RFxPRem</h4>`;
+html += `</div><div><h4>Índices PFxPRem vs RFxPRem</h4>`;
 if (serieRef.length) {
   for (let n = 1; n <= 6; n++) {
-    const pfRaw = serieRef[0][`PF${n}PRem`];
-    const rfRaw = serieRef[0][`RF${n}PRem`];
-    const pf = Number(pfRaw);
-    const rf = Number(rfRaw);
+    const pf = Number(serieRef[0][`PF${n}PRem`]);
+    const rf = Number(serieRef[0][`RF${n}PRem`]);
 
     let indiceStr = 'N/A';
-
     if (!isNaN(pf) && !isNaN(rf)) {
       if (pf === 0 && rf === 0) {
         indiceStr = 'N/A';
       } else {
         const diff = rf - pf;
-        if (diff >= 5) {
-          indiceStr = '100%';
-        } else if (diff <= -5) {
-          indiceStr = '0%';
-        } else {
-          const proporcao = (diff + 5) / 10; // entre -5 e +5
-          const indice = Math.round(proporcao * 100);
-          indiceStr = `${indice}%`;
-        }
+        if (diff >= 5) indiceStr = '100%';
+        else if (diff <= -5) indiceStr = '0%';
+        else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
       }
     }
 
@@ -412,15 +377,7 @@ if (serieRef.length) {
 } else {
   html += `<p>Sem dados de índice para este ID.</p>`;
 }
-
-    
-    html += `<p><strong>Índice ${n}:</strong> ${indice}</p>`;
-  }
-} else {
-  html += `<p>Sem dados de índice para este ID.</p>`;
-}
 html += `</div></div>`;
-
 
 
     html += `</div>`; // fechar .bloco-transformador
