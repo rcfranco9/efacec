@@ -252,41 +252,43 @@ function buscarPorNome() {
     }
 
     html += `
-    <div class="bloco-transformador">
-      <h3>#${index + 1} — ID: ${id}</h3>
-      <div class="coluna-dados">
-        <div>
-          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-          <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-          <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-          <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
-        </div>
-        <div>
-          <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
-          <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
-          <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-          <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-        </div>
+  <div class="bloco-transformador">
+    <h3>#${index + 1} — ID: ${id}</h3>
+    <div class="coluna-dados">
+      <div>
+        <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+        <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+        <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+        <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon, 3)} t</p>
       </div>
-      <hr>
-      <div class="coluna-dados">
-        <div>
-          <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
-        </div>
-        <div>
-          <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
-          <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
-        </div>
+      <div>
+        <p><strong>Duração total:</strong> ${formatNum(duracao, 2)} h</p>
+        <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+        <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
+        <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
       </div>
-          if (difsTAquec.length) {
-      html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
-      difsTAquec.forEach(({ n, media }) => {
-        html += `<li><strong>PF${n} vs RF${n}:</strong> ${formatNum(media, 2)} ºC</li>`;
-      });
-      html += `</ul></div>`;
-    }
-    </div>`;
+    </div>
+    <hr>
+    <div class="coluna-dados">
+      <div>
+        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
+      </div>
+      <div>
+        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
+        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
+      </div>
+    </div>
+`;
+
+if (difsTAquec.length) {
+  html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
+  difsTAquec.forEach(({ n, media }) => {
+    html += `<li><strong>PF${n} vs RF${n}:</strong> ${formatNum(media, 2)} ºC</li>`;
   });
+  html += `</ul></div>`;
+}
+
+html += `</div>`; // Fechar .bloco-transformador
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
