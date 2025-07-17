@@ -337,6 +337,29 @@ for (let n = 1; n <= 6; n++) {
     }
   }
 
+  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+}
+html += `</ul></div>`;
+    html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+if (serieRef.length) {
+  for (let n = 1; n <= 6; n++) {
+    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+    html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
+  }
+} else {
+  html += `<p>Sem dados PFxTAquec para este ID.</p>`;
+}
+html += `</div><div><h4>Valores RFxTAquec</h4>`;
+if (serieRef.length) {
+  for (let n = 1; n <= 6; n++) {
+    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+    html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
+  }
+} else {
+  html += `<p>Sem dados RFxTAquec para este ID.</p>`;
+}
+html += `</div></div>`;
+
 // Bloco PFxPRem, RFxPRem e Índice
 html += `<hr><div class="coluna-dados"><div><h4>Valores PFxPRem</h4>`;
 if (serieRef.length) {
@@ -357,21 +380,27 @@ if (serieRef.length) {
   html += `<p>Sem dados RFxPRem para este ID.</p>`;
 }
 html += `</div><div><h4>Índice RF/PF (PRem)</h4>`;
- if (serieRef.length) {
+html += `</div><div><h4>Índice PFxPRem vs RFxPRem</h4>`;
+if (serieRef.length) {
   for (let n = 1; n <= 6; n++) {
-    const pfVal = parseFloat(serieRef[0][`PF${n}PRem`]);
-    const rfVal = parseFloat(serieRef[0][`RF${n}PRem`]);
+    const pfRaw = serieRef[0][`PF${n}PRem`];
+    const rfRaw = serieRef[0][`RF${n}PRem`];
+    const pf = Number(pfRaw);
+    const rf = Number(rfRaw);
+
     let indiceStr = 'N/A';
 
-    if (!isNaN(pfVal) && !isNaN(rfVal)) {
-      if (pfVal === 0 && rfVal === 0) {
+    if (!isNaN(pf) && !isNaN(rf)) {
+      if (pf === 0 && rf === 0) {
         indiceStr = 'N/A';
       } else {
-        const diff = rfVal - pfVal;
-        if (diff >= 5) indiceStr = '100%';
-        else if (diff <= -5) indiceStr = '0%';
-        else {
-          const proporcao = (diff + 5) / 10;
+        const diff = rf - pf;
+        if (diff >= 5) {
+          indiceStr = '100%';
+        } else if (diff <= -5) {
+          indiceStr = '0%';
+        } else {
+          const proporcao = (diff + 5) / 10; // entre -5 e +5
           const indice = Math.round(proporcao * 100);
           indiceStr = `${indice}%`;
         }
@@ -380,8 +409,16 @@ html += `</div><div><h4>Índice RF/PF (PRem)</h4>`;
 
     html += `<p><strong>Índice ${n}:</strong> ${indiceStr}</p>`;
   }
+} else {
+  html += `<p>Sem dados de índice para este ID.</p>`;
 }
 
+    }
+    html += `<p><strong>Índice ${n}:</strong> ${indice}</p>`;
+  }
+} else {
+  html += `<p>Sem dados de índice para este ID.</p>`;
+}
 html += `</div></div>`;
 
 
