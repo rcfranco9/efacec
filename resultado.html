@@ -279,13 +279,12 @@ function buscarPorNome() {
       </div>
     </div>`;
 
-if (difsTAquec.length) {
   html += `<hr><div><h4>Comparação PFxTAquec vs RFxTAquec (diferença média absoluta)</h4><ul>`;
   difsTAquec.forEach(({ n, media }) => {
     html += `<li><strong>PF${n} vs RF${n}:</strong> ${formatNum(media, 2)} ºC</li>`;
   });
   html += `</ul></div>`;
-}
+
 
 html += `</div>`; // fechar .bloco-transformador
 
