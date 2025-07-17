@@ -296,11 +296,11 @@
           </thead><tbody>`;
           for(let j=0; j<6; j++) {
             html += `<tr>
-              <td>${j+1}</td>
+          <td>TAquec ${j+1}</td>
               <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
               <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
               <td>${calculaIndice(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-            </tr>`;
+              </tr>
           }
           html += `</tbody></table>`;
 
@@ -315,11 +315,14 @@
           </thead><tbody>`;
           for(let j=0; j<6; j++) {
             html += `<tr>
-              <td>${j+1}</td>
-              <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-              <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-              <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-            </tr>`;
+  <td>PRem ${j+1}</td>
+    <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+    <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+    <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+  </tr>`;
+
+              
+          </tr>`;
           }
           html += `</tbody></table>`;
         } else {
