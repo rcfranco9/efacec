@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Comparar Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
+    /* Mantém o estilo igual ao anterior */
     body {
       font-family: 'Segoe UI', sans-serif;
       max-width: 900px;
@@ -57,6 +57,7 @@
       background: #fff;
       border: 2px solid #ccc;
       border-radius: 8px;
+      overflow-x: auto;
     }
     .transformador-dados {
       margin-bottom: 20px;
@@ -68,13 +69,11 @@
       margin-top: 0;
       color: #2980b9;
     }
-    .transformador-dados p {
-      margin: 4px 0;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
+      min-width: 650px;
     }
     th, td {
       padding: 10px;
@@ -85,20 +84,31 @@
       background: #2980b9;
       color: white;
     }
-    .diff-positive { color: green; font-weight: bold; }
-    .diff-negative { color: red; font-weight: bold; }
-    .diff-neutral  { color: gray; }
+    .diff-positive {
+      color: green;
+      font-weight: bold;
+    }
+    .diff-negative {
+      color: red;
+      font-weight: bold;
+    }
+    .diff-neutral {
+      color: gray;
+    }
   </style>
 </head>
 <body>
 
 <h1>Comparação de Transformadores</h1>
 
-<label>CSV1:</label>
+<label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
 
-<label>CSV2:</label>
+<label>CSV2 (Serie):</label>
 <input type="file" id="csvSerie" accept=".csv">
+
+<label>CSV3 (Dados PF/RF):</label>
+<input type="file" id="csvTerceiro" accept=".csv">
 
 <label>Nome Transformador 1:</label>
 <input type="text" id="nome1" disabled>
@@ -108,13 +118,11 @@
 
 <button id="btnComparar" disabled>Comparar</button>
 
-<div id="resultado">Carrega os dois ficheiros CSV.</div>
+<div id="resultado">Carrega os três ficheiros CSV.</div>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 
-
-
 <script>
-let dadosMeta = [], dadosSerie = [];
+let dadosMeta = [], dadosSerie = [], dadosTerceiro = [];
 
 function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
@@ -168,7 +176,7 @@ function calcTaxa(id, massaKg) {
   const anterior = serie.findLast(r => r.ts <= alvo) || serie[0];
   const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
-  const deltaTotal = +serie[serie.length - 1].lc.toFixed(3); // LC inicial = 0
+  const deltaTotal = +serie[serie.length - 1].lc.toFixed(3);
   const duracao = (serie[serie.length - 1].ts - serie[0].ts) / 3600000;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
@@ -182,7 +190,7 @@ function diffClass(v) {
 }
 
 function checkReady() {
-  const ready = dadosMeta.length && dadosSerie.length;
+  const ready = dadosMeta.length && dadosSerie.length && dadosTerceiro.length;
   document.getElementById('nome1').disabled = !ready;
   document.getElementById('nome2').disabled = !ready;
   document.getElementById('btnComparar').disabled = !ready;
@@ -209,7 +217,23 @@ document.getElementById('csvSerie').addEventListener('change', e => {
   });
 });
 
-  function calculaIndice(pf, rf) {
+document.getElementById('csvTerceiro').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  Papa.parse(f, {
+    header: true, skipEmptyLines: true,
+    complete: res => { dadosTerceiro = res.data; checkReady(); }
+  });
+});
+
+// Agora a função getValorCampo vai buscar no dadosTerceiro
+function getValorCampo(id, campo) {
+  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
+  if (!reg) return null;
+  return reg[campo] ?? null;
+}
+
+function calculaIndice(pf, rf) {
   if (pf === 0 && rf === 0) return 'N/A';
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
   const diff = rf - pf;
@@ -231,17 +255,14 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   const candidatos1 = dadosMeta
     .filter(r => (r.subprojecto || '').trim().toLowerCase() === nome1)
-    .sort((a, b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore))
-
+    .sort((a, b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore));
 
   const candidatos2 = dadosMeta
     .filter(r => (r.subprojecto || '').trim().toLowerCase() === nome2)
-    .sort((a, b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore))
+    .sort((a, b) => parseInt(b.id_secagenscore) - parseInt(a.id_secagenscore));
 
-
-const m1 = candidatos1[0];
-const m2 = candidatos2[0];
-
+  const m1 = candidatos1[0];
+  const m2 = candidatos2[0];
 
   if (!m1 || !m2) {
     out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>';
@@ -251,13 +272,13 @@ const m2 = candidatos2[0];
   const id1 = (m1.id_secagenscore || '').trim();
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
-const t2 = calcTaxa(id2, m2.massai);
+  const t2 = calcTaxa(id2, m2.massai);
 
-if (!t1 || !t2) {
-  out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
-  document.getElementById("btnExportarPDF").style.display = 'none';
-  return;
-}
+  if (!t1 || !t2) {
+    out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
+    document.getElementById("btnExportarPDF").style.display = 'none';
+    return;
+  }
 
   const te1 = maxTEfromSerie(id1);
   const te2 = maxTEfromSerie(id2);
@@ -268,44 +289,43 @@ if (!t1 || !t2) {
 
   let html = '';
 
-  [m1, m2].forEach((m, i) => {
-  html += `
-  <div class="transformador-dados">
-    <h3>${m.subprojecto || 'Sem nome'}</h3>
-    <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
-    <p><strong>Tensão:</strong> ${m.tensao || 'N/A'} kV</p>
-    <p><strong>Potência:</strong> ${m.potencia || 'N/A'} kVA</p>
-    <p><strong>Massa transformador:</strong> ${m.massat || 'N/A'} kg</p>
-    <p><strong>Massa dos isolantes:</strong> ${m.massai || 'N/A'} kg</p>
-  </div>`;
-});
+  [m1, m2].forEach((m) => {
+    html += `
+    <div class="transformador-dados">
+      <h3>${m.subprojecto || 'Sem nome'}</h3>
+      <p><strong>ID:</strong> ${(m.id_secagenscore || '').trim()}</p>
+      <p><strong>Tensão:</strong> ${m.tensao || 'N/A'} kV</p>
+      <p><strong>Potência:</strong> ${m.potencia || 'N/A'} kVA</p>
+      <p><strong>Massa transformador:</strong> ${m.massat || 'N/A'} kg</p>
+      <p><strong>Massa dos isolantes:</strong> ${m.massai || 'N/A'} kg</p>
+    </div>`;
+  });
 
+  function formatNum(v, dec = 3) {
+    if (isNaN(v) || v === null) return 'N/A';
+    const n = Number(v).toFixed(dec);
+    return parseFloat(n) === 0 ? '0' : parseFloat(n).toString();
+  }
 
-function formatNum(v, dec = 3) {
-  if (isNaN(v) || v === null || v === 0) return 'N/A';
-  const n = Number(v).toFixed(dec);
-  return parseFloat(n) === 0 ? 'N/A' : parseFloat(n).toString();
-}
+  html += `<h2>Comparação Geral</h2>
+  <table>
+    <tr>
+      <th>Parâmetro</th>
+      <th>${m1.subprojecto || id1}</th>
+      <th>${m2.subprojecto || id2}</th>
+    </tr>
+    <tbody>
+      <tr><td>Duração total (h)</td><td>${formatNum(t1.duracao, 2)}</td><td>${formatNum(t2.duracao, 2)}</td></tr>
+      <tr><td>Quantidade de água removida (L)</td><td>${formatNum(t1.deltaTotal)}</td><td>${formatNum(t2.deltaTotal)}</td></tr>
+      <tr><td>Taxa total (L/(h*t))</td><td>${formatNum(t1.taxaTotal)}</td><td>${formatNum(t2.taxaTotal)}</td></tr>
+      <tr><td>Taxa de remoção de água nas últimas 10h (L/(h*t))</td><td>${formatNum(t1.taxa10h)}</td><td>${formatNum(t2.taxa10h)}</td></tr>
+      <tr><td>Maior valor de temperatura nas sondas (ºC)</td><td>${formatNum(te1, 2)}</td><td>${formatNum(te2, 2)}</td></tr>
+      <tr><td>Menor valor de pressão (mbar)</td><td>${formatNum(pe1_417, 3)}</td><td>${formatNum(pe2_417, 3)}</td></tr>
+      <tr><td>Menor valor de vácuo fino (mbar)</td><td>${formatNum(pe1_551, 3)}</td><td>${formatNum(pe2_551, 3)}</td></tr>
+    </tbody>
+  </table>`;
 
-html += `<h2>Comparação</h2>
-<table>
-  <tr>
-    <th>Parâmetro</th>
-    <th>${m1.subprojecto || id1}</th>
-    <th>${m2.subprojecto || id2}</th>
-  </tr>
-  <tbody>
-    <tr><td>Duração total (h)</td><td>${formatNum(t1.duracao, 2)}</td><td>${formatNum(t2.duracao, 2)}</td></tr>
-    <tr><td>Quantidade de água removida (L)</td><td>${formatNum(t1.deltaTotal)}</td><td>${formatNum(t2.deltaTotal)}</td></tr>
-    <tr><td>Taxa total (L/(h*t))</td><td>${formatNum(t1.taxaTotal)}</td><td>${formatNum(t2.taxaTotal)}</td></tr>
-    <tr><td>Taxa de remoção de água nas últimas 10h (L/(h*t))</td><td>${formatNum(t1.taxa10h)}</td><td>${formatNum(t2.taxa10h)}</td></tr>
-    <tr><td>Maior valor de temperatura nas sondas (ºC)</td><td>${formatNum(te1, 2)}</td><td>${formatNum(te2, 2)}</td></tr>
-    <tr><td>Menor valor de pressão (mbar)</td><td>${formatNum(pe1_417, 3)}</td><td>${formatNum(pe2_417, 3)}</td></tr>
-    <tr><td>Menor valor de vácuo fino (mbar)</td><td>${formatNum(pe1_551, 3)}</td><td>${formatNum(pe2_551, 3)}</td></tr>
-  </tbody>
-</table>`;
-
-   // Agora o bloco detalhado PFxTAquec, RFxTAquec + índices
+  // Bloco PFxTAquec, RFxTAquec e Índices
   html += `<hr><h3>Comparação PFxTAquec, RFxTAquec e Índices</h3>`;
   html += `<table>
   <thead>
@@ -385,13 +405,11 @@ html += `<h2>Comparação</h2>
 
   html += `</tbody></table>`;
 
-
-
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-
 });
-  document.getElementById("btnExportarPDF").addEventListener("click", async () => {
+
+document.getElementById("btnExportarPDF").addEventListener("click", async () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
     orientation: "portrait",
@@ -413,7 +431,6 @@ html += `<h2>Comparação</h2>
     doc.save(`Comparacao_${nome1 || 'A'}_vs_${nome2 || 'B'}.pdf`);
   });
 });
-
 </script>
 
 </body>
