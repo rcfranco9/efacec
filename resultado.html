@@ -246,38 +246,7 @@ function buscarPorNome() {
       }
       taxas3h.unshift(null);
     }
-    // preparar gráfico de pontos
-const ctx = document.getElementById('chartTaxas3h').getContext('2d');
-if (window._chartTaxas) window._chartTaxas.destroy(); // eliminar gráfico anterior
-window._chartTaxas = new Chart(ctx, {
-  type: 'scatter',
-  data: {
-    datasets: [{
-      label: 'Taxa L/(h*t)',
-      data: taxas3h.map((v, i) => ({
-        x: i * 3 + 1.5, // meio do intervalo 0‑3, 3‑6, etc
-        y: v ?? null
-      })),
-      backgroundColor: 'rgba(54,162,235,0.6)'
-    }]
-  },
-  options: {
-    scales: {
-      x: {
-        type: 'linear',
-        title: { display: true, text: 'Horas atrás (centro do intervalo)' },
-        ticks: { stepSize: 3, callback: v => v + 'h' },
-        min: 1.5,
-        max: 18
-      },
-      y: {
-        title: { display: true, text: 'Taxa (L/(h*t))' },
-        beginAtZero: true
-      }
-    }
-  }
-});
-
+  
 
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE = null;
@@ -358,6 +327,7 @@ window._chartTaxas = new Chart(ctx, {
       </ul>
       <hr>
     `;
+html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>`;
 
     html += `
       <div class="coluna-dados">
@@ -462,6 +432,99 @@ window._chartTaxas = new Chart(ctx, {
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
 }
+  encontrados.forEach((meta, index) => {
+  const ctx = document.getElementById(`graficoTaxa${index}`)?.getContext('2d');
+  if (!ctx) return;
+
+  // Recria as taxas3h para este index (ou guarda antes no array se quiseres)
+  // Mas já tens taxas3h calculadas dentro do loop, então podemos guardar num array externo antes do loop.
+
+  // Para simplificar: vamos recalcular aqui as taxas3h para o gráfico:
+  const id = meta.id_secagenscore?.trim();
+  if (!id) return;
+
+  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+  if (!serie.length) return;
+
+  const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
+  const massaiTon = Number(meta.massai) / 1000;
+
+  const taxas3h = [];
+  for (let i = 0; i < 6; i++) {
+    const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
+    const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
+    const registrosIntervalo = serie.filter(l => {
+      const d = new Date(l.DataHora);
+      return d >= inicioIntervalo && d <= fimIntervalo;
+    }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+    if (registrosIntervalo.length >= 2) {
+      const lcInicio = Number(registrosIntervalo[0].LC_3_8);
+      const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
+      if (!isNaN(lcInicio) && !isNaN(lcFim)) {
+        const difIntervalo = lcFim - lcInicio;
+        const taxaIntervalo = difIntervalo / (3 * massaiTon);
+        taxas3h.unshift(taxaIntervalo);
+        continue;
+      }
+    }
+    taxas3h.unshift(null);
+  }
+
+  const labels = ['0-3h', '3-6h', '6-9h', '9-12h', '12-15h', '15-18h'];
+  const dataPoints = taxas3h.map(v => v === null ? null : Number(v.toFixed(3)));
+
+  new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Taxa de remoção (L/(h*t))',
+        data: dataPoints.map((y, i) => y === null ? null : {x: i * 3, y: y}),
+        backgroundColor: 'rgba(41, 128, 185, 0.8)',
+        borderColor: 'rgba(41, 128, 185, 1)',
+        showLine: true, // liga a linha para aproximação
+        fill: false,
+        tension: 0.3, // suaviza a linha
+        pointRadius: 5
+      }]
+    },
+    options: {
+      scales: {
+        x: {
+          type: 'linear',
+          title: {
+            display: true,
+            text: 'Tempo (horas atrás)'
+          },
+          ticks: {
+            stepSize: 3,
+            callback: val => `${val}-${val + 3}h`
+          },
+          min: 0,
+          max: 18,
+          reverse: true // para mostrar 0 no eixo direito e 18 no esquerdo (como "horas atrás")
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Taxa (L/(h*t))'
+          },
+          beginAtZero: true
+        }
+      },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: context => `Taxa: ${context.parsed.y.toFixed(3)} L/(h*t)`
+          }
+        }
+      }
+    }
+  });
+});
+
 
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
   const resultado = document.getElementById('resultado');
