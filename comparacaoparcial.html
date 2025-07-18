@@ -284,47 +284,51 @@
           <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
           <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
 
-        if(dadosPFRF) {
-          html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
-          <table><thead>
-            <tr>
-              <th>Nº</th>
-              <th>PFxTAquec</th>
-              <th>RFxTAquec</th>
-              <th>Índice</th>
-            </tr>
-          </thead><tbody>`;
-          for(let j=0; j<6; j++) {
-            html += `<tr>
-          <td>TAquec ${j+1}</td>
-              <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-              <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-              <td>${calculaIndice(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-              </tr>
-          }
-          html += `</tbody></table>`;
+       if(dadosPFRF) {
+  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxTAquec</th>
+      <th>RFxTAquec</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
 
-          html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
-          <table><thead>
-            <tr>
-              <th>Nº</th>
-              <th>PFxPRem</th>
-              <th>RFxPRem</th>
-              <th>Índice</th>
-            </tr>
-          </thead><tbody>`;
-          for(let j=0; j<6; j++) {
-            html += `<tr>
-  <td>PRem ${j+1}</td>
-    <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-    <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-    <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-  </tr>`;
-          }
-          html += `</tbody></table>`;
-        } else {
-          html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
-        }
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>TAquec ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+      <td>${calculaIndice(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+
+  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxPRem</th>
+      <th>RFxPRem</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
+
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>PRem ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+      <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+} else {
+  html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
+}
 
         html += `</div>`;
       });
