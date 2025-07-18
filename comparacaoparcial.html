@@ -305,12 +305,12 @@ function calculaIndicePressao(pf, rf) {
 
   for(let j=0; j<6; j++) {
     html += `<tr>
-  <td>TAquec ${j+1}</td>
-  <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-  <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-  <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-</tr>`;
-
+      <td>TAquec ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
   html += `</tbody></table>`;
 
   html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
@@ -324,19 +324,21 @@ function calculaIndicePressao(pf, rf) {
   </thead><tbody>`;
 
   for(let j=0; j<6; j++) {
-   html += `<tr>
-  <td>PRem ${j+1}</td>
-  <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-  <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-  <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-</tr>`;
+    html += `<tr>
+      <td>PRem ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
   html += `</tbody></table>`;
+
 } else {
   html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
 }
 
-        html += `</div>`;
-      });
+html += `</div>`;
+
 
       out.innerHTML = html;
       document.getElementById('btnExportarPDF').style.display = 'inline-block';
