@@ -174,7 +174,6 @@ function calcularIndice(pf, rf) {
   return Math.round(indice);
 }
 let encontradosGlobais = [];
-
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
@@ -185,15 +184,14 @@ function buscarPorNome() {
   }
 
   encontradosGlobais = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
-if (!encontradosGlobais.length) {
-  out.textContent = 'Transformador não encontrado nos metadados.';
-  return;
-}
+  if (!encontradosGlobais.length) {
+    out.textContent = 'Transformador não encontrado nos metadados.';
+    return;
+  }
 
+  let html = `<h2>Resultados para: <strong>${encontradosGlobais[0].subprojecto}</strong></h2>`;
 
-  let html = `<h2>Resultados para: <strong>${encontrados[0].subprojecto}</strong></h2>`;
-
-  encontrados.forEach((meta, index) => {
+  encontradosGlobais.forEach((meta, index) => {
     const id = meta.id_secagenscore?.trim();
     if (!id) return;
 
@@ -201,7 +199,7 @@ if (!encontradosGlobais.length) {
     if (!serie.length) return;
 
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; 
+    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0;
 
     const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
     if (datas.length < 2) return;
@@ -230,7 +228,7 @@ if (!encontradosGlobais.length) {
     for (let i = 0; i < 6; i++) {  // 6 intervalos de 3h para total 18h
       const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
       const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
-      
+
       const registrosIntervalo = serie.filter(l => {
         const d = new Date(l.DataHora);
         return d >= inicioIntervalo && d <= fimIntervalo;
@@ -248,7 +246,6 @@ if (!encontradosGlobais.length) {
       }
       taxas3h.unshift(null);
     }
-  
 
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE = null;
@@ -273,25 +270,7 @@ if (!encontradosGlobais.length) {
       }
     });
 
-    const pares = [1, 2, 3, 4, 5, 6];
-    const difsTAquec = [];
-
     const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
-    if (serieRef.length) {
-      pares.forEach(n => {
-        const pf = `PF${n}TAquec`, rf = `RF${n}TAquec`;
-        const valoresPF = serie.map(l => Number(l[pf])).filter(v => !isNaN(v));
-        const valoresRF = serieRef.map(l => Number(l[rf])).filter(v => !isNaN(v));
-
-        const len = Math.min(valoresPF.length, valoresRF.length);
-        if (len > 0) {
-          const somaAbs = valoresPF.slice(0, len).reduce((acc, v, i) => acc + Math.abs(v - valoresRF[i]), 0);
-          difsTAquec.push({ n, media: somaAbs / len });
-        } else {
-          difsTAquec.push({ n, media: null });
-        }
-      });
-    }
 
     html += `
     <div class="bloco-transformador">
@@ -311,12 +290,8 @@ if (!encontradosGlobais.length) {
         </div>
       </div>
       <hr>
-
       <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
-      <ul>
-      
-
-    `;
+      <ul>`;
 
     for (let i = 0; i < 6; i++) {
       const taxa = taxas3h[i];
@@ -325,11 +300,9 @@ if (!encontradosGlobais.length) {
       html += `<li>${inicioHora}h - ${fimHora}h atrás: ${taxa !== null ? formatNum(taxa) + ' L/(h*t)' : 'N/A'}</li>`;
     }
 
-    html += `
-      </ul>
-      <hr>
-    `;
-html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>`;
+    html += `</ul><hr>`;
+
+    html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>`;
 
     html += `
       <div class="coluna-dados">
@@ -343,7 +316,6 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
       </div>
     `;
 
-    // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
     // Bloco PFxTAquec e RFxTAquec
     html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
     if (serieRef.length) {
@@ -363,165 +335,100 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
     } else {
       html += `<p>Sem dados RFxTAquec para este ID.</p>`;
     }
-    html += `</div></div>`;
-
-    // Índices PFxTAquec vs RFxTAquec
-    html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
-    for (let n = 1; n <= 6; n++) {
-      const pf = Number(serieRef[0][`PF${n}TAquec`]);
-      const rf = Number(serieRef[0][`RF${n}TAquec`]);
-
-      let indiceStr = 'N/A';
-      if (!isNaN(pf) && !isNaN(rf)) {
-        if (pf === 0 && rf === 0) {
-          indiceStr = 'N/A';
-        } else {
-          const diff = rf - pf;
-          if (diff >= 5) indiceStr = '100%';
-          else if (diff <= -5) indiceStr = '0%';
-          else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
-        }
-      }
-      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
-    }
-    html += `</ul></div>`;
-
-    // Bloco PFxPRem, RFxPRem e Índices
-    html += `<hr><div class="coluna-dados">
-      <div><h4>Valores PFxPRem</h4>`;
-    if (serieRef.length) {
-      for (let n = 1; n <= 6; n++) {
-        const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
-        html += `<p><strong>PF${n}PRem:</strong> ${pfVal}</p>`;
-      }
-    } else {
-      html += `<p>Sem dados PFxPRem para este ID.</p>`;
-    }
-    html += `</div><div><h4>Valores RFxPRem</h4>`;
-    if (serieRef.length) {
-      for (let n = 1; n <= 6; n++) {
-        const rfVal = serieRef[0][`RF${n}PRem`] ?? 'N/A';
-        html += `<p><strong>RF${n}PRem:</strong> ${rfVal}</p>`;
-      }
-    } else {
-      html += `<p>Sem dados RFxPRem para este ID.</p>`;
-    }
-    html += `</div></div>`;
-
-    html += `<hr><div><h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
-    for (let n = 1; n <= 6; n++) {
-      const pf = Number(serieRef[0][`PF${n}PRem`]);
-      const rf = Number(serieRef[0][`RF${n}PRem`]);
-
-      let indiceStr = 'N/A';
-      if (!isNaN(pf) && !isNaN(rf)) {
-        if (pf === 0 && rf === 0) {
-          indiceStr = 'N/A';
-        } else {
-          const diff = rf - pf;
-          if (diff >= 5) indiceStr = '100%';
-          else if (diff <= -5) indiceStr = '0%';
-          else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
-        }
-      }
-      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
-    }
-    html += `</ul></div>`;
-
-    html += `</div>`; // fechar bloco-transformador
+    html += `</div></div><hr></div>`;
   });
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-}
-encontradosGlobais.forEach((meta, index) => {
-  const ctx = document.getElementById(`graficoTaxa${index}`)?.getContext('2d');
-  if (!ctx) return;
 
-  const id = meta.id_secagenscore?.trim();
-  if (!id) return;
+  // Agora cria os gráficos, depois do HTML estar no DOM
+  encontradosGlobais.forEach((meta, index) => {
+    const ctx = document.getElementById(`graficoTaxa${index}`)?.getContext('2d');
+    if (!ctx) return;
 
-  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-  if (!serie.length) return;
+    const id = meta.id_secagenscore?.trim();
+    if (!id) return;
 
-  const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
-  const massaiTon = Number(meta.massai) / 1000;
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (!serie.length) return;
 
-  const taxas3h = [];
-  for (let i = 0; i < 6; i++) {
-    const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
-    const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
-    const registrosIntervalo = serie.filter(l => {
-      const d = new Date(l.DataHora);
-      return d >= inicioIntervalo && d <= fimIntervalo;
-    }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
+    const massaiTon = Number(meta.massai) / 1000;
 
-    if (registrosIntervalo.length >= 2) {
-      const lcInicio = Number(registrosIntervalo[0].LC_3_8);
-      const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
-      if (!isNaN(lcInicio) && !isNaN(lcFim)) {
-        const difIntervalo = lcFim - lcInicio;
-        const taxaIntervalo = difIntervalo / (3 * massaiTon);
-        taxas3h.unshift(taxaIntervalo);
-        continue;
-      }
-    }
-    taxas3h.unshift(null);
-  }
+    const taxas3h = [];
+    for (let i = 0; i < 6; i++) {
+      const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
+      const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
 
-  const labels = ['0-3h', '3-6h', '6-9h', '9-12h', '12-15h', '15-18h'];
-  const dataPoints = taxas3h.map(v => v === null ? null : Number(v.toFixed(3)));
+      const registrosIntervalo = serie.filter(l => {
+        const d = new Date(l.DataHora);
+        return d >= inicioIntervalo && d <= fimIntervalo;
+      }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
 
-  new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Taxa de remoção (L/(h*t))',
-        data: dataPoints.map((y, i) => y === null ? null : {x: i * 3, y: y}),
-        backgroundColor: 'rgba(41, 128, 185, 0.8)',
-        borderColor: 'rgba(41, 128, 185, 1)',
-        showLine: true,
-        fill: false,
-        tension: 0.3,
-        pointRadius: 5
-      }]
-    },
-    options: {
-      scales: {
-        x: {
-          type: 'linear',
-          title: {
-            display: true,
-            text: 'Tempo (horas atrás)'
-          },
-          ticks: {
-            stepSize: 3,
-            callback: val => `${val}-${val + 3}h`
-          },
-          min: 0,
-          max: 18,
-          reverse: true
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Taxa (L/(h*t))'
-          },
-          beginAtZero: true
+      if (registrosIntervalo.length >= 2) {
+        const lcInicio = Number(registrosIntervalo[0].LC_3_8);
+        const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
+        if (!isNaN(lcInicio) && !isNaN(lcFim)) {
+          const difIntervalo = lcFim - lcInicio;
+          const taxaIntervalo = difIntervalo / (3 * massaiTon);
+          taxas3h.unshift(taxaIntervalo);
+          continue;
         }
+      }
+      taxas3h.unshift(null);
+    }
+
+    new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        labels: ['0-3h', '3-6h', '6-9h', '9-12h', '12-15h', '15-18h'],
+        datasets: [{
+          label: 'Taxa de remoção (L/(h*t))',
+          data: taxas3h.map((v, i) => v === null ? null : { x: i * 3, y: Number(v.toFixed(3)) }),
+          backgroundColor: 'rgba(41, 128, 185, 0.8)',
+          borderColor: 'rgba(41, 128, 185, 1)',
+          showLine: true,
+          fill: false,
+          tension: 0.3,
+          pointRadius: 5
+        }]
       },
-      plugins: {
-        legend: { display: true },
-        tooltip: {
-          callbacks: {
-            label: context => `Taxa: ${context.parsed.y.toFixed(3)} L/(h*t)`
+      options: {
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Tempo (horas atrás)' },
+            ticks: {
+              stepSize: 3,
+              callback: val => `${val}-${val + 3}h`
+            },
+            min: 0,
+            max: 18,
+            reverse: true
+          },
+          y: {
+            title: { display: true, text: 'Taxa (L/(h*t))' },
+            beginAtZero: true
+          }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              label: context => `Taxa: ${context.parsed.y.toFixed(3)} L/(h*t)`
+            }
           }
         }
       }
-    }
+    });
   });
-});
+}
+
+// Função auxiliar para formatar números (exemplo simples)
+function formatNum(n, decimals = 2) {
+  if (n === null || n === undefined || isNaN(n)) return 'N/A';
+  return n.toFixed(decimals);
+}
 
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
   const resultado = document.getElementById('resultado');
