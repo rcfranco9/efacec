@@ -178,22 +178,30 @@
         .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
       return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
     }
+// Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
+function calculaIndiceTemperatura(pf, rf) {
+  if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  const diff = rf - pf;
+  if (diff >= 5) return '100%';
+  if (diff <= -5) return '0%';
+  const proporcao = (diff + 5) / 10; // linear entre -5 e 5
+  const indice = Math.round(proporcao * 100);
+  return `${indice}%`;
+}
 
-    // Função que calcula o índice de PF vs RF conforme a regra que especificaste:
-    // Se RF >= PF + 5 => 100%
-    // Se RF <= PF - 5 => 0%
-    // Se RF == PF => 50%
-    // Valores intermédios interpolados linearmente entre 0 e 100%
-    function calculaIndice(pf, rf) {
-      if (isNaN(pf) || isNaN(rf)) return 'N/A';
-      const diff = rf - pf;
-      if (diff >= 5) return '100%';
-      if (diff <= -5) return '0%';
-      // interpolação linear: 0% em -5, 50% em 0, 100% em +5
-      const proporcao = (diff + 5) / 10; // entre 0 e 1
-      const indice = Math.round(proporcao * 100);
-      return `${indice}%`;
-    }
+// Função para calcular índice para PRem (pressões) - com a tua regra inversa
+function calculaIndicePressao(pf, rf) {
+  if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  const diff = rf - pf;
+  if (diff >= 5) return '0%';
+  if (diff <= -5) return '100%';
+  if (diff === 0) return '50%';
+  // interpolação linear entre -5 e 5, invertida
+  const proporcao = (5 - diff) / 10;
+  const indice = Math.round(proporcao * 100);
+  return `${indice}%`;
+}
+
 
     // Pega os dados PF e RF do csv3 para o id dado
     // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
@@ -297,12 +305,11 @@
 
   for(let j=0; j<6; j++) {
     html += `<tr>
-      <td>TAquec ${j+1}</td>
-      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-      <td>${calculaIndice(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-    </tr>`;
-  }
+  <td>TAquec ${j+1}</td>
+  <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+  <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+  <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+</tr>`;
 
   html += `</tbody></table>`;
 
@@ -317,14 +324,12 @@
   </thead><tbody>`;
 
   for(let j=0; j<6; j++) {
-    html += `<tr>
-      <td>PRem ${j+1}</td>
-      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-      <td>${calculaIndice(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-    </tr>`;
-  }
-
+   html += `<tr>
+  <td>PRem ${j+1}</td>
+  <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+  <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+  <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+</tr>`;
   html += `</tbody></table>`;
 } else {
   html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
