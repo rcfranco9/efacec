@@ -173,6 +173,7 @@ function calcularIndice(pf, rf) {
   if (indice > 100) indice = 100;
   return Math.round(indice);
 }
+let encontradosGlobais = [];
 
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
@@ -183,11 +184,12 @@ function buscarPorNome() {
     return;
   }
 
-  const encontrados = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
-  if (!encontrados.length) {
-    out.textContent = 'Transformador não encontrado nos metadados.';
-    return;
-  }
+  encontradosGlobais = dadosCSV1.filter(l => (l.subprojecto || '').trim().toLowerCase() === nome);
+if (!encontradosGlobais.length) {
+  out.textContent = 'Transformador não encontrado nos metadados.';
+  return;
+}
+
 
   let html = `<h2>Resultados para: <strong>${encontrados[0].subprojecto}</strong></h2>`;
 
@@ -432,14 +434,10 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
 }
-  encontrados.forEach((meta, index) => {
+encontradosGlobais.forEach((meta, index) => {
   const ctx = document.getElementById(`graficoTaxa${index}`)?.getContext('2d');
   if (!ctx) return;
 
-  // Recria as taxas3h para este index (ou guarda antes no array se quiseres)
-  // Mas já tens taxas3h calculadas dentro do loop, então podemos guardar num array externo antes do loop.
-
-  // Para simplificar: vamos recalcular aqui as taxas3h para o gráfico:
   const id = meta.id_secagenscore?.trim();
   if (!id) return;
 
@@ -483,9 +481,9 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
         data: dataPoints.map((y, i) => y === null ? null : {x: i * 3, y: y}),
         backgroundColor: 'rgba(41, 128, 185, 0.8)',
         borderColor: 'rgba(41, 128, 185, 1)',
-        showLine: true, // liga a linha para aproximação
+        showLine: true,
         fill: false,
-        tension: 0.3, // suaviza a linha
+        tension: 0.3,
         pointRadius: 5
       }]
     },
@@ -503,7 +501,7 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
           },
           min: 0,
           max: 18,
-          reverse: true // para mostrar 0 no eixo direito e 18 no esquerdo (como "horas atrás")
+          reverse: true
         },
         y: {
           title: {
@@ -524,7 +522,6 @@ html += `<canvas id="graficoTaxa${index}" width="600" height="300" style="backgr
     }
   });
 });
-
 
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
   const resultado = document.getElementById('resultado');
