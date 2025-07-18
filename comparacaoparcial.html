@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Filtragem de Transformadores com Índices PF/RF</title>
+  <title>Filtragem de Transformadores com Índices</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -338,7 +338,7 @@ function calculaIndicePressao(pf, rf) {
 }
 
 html += `</div>`;
-
+      });
 
       out.innerHTML = html;
       document.getElementById('btnExportarPDF').style.display = 'inline-block';
