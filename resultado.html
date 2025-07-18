@@ -107,6 +107,7 @@
 <label for="nomeInput">Nome do transformador:</label>
 <input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
+<canvas id="graficoTaxas" width="400" height="200" style="margin-top: 20px;"></canvas>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
@@ -342,7 +343,7 @@ window._chartTaxas = new Chart(ctx, {
 
       <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
       <ul>
-      <canvas id="chartTaxas3h" width="400" height="200"></canvas>
+      
 
     `;
 
