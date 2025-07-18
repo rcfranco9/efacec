@@ -341,22 +341,26 @@ function buscarPorNome() {
     html += `</div></div>`;
 
     // Índices PFxTAquec vs RFxTAquec
-    html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
-    for (let n = 1; n <= 6; n++) {
-      const pf = Number(serieRef[0][`PF${n}TAquec`]);
-      const rf = Number(serieRef[0][`RF${n}TAquec`]);
+  
+html += `<hr><div><h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
+for (let n = 1; n <= 6; n++) {
+  const pf = Number(serieRef[0][`PF${n}PRem`]);
+  const rf = Number(serieRef[0][`RF${n}PRem`]);
 
-      let indiceStr = 'N/A';
-      if (!isNaN(pf) && !isNaN(rf)) {
-        if (pf === 0 && rf === 0) {
-          indiceStr = 'N/A';
-        } else {
-          indiceStr = calcularIndice(pf, rf) + '%';
-        }
-      }
-      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+  let indiceStr = 'N/A';
+  if (!isNaN(pf) && !isNaN(rf)) {
+    if (pf === 0 && rf === 0) {
+      indiceStr = 'N/A';
+    } else {
+      const dif = rf - pf;
+      const indice = Math.max(0, Math.min(100, 100 - ((dif + 5) * 10)));
+      indiceStr = `${indice.toFixed(1)}%`;
     }
-    html += `</ul></div>`;
+  }
+  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+}
+html += `</ul></div>`;
+
 
     // PFxPRem e RFxPRem
     html += `<hr><div class="coluna-dados"><div><h4>Valores PFxPRem</h4>`;
@@ -439,7 +443,7 @@ function buscarPorNome() {
       taxas3h.unshift(null);
     }
 
-    const labels = ['0-3h', '3-6h', '6-9h', '9-12h', '12-15h', '15-18h'];
+    const labels = ['0-3h','3-6h','6-9h','9-12h','2-15h','15-18h'];
     const dataPoints = taxas3h.map(v => v === null ? null : Number(v.toFixed(3)));
 
     new Chart(ctx, {
