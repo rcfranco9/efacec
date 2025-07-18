@@ -156,7 +156,7 @@ carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
 
-  // Função para calcular índice conforme a tua regra
+// Função para calcular índice conforme a tua regra
 function calcularIndice(pf, rf) {
   const p = parseFloat(pf);
   const r = parseFloat(rf);
@@ -171,6 +171,7 @@ function calcularIndice(pf, rf) {
   if (indice > 100) indice = 100;
   return Math.round(indice);
 }
+
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
@@ -218,6 +219,30 @@ function buscarPorNome() {
       const lcFinal = Number(ultimos[ultimos.length - 1].LC_3_8);
       difLC10h = lcFinal - lcInicial;
       taxa10h = difLC10h / (10 * massaiTon);
+    }
+
+    // Cálculo das taxas de remoção a cada 3h nas últimas 18h
+    const taxas3h = [];
+    for (let i = 0; i < 6; i++) {  // 6 intervalos de 3h para total 18h
+      const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
+      const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
+      
+      const registrosIntervalo = serie.filter(l => {
+        const d = new Date(l.DataHora);
+        return d >= inicioIntervalo && d <= fimIntervalo;
+      }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+      if (registrosIntervalo.length >= 2) {
+        const lcInicio = Number(registrosIntervalo[0].LC_3_8);
+        const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
+        if (!isNaN(lcInicio) && !isNaN(lcFim)) {
+          const difIntervalo = lcFim - lcInicio;
+          const taxaIntervalo = difIntervalo / (3 * massaiTon);
+          taxas3h.unshift(taxaIntervalo);
+          continue;
+        }
+      }
+      taxas3h.unshift(null);
     }
 
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -281,6 +306,24 @@ function buscarPorNome() {
         </div>
       </div>
       <hr>
+
+      <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
+      <ul>
+    `;
+
+    for (let i = 0; i < 6; i++) {
+      const taxa = taxas3h[i];
+      const inicioHora = i * 3;
+      const fimHora = inicioHora + 3;
+      html += `<li>${inicioHora}h - ${fimHora}h atrás: ${taxa !== null ? formatNum(taxa) + ' L/(h*t)' : 'N/A'}</li>`;
+    }
+
+    html += `
+      </ul>
+      <hr>
+    `;
+
+    html += `
       <div class="coluna-dados">
         <div>
           <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
@@ -289,128 +332,117 @@ function buscarPorNome() {
           <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1, 3)} mbar</p>
           <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
         </div>
-      </div>`;
+      </div>
+    `;
 
     // Adiciona aqui o bloco para mostrar os valores PFxTAquec e RFxTAquec do csv3 para este id
-// Bloco PFxTAquec e RFxTAquec
-html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
-    html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados PFxTAquec para este ID.</p>`;
-}
-html += `</div><div><h4>Valores RFxTAquec</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
-    html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados RFxTAquec para este ID.</p>`;
-}
-html += `</div></div>`;
-
-// Índices PFxTAquec vs RFxTAquec
-html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
-for (let n = 1; n <= 6; n++) {
-  const pf = Number(serieRef[0][`PF${n}TAquec`]);
-  const rf = Number(serieRef[0][`RF${n}TAquec`]);
-
-  let indiceStr = 'N/A';
-  if (!isNaN(pf) && !isNaN(rf)) {
-    if (pf === 0 && rf === 0) {
-      indiceStr = 'N/A';
-    } else {
-      const diff = rf - pf;
-      if (diff >= 5) indiceStr = '100%';
-      else if (diff <= -5) indiceStr = '0%';
-      else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
-    }
-  }
-  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
-}
-html += `</ul></div>`;
-
-// Bloco PFxPRem, RFxPRem e Índices
-html += `<hr><div class="coluna-dados">
-  <div><h4>Valores PFxPRem</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
-    html += `<p><strong>PF${n}PRem:</strong> ${pfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados PFxPRem para este ID.</p>`;
-}
-html += `</div><div><h4>Valores RFxPRem</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const rfVal = serieRef[0][`RF${n}PRem`] ?? 'N/A';
-    html += `<p><strong>RF${n}PRem:</strong> ${rfVal}</p>`;
-  }
-} else {
-  html += `<p>Sem dados RFxPRem para este ID.</p>`;
-}
-html += `</div><div><h4>Índices PFxPRem vs RFxPRem</h4>`;
-if (serieRef.length) {
-  for (let n = 1; n <= 6; n++) {
-    const pf = Number(serieRef[0][`PF${n}PRem`]);
-    const rf = Number(serieRef[0][`RF${n}PRem`]);
-
-    let indiceStr = 'N/A';
-    if (!isNaN(pf) && !isNaN(rf)) {
-      if (pf === 0 && rf === 0) {
-        indiceStr = 'N/A';
-      } else {
-        const diff = rf - pf;
-        if (diff >= 5) indiceStr = '100%';
-        else if (diff <= -5) indiceStr = '0%';
-        else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
+    // Bloco PFxTAquec e RFxTAquec
+    html += `<hr><div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
       }
+    } else {
+      html += `<p>Sem dados PFxTAquec para este ID.</p>`;
     }
+    html += `</div><div><h4>Valores RFxTAquec</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
+      }
+    } else {
+      html += `<p>Sem dados RFxTAquec para este ID.</p>`;
+    }
+    html += `</div></div>`;
 
-    html += `<p><strong>Índice ${n}:</strong> ${indiceStr}</p>`;
-  }
-} else {
-  html += `<p>Sem dados de índice para este ID.</p>`;
-}
-html += `</div></div>`;
+    // Índices PFxTAquec vs RFxTAquec
+    html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
+    for (let n = 1; n <= 6; n++) {
+      const pf = Number(serieRef[0][`PF${n}TAquec`]);
+      const rf = Number(serieRef[0][`RF${n}TAquec`]);
 
+      let indiceStr = 'N/A';
+      if (!isNaN(pf) && !isNaN(rf)) {
+        if (pf === 0 && rf === 0) {
+          indiceStr = 'N/A';
+        } else {
+          const diff = rf - pf;
+          if (diff >= 5) indiceStr = '100%';
+          else if (diff <= -5) indiceStr = '0%';
+          else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
+        }
+      }
+      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+    }
+    html += `</ul></div>`;
 
-    html += `</div>`; // fechar .bloco-transformador
-  }); // fecha forEach de encontrados
+    // Bloco PFxPRem, RFxPRem e Índices
+    html += `<hr><div class="coluna-dados">
+      <div><h4>Valores PFxPRem</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
+        html += `<p><strong>PF${n}PRem:</strong> ${pfVal}</p>`;
+      }
+    } else {
+      html += `<p>Sem dados PFxPRem para este ID.</p>`;
+    }
+    html += `</div><div><h4>Valores RFxPRem</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const rfVal = serieRef[0][`RF${n}PRem`] ?? 'N/A';
+        html += `<p><strong>RF${n}PRem:</strong> ${rfVal}</p>`;
+      }
+    } else {
+      html += `<p>Sem dados RFxPRem para este ID.</p>`;
+    }
+    html += `</div></div>`;
+
+    html += `<hr><div><h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
+    for (let n = 1; n <= 6; n++) {
+      const pf = Number(serieRef[0][`PF${n}PRem`]);
+      const rf = Number(serieRef[0][`RF${n}PRem`]);
+
+      let indiceStr = 'N/A';
+      if (!isNaN(pf) && !isNaN(rf)) {
+        if (pf === 0 && rf === 0) {
+          indiceStr = 'N/A';
+        } else {
+          const diff = rf - pf;
+          if (diff >= 5) indiceStr = '100%';
+          else if (diff <= -5) indiceStr = '0%';
+          else indiceStr = `${Math.round(((diff + 5) / 10) * 100)}%`;
+        }
+      }
+      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
+    }
+    html += `</ul></div>`;
+
+    html += `</div>`; // fechar bloco-transformador
+  });
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
 }
 
-// Evento exportar PDF
-const btnExportarPDF = document.getElementById("btnExportarPDF");
-btnExportarPDF.addEventListener("click", async () => {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "px", format: "a4" });
-  const resultado = document.getElementById("resultado");
-  const blocos = Array.from(resultado.querySelectorAll(".bloco-transformador"));
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+  const resultado = document.getElementById('resultado');
 
-  for (let i = 0; i < blocos.length; i++) {
-    const bloco = blocos[i];
-    const canvas = await html2canvas(bloco, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth() - 40;
+  html2canvas(resultado).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
+    });
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth() - 40; // margem 20 px cada lado
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-    doc.addImage(imgData, "PNG", 20, 20, pdfWidth, pdfHeight);
-    if (i < blocos.length - 1) {
-      doc.addPage();
-    }
-  }
-
-  const nome = document.getElementById("nomeInput").value.trim().replace(/\s+/g, "_");
-  doc.save(`Relatorio_Transformador_${nome || 'saida'}.pdf`);
+    pdf.addImage(imgData, 'PNG', 20, 20, pdfWidth, pdfHeight);
+    pdf.save('resultado_transformador.pdf');
+  });
 });
 </script>
 
