@@ -3,13 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>Comparar Transformadores</title>
-
-  <!-- Bibliotecas -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  <!-- Chart.js -->
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
   <style>
     /* Mantém o estilo igual ao anterior */
     body {
@@ -99,16 +96,13 @@
     .diff-neutral {
       color: gray;
     }
-    /* Estilo para bloco gráfico e taxas */
-    #grafico-container {
-      margin-top: 30px;
-      background: #f0f4f8;
+    /* Estilo para o gráfico */
+    #graficoContainer {
+      margin-top: 40px;
+      background: white;
       padding: 15px;
       border-radius: 8px;
-    }
-    #taxas {
-      margin-top: 15px;
-      font-size: 1rem;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
   </style>
 </head>
@@ -134,9 +128,13 @@
 <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
-
-<!-- Botão exportar PDF -->
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
+
+<!-- Container para o gráfico -->
+<div id="graficoContainer" style="display:none;">
+  <h2>Gráfico das Últimas 18 Horas (pontos a cada 3h)</h2>
+  <canvas id="graficoTaxas" width="800" height="400"></canvas>
+</div>
 
 <script>
 let dadosMeta = [], dadosSerie = [], dadosTerceiro = [];
@@ -265,10 +263,110 @@ function classeIndice(indiceStr) {
   return parseInt(indiceStr) >= 50 ? 'diff-positive' : 'diff-negative';
 }
 
-function formatNum(v, dec = 3) {
-  if (isNaN(v) || v === null) return 'N/A';
-  const n = Number(v).toFixed(dec);
-  return parseFloat(n) === 0 ? '0' : parseFloat(n).toString();
+// Função para preparar dados para o gráfico últimas 18h, pontos de 3 em 3
+function preparaDataset(serie, label, color) {
+  if (serie.length === 0) return {label, data: [], borderColor: color, backgroundColor: color, fill: false};
+
+  const intervaloHoras = 3; // intervalo entre pontos no gráfico (3 horas)
+  const duracaoHoras = 18;  // mostrar últimas 18 horas
+
+  const tsFim = serie[serie.length - 1].ts;
+  const tsInicio = tsFim - duracaoHoras * 3600000; // 18 horas antes do fim
+
+  // Filtrar só os pontos dentro da janela das últimas 18h
+  const serieFiltrada = serie.filter(p => p.ts >= tsInicio && p.ts <= tsFim);
+
+  // Criar os pontos de 3 em 3 horas na janela de 18h
+  let pontos = [];
+  for(let h=0; h <= duracaoHoras; h += intervaloHoras) {
+    const tsProcurado = tsInicio + h * 3600000;
+
+    // Encontrar ponto mais próximo com timestamp >= tsProcurado
+    let ponto = null;
+    for(let i = 0; i < serieFiltrada.length; i++) {
+      if(serieFiltrada[i].ts >= tsProcurado) {
+        ponto = serieFiltrada[i];
+        break;
+      }
+    }
+    if(!ponto && serieFiltrada.length > 0) {
+      ponto = serieFiltrada[serieFiltrada.length -1];
+    }
+    if(ponto) {
+      pontos.push({x: h, y: ponto.lc});
+    } else {
+      pontos.push({x: h, y: null});
+    }
+  }
+
+  return {
+    label,
+    data: pontos,
+    borderColor: color,
+    backgroundColor: color,
+    fill: false,
+    tension: 0.3,
+    pointRadius: 4,
+    spanGaps: true
+  };
+}
+
+function criaGrafico(serie1, serie2, nome1, nome2) {
+  const ctx = document.getElementById('graficoTaxas').getContext('2d');
+
+  // Destrói gráfico anterior se existir
+  if(chartInstance) {
+    chartInstance.destroy();
+  }
+
+  const data1 = preparaDataset(serie1, nome1, 'rgb(54, 162, 235)');
+  const data2 = preparaDataset(serie2, nome2, 'rgb(255, 99, 132)');
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [data1, data2]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'nearest',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Taxa LC_3_8: ${ctx.parsed.y.toFixed(4)} L/(h*t)`,
+            title: ctx => `Hora: ${ctx[0].parsed.x}h`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: {
+            display: true,
+            text: 'Horas desde 18h atrás'
+          },
+          min: 0,
+          max: 18,
+          ticks: {
+            stepSize: 3
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Taxa LC_3_8 (L/(h*t))'
+          },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  document.getElementById('graficoContainer').style.display = 'block';
 }
 
 document.getElementById('btnComparar').addEventListener('click', () => {
@@ -289,6 +387,8 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   if (!m1 || !m2) {
     out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>';
+    document.getElementById("graficoContainer").style.display = 'none';
+    document.getElementById("btnExportarPDF").style.display = 'none';
     return;
   }
 
@@ -299,6 +399,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   if (!t1 || !t2) {
     out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
+    document.getElementById("graficoContainer").style.display = 'none';
     document.getElementById("btnExportarPDF").style.display = 'none';
     return;
   }
@@ -310,7 +411,6 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  // Começa a montar o HTML
   let html = '';
 
   [m1, m2].forEach((m) => {
@@ -325,25 +425,12 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     </div>`;
   });
 
-  // Aqui criamos a área para o gráfico e taxas
-  html += `
-  <div id="grafico-container">
-    <canvas id="graficoTaxas" style="max-width: 100%; height: 300px;"></canvas>
-    <div id="taxas">
-      <h3>Taxas Calculadas</h3>
-      <table>
-        <thead><tr><th>Parâmetro</th><th>${m1.subprojecto || id1}</th><th>${m2.subprojecto || id2}</th></tr></thead>
-        <tbody>
-          <tr><td>Duração total (h)</td><td>${formatNum(t1.duracao, 2)}</td><td>${formatNum(t2.duracao, 2)}</td></tr>
-          <tr><td>Quantidade de água removida (L)</td><td>${formatNum(t1.deltaTotal)}</td><td>${formatNum(t2.deltaTotal)}</td></tr>
-          <tr><td>Taxa total (L/(h*t))</td><td>${formatNum(t1.taxaTotal)}</td><td>${formatNum(t2.taxaTotal)}</td></tr>
-          <tr><td>Taxa de remoção de água últimas 10h (L/(h*t))</td><td>${formatNum(t1.taxa10h)}</td><td>${formatNum(t2.taxa10h)}</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>`;
+  function formatNum(v, dec = 3) {
+    if (isNaN(v) || v === null) return 'N/A';
+    const n = Number(v).toFixed(dec);
+    return parseFloat(n) === 0 ? '0' : parseFloat(n).toString();
+  }
 
-  // Continua com a tabela geral que já tinha no teu código
   html += `<h2>Comparação Geral</h2>
   <table>
     <tr>
@@ -352,118 +439,40 @@ document.getElementById('btnComparar').addEventListener('click', () => {
       <th>${m2.subprojecto || id2}</th>
     </tr>
     <tbody>
-      <tr><td>Maior valor de temperatura nas sondas (ºC)</td><td>${formatNum(te1, 2)}</td><td>${formatNum(te2, 2)}</td></tr>
-      <tr><td>Menor valor de pressão (mbar)</td><td>${formatNum(pe1_417, 3)}</td><td>${formatNum(pe2_417, 3)}</td></tr>
-      <tr><td>Menor valor de vácuo fino (mbar)</td><td>${formatNum(pe1_551, 3)}</td><td>${formatNum(pe2_551, 3)}</td></tr>
+      <tr><td>Duração total (h)</td><td>${formatNum(t1.duracao, 2)}</td><td>${formatNum(t2.duracao, 2)}</td></tr>
+      <tr><td>Quantidade de água removida (L)</td><td>${formatNum(t1.deltaTotal)}</td><td>${formatNum(t2.deltaTotal)}</td></tr>
+      <tr><td>Taxa média total (L/(h*t))</td><td>${formatNum(t1.taxaTotal)}</td><td>${formatNum(t2.taxaTotal)}</td></tr>
+      <tr><td>Delta 10h (L)</td><td>${formatNum(t1.delta10h)}</td><td>${formatNum(t2.delta10h)}</td></tr>
+      <tr><td>Taxa 10h (L/(h*t))</td><td>${formatNum(t1.taxa10h)}</td><td>${formatNum(t2.taxa10h)}</td></tr>
+      <tr><td>Maior TE (≤140)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
+      <tr><td>Mínimo PE_4_17 (&gt;0.1)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
+      <tr><td>Mínimo PE_5_5_1 (&gt;0.1)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
     </tbody>
   </table>`;
 
-  // (Mantém o resto das tuas tabelas de PFxTAquec, RFxTAquec etc...)
-
-  // Por fim atualiza o innerHTML
   out.innerHTML = html;
 
-  // --- Gráfico ---
+  // Cria o gráfico das últimas 18h
+  criaGrafico(getSerie(id1), getSerie(id2), m1.subprojecto || id1, m2.subprojecto || id2);
 
-  const serie1 = getSerie(id1);
-  const serie2 = getSerie(id2);
-
-  // Para o gráfico, vamos mostrar o tempo em horas desde o início da série (simplificado)
-  // Ou então podemos mostrar o timestamp como eixo X, formatado
-  // Vou fazer tempo em horas desde o início do primeiro dado de cada série
-
-  function preparaDataset(serie, label, color) {
-    if (serie.length === 0) return {label, data: [], borderColor: color, backgroundColor: color, fill: false};
-    const t0 = serie[0].ts;
-    return {
-      label,
-      data: serie.map(p => ({x: (p.ts - t0) / 3600000, y: p.lc})), // horas desde o primeiro ponto
-      borderColor: color,
-      backgroundColor: color,
-      fill: false,
-      tension: 0.3,
-      pointRadius: 2
-    };
-  }
-
-  const dataChart = {
-    datasets: [
-      preparaDataset(serie1, m1.subprojecto || 'Transformador 1', 'rgba(41, 128, 185, 1)'),
-      preparaDataset(serie2, m2.subprojecto || 'Transformador 2', 'rgba(231, 76, 60, 1)')
-    ]
-  };
-
-  const ctx = document.getElementById('graficoTaxas').getContext('2d');
-
-  // Se já existir gráfico, destrói antes de criar novo para evitar sobreposição
-  if(chartInstance) {
-    chartInstance.destroy();
-  }
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: dataChart,
-    options: {
-      responsive: true,
-      interaction: {
-        mode: 'nearest',
-        axis: 'x',
-        intersect: false
-      },
-      plugins: {
-        title: {
-          display: true,
-          text: 'Evolução da Taxa LC_3_8 ao longo do tempo (horas)'
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: 'linear',
-          title: {
-            display: true,
-            text: 'Horas desde início da série'
-          },
-          min: 0
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Taxa LC_3_8 (L/(h*t))'
-          },
-          beginAtZero: true
-        }
-      }
-    }
-  });
-
-  document.getElementById("btnExportarPDF").style.display = 'inline-block';
+  // Mostrar botão exportar PDF
+  document.getElementById('btnExportarPDF').style.display = 'inline-block';
 });
 
-document.getElementById("btnExportarPDF").addEventListener("click", async () => {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "px",
-    format: "a4"
-  });
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+  const out = document.getElementById('resultado');
+  const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+  const margem = 20;
+  const escala = 0.5;
 
-  const resultado = document.getElementById("resultado");
-
-  await html2canvas(resultado, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const imgProps = doc.getImageProperties(imgData);
-    const pdfWidth = doc.internal.pageSize.getWidth();
+  html2canvas(out, {scale: 2}).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth() - margem * 2;
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-    doc.addImage(imgData, "PNG", 20, 20, pdfWidth - 40, pdfHeight);
-    const nome1 = document.getElementById("nome1").value.trim().replace(/\s+/g, "_");
-    const nome2 = document.getElementById("nome2").value.trim().replace(/\s+/g, "_");
-    doc.save(`Comparacao_${nome1 || 'A'}_vs_${nome2 || 'B'}.pdf`);
+    pdf.addImage(imgData, 'PNG', margem, margem, pdfWidth, pdfHeight);
+    pdf.save('comparacao-transformadores.pdf');
   });
 });
 </script>
