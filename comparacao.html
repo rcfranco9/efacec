@@ -264,6 +264,8 @@ function classeIndice(indiceStr) {
 }
 
 // Função para preparar dados para o gráfico últimas 18h, pontos de 3 em 3
+// Função para preparar dados para o gráfico últimas 18h, pontos a cada 3h,
+// eixo X de -18 até 0 (0 = agora)
 function preparaDataset(serie, label, color) {
   if (serie.length === 0) return {label, data: [], borderColor: color, backgroundColor: color, fill: false};
 
@@ -276,27 +278,40 @@ function preparaDataset(serie, label, color) {
   // Filtrar só os pontos dentro da janela das últimas 18h
   const serieFiltrada = serie.filter(p => p.ts >= tsInicio && p.ts <= tsFim);
 
-  // Criar os pontos de 3 em 3 horas na janela de 18h
+  // Criar os pontos a cada 3h no eixo X de -18 até 0
   let pontos = [];
-  for(let h=0; h <= duracaoHoras; h += intervaloHoras) {
-    const tsProcurado = tsInicio + h * 3600000;
+  for(let h = -duracaoHoras; h <= 0; h += intervaloHoras) {
+    const tsProcurado = tsFim + h * 3600000; // h negativo para trás no tempo
 
-    // Encontrar ponto mais próximo com timestamp >= tsProcurado
-    let ponto = null;
+    // Interpolação linear simples para estimar o valor no tsProcurado
+
+    // Encontrar pontos mais próximos antes e depois do tsProcurado
+    let antes = null, depois = null;
     for(let i = 0; i < serieFiltrada.length; i++) {
-      if(serieFiltrada[i].ts >= tsProcurado) {
-        ponto = serieFiltrada[i];
+      const p = serieFiltrada[i];
+      if (p.ts <= tsProcurado) antes = p;
+      if (p.ts >= tsProcurado) {
+        depois = p;
         break;
       }
     }
-    if(!ponto && serieFiltrada.length > 0) {
-      ponto = serieFiltrada[serieFiltrada.length -1];
+
+    let y = null;
+    if (antes && depois) {
+      if (antes.ts === depois.ts) {
+        y = antes.lc;
+      } else {
+        // interpolação linear
+        const frac = (tsProcurado - antes.ts) / (depois.ts - antes.ts);
+        y = antes.lc + frac * (depois.lc - antes.lc);
+      }
+    } else if (antes) {
+      y = antes.lc;
+    } else if (depois) {
+      y = depois.lc;
     }
-    if(ponto) {
-      pontos.push({x: h, y: ponto.lc});
-    } else {
-      pontos.push({x: h, y: null});
-    }
+
+    pontos.push({x: h, y: y});
   }
 
   return {
@@ -311,10 +326,10 @@ function preparaDataset(serie, label, color) {
   };
 }
 
+// Na criação do gráfico, atualizar escala X para ir de -18 a 0
 function criaGrafico(serie1, serie2, nome1, nome2) {
   const ctx = document.getElementById('graficoTaxas').getContext('2d');
 
-  // Destrói gráfico anterior se existir
   if(chartInstance) {
     chartInstance.destroy();
   }
@@ -337,8 +352,8 @@ function criaGrafico(serie1, serie2, nome1, nome2) {
         legend: { display: true },
         tooltip: {
           callbacks: {
-            label: ctx => `Taxa LC_3_8: ${ctx.parsed.y.toFixed(4)} L/(h*t)`,
-            title: ctx => `Hora: ${ctx[0].parsed.x}h`
+            label: ctx => `Taxa LC_3_8: ${ctx.parsed.y?.toFixed(4) ?? 'N/A'} L/(h*t)`,
+            title: ctx => `Horas atrás: ${-ctx.parsed.x}h`
           }
         }
       },
@@ -347,12 +362,13 @@ function criaGrafico(serie1, serie2, nome1, nome2) {
           type: 'linear',
           title: {
             display: true,
-            text: 'Horas desde 18h atrás'
+            text: 'Horas atrás (0 = agora)'
           },
-          min: 0,
-          max: 18,
+          min: -18,
+          max: 0,
           ticks: {
-            stepSize: 3
+            stepSize: 3,
+            callback: val => `${-val}h`
           }
         },
         y: {
@@ -368,6 +384,7 @@ function criaGrafico(serie1, serie2, nome1, nome2) {
 
   document.getElementById('graficoContainer').style.display = 'block';
 }
+
 
 document.getElementById('btnComparar').addEventListener('click', () => {
   const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
