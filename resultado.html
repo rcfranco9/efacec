@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Consulta Transformador por Nome</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -244,6 +245,38 @@ function buscarPorNome() {
       }
       taxas3h.unshift(null);
     }
+    // preparar gráfico de pontos
+const ctx = document.getElementById('chartTaxas3h').getContext('2d');
+if (window._chartTaxas) window._chartTaxas.destroy(); // eliminar gráfico anterior
+window._chartTaxas = new Chart(ctx, {
+  type: 'scatter',
+  data: {
+    datasets: [{
+      label: 'Taxa L/(h*t)',
+      data: taxas3h.map((v, i) => ({
+        x: i * 3 + 1.5, // meio do intervalo 0‑3, 3‑6, etc
+        y: v ?? null
+      })),
+      backgroundColor: 'rgba(54,162,235,0.6)'
+    }]
+  },
+  options: {
+    scales: {
+      x: {
+        type: 'linear',
+        title: { display: true, text: 'Horas atrás (centro do intervalo)' },
+        ticks: { stepSize: 3, callback: v => v + 'h' },
+        min: 1.5,
+        max: 18
+      },
+      y: {
+        title: { display: true, text: 'Taxa (L/(h*t))' },
+        beginAtZero: true
+      }
+    }
+  }
+});
+
 
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE = null;
@@ -309,6 +342,8 @@ function buscarPorNome() {
 
       <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
       <ul>
+      <canvas id="chartTaxas3h" width="400" height="200"></canvas>
+
     `;
 
     for (let i = 0; i < 6; i++) {
