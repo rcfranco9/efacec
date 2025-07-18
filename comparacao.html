@@ -241,6 +241,7 @@ function classeIndice(indiceStr) {
 // Funções de cálculo de índice temperatura e pressão
 function calculaIndiceTemperatura(pf, rf) {
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  if (pf === 0 && rf === 0) return 'N/A'; // se ambos zero, N/A
   const diff = rf - pf;
   if (diff >= 5) return '100%';
   if (diff <= -5) return '0%';
@@ -251,6 +252,7 @@ function calculaIndiceTemperatura(pf, rf) {
 
 function calculaIndicePressao(pf, rf) {
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  if (pf === 0 && rf === 0) return 'N/A'; // se ambos zero, N/A
   const diff = rf - pf;
   if (diff >= 5) return '0%';
   if (diff <= -5) return '100%';
@@ -260,6 +262,7 @@ function calculaIndicePressao(pf, rf) {
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
 }
+
 
 document.getElementById('btnComparar').addEventListener('click', () => {
   const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
