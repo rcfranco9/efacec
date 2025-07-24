@@ -2,11 +2,10 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Filtragem de Transformadores com Índices PF/RF</title>
+  <title>Filtragem de Transformadores com Índices</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -101,19 +100,6 @@
       display: inline-block;
       width: 110px;
     }
-    h2 {
-      margin-top: 40px; 
-      text-align: center; 
-      color: #2c3e50;
-    }
-    canvas#graficoTaxas {
-  width: 100% !important;
-  height: 350px !important;
-  max-width: 900px; /* opcional, para não ficar enorme */
-  margin: 20px auto;
-  display: block;
-}
-
   </style>
 </head>
 <body>
@@ -139,9 +125,8 @@
   <button id="btnFiltrar" disabled>Procurar</button>
 
   <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
+  <canvas id="graficoTaxasRemocao18" width="600" height="300"></canvas>
 
-<h2>Gráfico das Taxas de Remoção LC </h2>
-<canvas id="graficoTaxas" style="width: 100%; height: 350px;"></canvas>
 
   <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
@@ -206,30 +191,36 @@
       return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
     }
     
+    // Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
     function calculaIndiceTemperatura(pf, rf) {
       if (isNaN(pf) || isNaN(rf)) return 'N/A';
       const diff = rf - pf;
       if (diff >= 5) return '100%';
       if (diff <= -5) return '0%';
-      const proporcao = (diff + 5) / 10;
+      const proporcao = (diff + 5) / 10; // linear entre -5 e 5
       const indice = Math.round(proporcao * 100);
       return `${indice}%`;
     }
 
+    // Função para calcular índice para PRem (pressões) - com a tua regra inversa
     function calculaIndicePressao(pf, rf) {
       if (isNaN(pf) || isNaN(rf)) return 'N/A';
       const diff = rf - pf;
       if (diff >= 5) return '0%';
       if (diff <= -5) return '100%';
       if (diff === 0) return '50%';
+      // interpolação linear entre -5 e 5, invertida
       const proporcao = (5 - diff) / 10;
       const indice = Math.round(proporcao * 100);
       return `${indice}%`;
     }
 
+    // Pega os dados PF e RF do csv3 para o id dado
+    // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
     function pegaDadosPF(id) {
       const reg = dadosPF.find(r => (r.id_secagenscore||'').trim() === id);
       if (!reg) return null;
+      // Extrair os 6 valores de cada grupo:
       const PFxTAquec = [], RFxTAquec = [], PFxPRem = [], RFxPRem = [];
       for(let n=1; n<=6; n++) {
         PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
@@ -240,7 +231,9 @@
       return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
     }
 
+    // Nova função para calcular as taxas de remoção LC em blocos de 3h nas últimas 18h
     function calculaTaxasRemocaoBlocos(id, massaiKg) {
+      // Filtra registos do transformador com LC_3_8 e DataHora válidos
       const registos = dadosSerie
         .filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora)
         .map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
@@ -248,16 +241,19 @@
 
       if (registos.length === 0) return Array(6).fill('N/A');
 
+      // Ordena do mais antigo para o mais recente (ascendente)
       registos.sort((a,b) => a.ts - b.ts);
 
-      const now = registos[registos.length - 1].ts;
+      const now = registos[registos.length - 1].ts;  // timestamp mais recente
       const ton = parseNum(massaiKg) / 1000 || 1;
 
       const blocosTaxas = [];
 
-      for(let i=5; i>=0; i--) {
+      for(let i=5; i>=0; i--) { // i = 5: 0-3h atrás ... i=0: 15-18h atrás
         const fim = now - i * 3 * 3600000;
         const inicio = fim - 3 * 3600000;
+
+        // Pega os registos dentro do bloco [inicio, fim]
         const bloco = registos.filter(r => r.ts >= inicio && r.ts <= fim);
 
         if (bloco.length < 2) {
@@ -265,82 +261,20 @@
           continue;
         }
 
+        // Valores extremos no bloco
         const valInicio = bloco[0].valor;
         const valFim = bloco[bloco.length - 1].valor;
+
+        // Diferença LC
         const deltaLC = valFim - valInicio;
+
+        // Taxa = diferença / (3h * ton)
         const taxa = deltaLC / (3 * ton);
+
         blocosTaxas.push(taxa.toFixed(3));
       }
 
-      return blocosTaxas;
-    }
-
-    let chartTaxas = null;
-
-    function desenharGraficoTaxas(taxas) {
-      const ctx = document.getElementById('graficoTaxas').getContext('2d');
-
-      const labels = ['15-18h atrás', '12-15h atrás', '9-12h atrás', '6-9h atrás', '3-6h atrás', '0-3h atrás'];
-
-      const dadosNumericos = taxas.map(t => (t === 'N/A' ? null : parseFloat(t)));
-
-      if (chartTaxas) {
-        chartTaxas.data.datasets[0].data = dadosNumericos;
-        chartTaxas.update();
-        return;
-      }
-
-      chartTaxas = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Taxa de remoção (L/h/t)',
-            data: dadosNumericos,
-            borderColor: '#2980b9',
-            backgroundColor: 'rgba(41, 128, 185, 0.3)',
-            fill: true,
-            spanGaps: true,
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-          }]
-        },
-        options: {
-          responsive: true,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Taxa (L/(h*t))',
-                color: '#34495e',
-                font: {size: 14, weight: 'bold'}
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Intervalo de tempo',
-                color: '#34495e',
-                font: {size: 14, weight: 'bold'}
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              labels: {color: '#2c3e50', font: {size: 14}}
-            },
-            tooltip: {
-              mode: 'nearest',
-              intersect: false,
-              callbacks: {
-                label: ctx => ctx.parsed.y !== null ? `${ctx.parsed.y} L/(h*t)` : 'N/A'
-              }
-            }
-          }
-        }
-      });
+      return blocosTaxas; // array de 6 valores, do bloco 15-18h até 0-3h atrás
     }
 
     document.getElementById('csvMeta').addEventListener('change', e => {
@@ -382,20 +316,12 @@
       const out = document.getElementById('resultado');
       if (!pot || !ten) {
         out.textContent = 'Preenche ambos os campos.';
-        if(chartTaxas) {
-          chartTaxas.destroy();
-          chartTaxas = null;
-        }
         return;
       }
 
       const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
       if (!encontrados.length) {
         out.textContent = 'Nenhum transformador encontrado.';
-        if(chartTaxas) {
-          chartTaxas.destroy();
-          chartTaxas = null;
-        }
         return;
       }
 
@@ -409,7 +335,10 @@
         const pe417 = minPE(id, 'PE_4_17');
         const pe551 = minPE(id, 'PE_5_5_1');
 
+        // Pegar dados PF e RF do csv3
         const dadosPFRF = pegaDadosPF(id);
+
+        // Calcula taxas de remoção por blocos de 3h
         const taxasRemocao = calculaTaxasRemocaoBlocos(id, m.massai);
 
         html += `<div class="transformador-dados">
@@ -418,55 +347,121 @@
           <strong>Massa dos isolantes:</strong> ${formatNum(mTon, 3)} t<br>
           <strong>Duração total:</strong> ${formatNum(stats.dur, 2)} h<br>
           <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
-          <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} L/(h*t)<br>
-          <strong>Taxa de remoção (últimas 10h):</strong> ${formatNum(stats.taxa10h)} L/(h*t)<br>
-          <strong>Máximo TE (1 a 6):</strong> ${teMax}<br>
-          <strong>Mínimo PE_4_17 >0.1:</strong> ${pe417}<br>
-          <strong>Mínimo PE_5_5_1 >0.1:</strong> ${pe551}<br><br>`;
+          <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
+          <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+          
+          <strong>Taxas de remoção LC (últimas 18h em blocos de 3h):</strong>
+          <ul>
+            <li><strong>15-18h atrás:</strong> ${taxasRemocao[0]}</li>
+            <li><strong>12-15h atrás:</strong> ${taxasRemocao[1]}</li>
+            <li><strong>9-12h atrás:</strong> ${taxasRemocao[2]}</li>
+            <li><strong>6-9h atrás:</strong> ${taxasRemocao[3]}</li>
+            <li><strong>3-6h atrás:</strong> ${taxasRemocao[4]}</li>
+            <li><strong>0-3h atrás:</strong> ${taxasRemocao[5]}</li>
+          </ul>
 
-        if(dadosPFRF) {
-          html += `<ul style="font-size:0.9em; line-height: 1.25;">
-          <li><strong>Índice Temperatura 1 a 6:</strong> 
-          ${dadosPFRF.PFxTAquec.map((pf,i) => {
-            const rf = dadosPFRF.RFxTAquec[i];
-            return calculaIndiceTemperatura(pf, rf);
-          }).join(', ')}</li>
-          <li><strong>Índice Pressão 1 a 6:</strong> 
-          ${dadosPFRF.PFxPRem.map((pf,i) => {
-            const rf = dadosPFRF.RFxPRem[i];
-            return calculaIndicePressao(pf, rf);
-          }).join(', ')}</li>
-          </ul>`;
-        }
+          <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
+          <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
 
-        html += `<strong>Taxas remoção LC em blocos 3h (últimas 18h):</strong><br>`;
-        html += taxasRemocao.map((v,i) => `&nbsp;&nbsp;[${i*3}-${(i+1)*3}h] = ${v}`).join('<br>');
+       if(dadosPFRF) {
+  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+  <table>
+    <thead><tr><th>#</th><th>PFxTAquec</th><th>RFxTAquec</th><th>Índice TAquec</th></tr></thead><tbody>`;
+  for(let j=0;j<6;j++) {
+    html += `<tr>
+      <td>${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j], 3)}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j], 3)}</td>
+      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+  <table>
+    <thead><tr><th>#</th><th>PFxPRem</th><th>RFxPRem</th><th>Índice PRem</th></tr></thead><tbody>`;
+  for(let j=0;j<6;j++) {
+    html += `<tr>
+      <td>${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j], 3)}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j], 3)}</td>
+      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+} else {
+  html += `<p><em>Sem dados PFx/RFx para este transformador.</em></p>`;
+}
 
         html += '</div>';
-
-        // Desenha gráfico para o último transformador encontrado (ou podes mudar a lógica)
-        if (i === encontrados.length - 1) {
-          desenharGraficoTaxas(taxasRemocao);
-        }
       });
 
       out.innerHTML = html;
+      document.getElementById('btnExportarPDF').style.display = 'inline-block';
     });
 
-    // Exportar PDF (funcionalidade simples)
     document.getElementById('btnExportarPDF').addEventListener('click', () => {
       const element = document.getElementById('resultado');
       html2canvas(element).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf.jsPDF();
-        const imgProps= pdf.getImageProperties(imgData);
+        const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save("transformadores.pdf");
+        pdf.save('relatorio_transformadores.pdf');
       });
     });
+    function mostrarGraficoTaxas(taxasPorHora) {
+  const labels = ['-18h', '-15h', '-12h', '-9h', '-6h', '-3h'];
+  const ctx = document.getElementById("graficoTaxasRemocao").getContext("2d");
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Taxas (%)",
+        data: taxasPorHora,
+        fill: false,
+        borderColor: "blue",
+        tension: 0.1,
+        pointBackgroundColor: "blue",
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          title: {
+            display: true,
+            text: 'Taxa (%)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Horas anteriores'
+          }
+        }
+      }
+    }
+  });
+}
   </script>
+<div class="grafico-taxas">
+  <h3>Taxas de Remoção de Água (últimas 18h em blocos de 3h)</h3>
+  <canvas id="graficoTaxasRemocao" width="600" height="300"></canvas>
+</div>
 
 </body>
 </html>
+ml>
