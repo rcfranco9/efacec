@@ -8,7 +8,151 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
-  /* mantém teu estilo original aqui */
+  body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f9f9f9;
+  color: #222;
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 30px;
+}
+
+label {
+  display: inline-block;
+  margin: 10px 10px 5px 0;
+  font-weight: bold;
+  color: #34495e;
+}
+
+input[type="file"],
+input[type="text"] {
+  margin-bottom: 15px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 180px;
+  font-size: 14px;
+}
+
+input[type="text"]:disabled {
+  background-color: #eee;
+  cursor: not-allowed;
+}
+
+button {
+  background-color: #2980b9;
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s ease;
+}
+
+button:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  background-color: #1f618d;
+}
+
+#resultado {
+  background-color: white;
+  border-radius: 6px;
+  padding: 15px 20px;
+  margin-top: 25px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.transformador-dados {
+  border: 1px solid #ddd;
+  padding: 15px 20px;
+  margin-bottom: 25px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.transformador-dados strong {
+  color: #2c3e50;
+}
+
+.transformador-dados ul {
+  margin-top: 8px;
+  margin-bottom: 15px;
+  padding-left: 20px;
+}
+
+.transformador-dados ul li {
+  margin-bottom: 6px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+table thead tr {
+  background-color: #2980b9;
+  color: white;
+  text-align: center;
+}
+
+table tbody tr:nth-child(odd) {
+  background-color: #f4f6f7;
+}
+
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+table tbody tr:hover {
+  background-color: #d0e4f7;
+}
+
+h3 {
+  text-align: center;
+  color: #34495e;
+  margin-bottom: 12px;
+}
+
+canvas {
+  display: block;
+  margin: 0 auto 30px auto;
+  max-width: 600px;
+  max-height: 300px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+  background-color: white;
+  border-radius: 6px;
+}
+
+@media (max-width: 650px) {
+  input[type="file"], input[type="text"] {
+    width: 100%;
+  }
+  #resultado, .transformador-dados, canvas {
+    max-width: 100%;
+  }
+}
+
 </style>
 </head>
 <body>
