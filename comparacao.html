@@ -309,8 +309,6 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 const blocosHoraAHora1 = calcTaxaHoraAHora(id1, m1.massai);
 const blocosHoraAHora2 = calcTaxaHoraAHora(id2, m2.massai);
 
-const ctx = document.getElementById("graficoTaxas").getContext("2d");
-
   if (!blocosHoraAHora1 || !blocosHoraAHora2) {
   out.innerHTML = '<p>Erro ao calcular as taxas hora a hora. Verifica os dados.</p>';
   document.getElementById("btnExportarPDF").style.display = 'none';
