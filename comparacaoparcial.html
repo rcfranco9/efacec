@@ -313,14 +313,8 @@
       });
       r.readAsText(f);
     });
+    
     // Função para desenhar gráfico de barras simples com as taxas de remoção
-function desenharGraficoTaxasRemocao(taxas) {
-  const ctx = document.getElementById('graficoTaxasRemocao').getContext('2d');
-
-  // Se já existir gráfico anterior, destrói para evitar sobreposição
-  if(window.meuGrafico) {
-    window.meuGrafico.destroy();
-  }
 function desenharGraficoTaxasRemocaoPontos(taxas) {
   const ctx = document.getElementById('graficoTaxasRemocao').getContext('2d');
 
