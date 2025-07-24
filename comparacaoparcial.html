@@ -127,7 +127,10 @@
 
   <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
   <canvas id="graficoTaxasRemocao18" width="600" height="300"></canvas>
-
+<div class="grafico-taxas">
+  <h3>Taxas de Remoção de Água (últimas 18h em blocos de 3h)</h3>
+  <canvas id="graficoTaxasRemocao" width="600" height="300"></canvas>
+</div>
 
   <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
@@ -484,10 +487,7 @@ function desenharGraficoTaxasRemocaoPontos(taxas) {
     });
  
   </script>
-<div class="grafico-taxas">
-  <h3>Taxas de Remoção de Água (últimas 18h em blocos de 3h)</h3>
-  <canvas id="graficoTaxasRemocao" width="600" height="300"></canvas>
-</div>
+
 
 </body>
 </html>
