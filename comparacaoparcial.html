@@ -96,6 +96,7 @@
 <body>
 
   <h1>Filtragem de Transformadores com Índices PF/RF</h1>
+    <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
   <input type="file" id="csvMeta" accept=".csv" />
@@ -279,6 +280,24 @@ function calculaIndicePressao(pf, rf) {
 
         // Pegar dados PF e RF do csv3
         const dadosPFRF = pegaDadosPF(id);
+        function mostrarTaxasRemocao18Horas(taxasPorHora) {
+  const blocos = [
+    '15-18', '12-15', '9-12', '6-9', '3-6', '0-3'
+  ];
+  const resultado = [];
+
+  for (let i = 0; i < 6; i++) {
+    const inicio = i * 3;
+    const fim = inicio + 3;
+    const bloco = taxasPorHora.slice(inicio, fim);
+    const soma = bloco.reduce((acc, val) => acc + (isFinite(val) ? val : 0), 0);
+    const media = bloco.length > 0 ? soma / bloco.length : 0;
+    resultado.unshift(`Bloco ${blocos[i]}: ${media.toFixed(2)}%`);
+  }
+
+  document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
+}
+
 
         html += `<div class="transformador-dados">
           <strong>#${i+1} — ID:</strong> ${id}<br>
