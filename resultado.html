@@ -88,28 +88,39 @@
       margin: 20px 0;
       border-top: 1px dashed #aaa;
     }
+    /* Área para mostrar valores hora a hora */
+    #taxasHoraValor {
+      margin-top: 15px;
+      background: #f0f8ff;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 150px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
 
 <h1>Consulta de Transformadores</h1>
 
-<label for="csvFile1">CSV1:</label>
+<label for="csvFile1">CSV1 (Metadados):</label>
 <input type="file" id="csvFile1" accept=".csv" />
 
-<label for="csvFile2">CSV2:</label>
+<label for="csvFile2">CSV2 (Série temporal):</label>
 <input type="file" id="csvFile2" accept=".csv" />
 
-<label for="csvFile3">CSV3:</label>
+<label for="csvFile3">CSV3 (Referências):</label>
 <input type="file" id="csvFile3" accept=".csv" />
 
 <label for="nomeInput">Nome do transformador:</label>
 <input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
 
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
-<canvas id="graficoTaxas" width="400" height="200" style="margin-top: 20px;"></canvas>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
+
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
@@ -158,26 +169,6 @@ carregarCSV('csvFile1', dadosCSV1, ativarInputSePronto);
 carregarCSV('csvFile2', dadosCSV2, ativarInputSePronto);
 carregarCSV('csvFile3', dadosCSV3, ativarInputSePronto);
 
-// Função para calcular índice conforme a tua regra
-function calcularIndice(pf, rf) {
-  const p = parseFloat(pf);
-  const r = parseFloat(rf);
-  if (isNaN(p) || isNaN(r)) return 'N/A';
-  if (r >= p + 5) return 100;
-  if (r <= p - 5) return 0;
-  if (r === p) return 50;
-
-  // interpolação linear para r entre (p-5) e (p+5)
-  let indice = 50 + ((r - p) * 10);
-  if (indice < 0) indice = 0;
-  if (indice > 100) indice = 100;
-  return Math.round(indice);
-}
-
-let encontradosGlobais = [];
-// ... outras funções e código ...
-
-// Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
 function calcularIndice(pf, rf) {
   const p = parseFloat(pf);
   const r = parseFloat(rf);
@@ -186,14 +177,12 @@ function calcularIndice(pf, rf) {
   if (r <= p - 5) return '0%';
   if (r === p) return '50%';
 
-  // interpolação linear para r entre (p-5) e (p+5)
   let indice = 50 + ((r - p) * 10);
   if (indice < 0) indice = 0;
   if (indice > 100) indice = 100;
   return `${Math.round(indice)}%`;
 }
 
-// Função para calcular índice para PRem (pressões) - com a tua regra inversa
 function calculaIndicePressao(pf, rf) {
   const p = parseFloat(pf);
   const r = parseFloat(rf);
@@ -203,12 +192,12 @@ function calculaIndicePressao(pf, rf) {
   if (diff <= -5) return '100%';
   if (diff === 0) return '50%';
 
-  // interpolação linear entre -5 e 5, invertida
   const proporcao = (5 - diff) / 10;
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
 }
 
+let encontradosGlobais = [];
 
 function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
@@ -234,55 +223,56 @@ function buscarPorNome() {
     const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
     if (!serie.length) return;
 
+    // Valores LC e datas ordenadas
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; 
+    if (!valoresLC.length) return;
 
-    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
     if (datas.length < 2) return;
 
+    // Duração total em horas
     const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
-    const massaiTon = Number(meta.massai) / 1000;
-    const taxaLC = (difLC / (duracao * massaiTon));
 
-    const final = new Date(datas[datas.length - 1]);
-    const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
-    const ultimos = serie.filter(l => {
+    // Massa isolantes em toneladas (assumindo meta.massai em kg)
+    const massaiTon = Number(meta.massai) / 1000;
+
+    // Diferença total LC e taxa total
+    const difLC = valoresLC[valoresLC.length -1] - valoresLC[0];
+    const taxaLC = difLC / (duracao * massaiTon);
+
+    // Últimas 10h
+    const final = datas[datas.length - 1];
+    const inicial10h = new Date(final.getTime() - 10 * 3600000);
+    const ultimos10h = serie.filter(l => {
       const d = new Date(l.DataHora);
-      return !isNaN(d) && d >= inicial && d <= final;
-    }).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+      return d >= inicial10h && d <= final;
+    }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
 
     let difLC10h = 0, taxa10h = 0;
-    if (ultimos.length >= 2) {
-      const lcInicial = Number(ultimos[0].LC_3_8);
-      const lcFinal = Number(ultimos[ultimos.length - 1].LC_3_8);
-      difLC10h = lcFinal - lcInicial;
+    if (ultimos10h.length >= 2) {
+      difLC10h = Number(ultimos10h[ultimos10h.length -1].LC_3_8) - Number(ultimos10h[0].LC_3_8);
       taxa10h = difLC10h / (10 * massaiTon);
     }
 
-    // Cálculo das taxas de remoção a cada 3h nas últimas 18h
-    const taxas3h = [];
-    for (let i = 0; i < 6; i++) {  // 6 intervalos de 3h para total 18h
-      const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
-      const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
-      
-      const registrosIntervalo = serie.filter(l => {
-        const d = new Date(l.DataHora);
-        return d >= inicioIntervalo && d <= fimIntervalo;
-      }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+    // Taxas hora a hora (diferenças entre cada hora)
+    // Vamos assumir que DataHora está bem ordenada, e que é em formato ISO
+    // Criar array de objetos {date, LC_3_8} ordenados
+    const dadosOrdenados = serie
+      .map(l => ({ date: new Date(l.DataHora), valor: Number(l.LC_3_8) }))
+      .filter(d => !isNaN(d.date) && !isNaN(d.valor))
+      .sort((a,b) => a.date - b.date);
 
-      if (registrosIntervalo.length >= 2) {
-        const lcInicio = Number(registrosIntervalo[0].LC_3_8);
-        const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
-        if (!isNaN(lcInicio) && !isNaN(lcFim)) {
-          const difIntervalo = lcFim - lcInicio;
-          const taxaIntervalo = difIntervalo / (3 * massaiTon);
-          taxas3h.unshift(taxaIntervalo);
-          continue;
-        }
-      }
-      taxas3h.unshift(null);
+    // Calcular diferença por hora entre medições consecutivas
+    const taxasHora = [];
+    for (let i=1; i < dadosOrdenados.length; i++) {
+      const diffHora = (dadosOrdenados[i].date - dadosOrdenados[i-1].date) / 3600000;
+      if (diffHora <= 0) continue; // ignorar dados mal ordenados ou repetidos
+      const diffLC = dadosOrdenados[i-1].valor - dadosOrdenados[i].valor; // queda LC
+      const taxaHora = diffLC / (diffHora * massaiTon);
+      taxasHora.push({ hora: dadosOrdenados[i].date.toLocaleString('pt-PT'), taxa: taxaHora });
     }
 
+    // Máximo TE_5_4_X
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE = null;
     serie.forEach(linha => {
@@ -294,6 +284,7 @@ function buscarPorNome() {
       });
     });
 
+    // Mínimos PE_5_5_1 e PE_4_17
     let minPE_5_5_1 = null, minPE_4_17 = null;
     serie.forEach(linha => {
       const val1 = Number(linha.PE_5_5_1);
@@ -306,6 +297,7 @@ function buscarPorNome() {
       }
     });
 
+    // Dados ref (CSV3)
     const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
 
     html += `
@@ -325,23 +317,17 @@ function buscarPorNome() {
           <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
         </div>
       </div>
+
       <hr>
 
-      <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
-      <ul>
-    `;
+      <p><strong>Taxas hora a hora:</strong></p>
+      <div id="taxasHoraValor${index}" style="background:#f0f8ff; padding:10px; border-radius:6px; font-family: monospace; max-height:150px; overflow-y:auto;">
+        ${taxasHora.length > 0 ? taxasHora.map(t => `${t.hora}: ${t.taxa.toFixed(3)} L/(h*t)`).join('\n') : 'Sem dados suficientes para calcular taxas hora a hora.'}
+      </div>
+      <canvas id="graficoTaxaHora${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
 
-    for (let i = 0; i < 6; i++) {
-      const taxa = taxas3h[i];
-      const inicioHora = i * 3;
-      const fimHora = inicioHora + 3;
-      html += `<li>${inicioHora}h - ${fimHora}h atrás: ${taxa !== null ? formatNum(taxa) + ' L/(h*t)' : 'N/A'}</li>`;
-    }
-
-    html += `
-      </ul>
       <hr>
-      <canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
+
       <div class="coluna-dados">
         <div>
           <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
@@ -351,24 +337,21 @@ function buscarPorNome() {
           <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
         </div>
       </div>
-      <hr>
-    `;
 
-    // PFxTAquec e RFxTAquec
-    html += `<div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
-    if (serieRef.length) {
-      for (let n = 1; n <= 6; n++) {
-        const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
-        html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
+      <hr>
+
+      <div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+      if (serieRef.length) {
+        for (let n = 1; n <= 6; n++) {
+          html += `<p><strong>PF${n}TAquec:</strong> ${serieRef[0][`PF${n}TAquec`] ?? 'N/A'}</p>`;
+        }
+      } else {
+        html += `<p>Sem dados PFxTAquec para este ID.</p>`;
       }
-    } else {
-      html += `<p>Sem dados PFxTAquec para este ID.</p>`;
-    }
     html += `</div><div><h4>Valores RFxTAquec</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
-        html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
+        html += `<p><strong>RF${n}TAquec:</strong> ${serieRef[0][`RF${n}TAquec`] ?? 'N/A'}</p>`;
       }
     } else {
       html += `<p>Sem dados RFxTAquec para este ID.</p>`;
@@ -376,33 +359,28 @@ function buscarPorNome() {
     html += `</div></div>`;
 
     // Índices PFxTAquec vs RFxTAquec
-  
-// Índices PFxTAquec vs RFxTAquec
-html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
-for (let n = 1; n <= 6; n++) {
-  const pf = Number(serieRef[0][`PF${n}TAquec`]);
-  const rf = Number(serieRef[0][`RF${n}TAquec`]);
+    html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
+    for (let n = 1; n <= 6; n++) {
+      const pf = Number(serieRef[0]?.[`PF${n}TAquec`]);
+      const rf = Number(serieRef[0]?.[`RF${n}TAquec`]);
 
-  let indiceStr = 'N/A';
-  if (!isNaN(pf) && !isNaN(rf)) {
-    if (pf === 0 && rf === 0) {
-      indiceStr = 'N/A';
-    } else {
-      indiceStr = calcularIndice(pf, rf) + '%';
+      let indiceStr = 'N/A';
+      if (!isNaN(pf) && !isNaN(rf)) {
+        if (pf === 0 && rf === 0) {
+          indiceStr = 'N/A';
+        } else {
+          indiceStr = calcularIndice(pf, rf);
+        }
+      }
+      html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
     }
-  }
-  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
-}
-html += `</ul></div>`;
-
-
+    html += `</ul></div>`;
 
     // PFxPRem e RFxPRem
     html += `<hr><div class="coluna-dados"><div><h4>Valores PFxPRem</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
-        html += `<p><strong>PF${n}PRem:</strong> ${pfVal}</p>`;
+        html += `<p><strong>PF${n}PRem:</strong> ${serieRef[0][`PF${n}PRem`] ?? 'N/A'}</p>`;
       }
     } else {
       html += `<p>Sem dados PFxPRem para este ID.</p>`;
@@ -410,156 +388,106 @@ html += `</ul></div>`;
     html += `</div><div><h4>Valores RFxPRem</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        const rfVal = serieRef[0][`RF${n}PRem`] ?? 'N/A';
-        html += `<p><strong>RF${n}PRem:</strong> ${rfVal}</p>`;
+        html += `<p><strong>RF${n}PRem:</strong> ${serieRef[0][`RF${n}PRem`] ?? 'N/A'}</p>`;
       }
     } else {
       html += `<p>Sem dados RFxPRem para este ID.</p>`;
     }
     html += `</div></div>`;
 
-    // Índices PFxPRem vs RFxPRem
-    // Índices PFxPRem vs RFxPRem
-html += `<hr><div><h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
-for (let n = 1; n <= 6; n++) {
-  const pf = Number(serieRef[0][`PF${n}PRem`]);
-  const rf = Number(serieRef[0][`RF${n}PRem`]);
+    // Índices PFxPRem vs RFxPRem (índice pressão)
+    html += `<hr><div><h4>Índices PFxPRem vs RFxPRem (Pressão)</h4><ul>`;
+    for (let n = 1; n <= 6; n++) {
+      const pf = Number(serieRef[0]?.[`PF${n}PRem`]);
+      const rf = Number(serieRef[0]?.[`RF${n}PRem`]);
 
-  let indiceStr = 'N/A';
-  if (!isNaN(pf) && !isNaN(rf)) {
-    if (pf === 0 && rf === 0) {
-      indiceStr = 'N/A';
-    } else {
-      indiceStr = calculaIndicePressao(pf, rf);
+      let indiceStr = 'N/A';
+      if (!isNaN(pf) && !isNaN(rf)) {
+        if (pf === 0 && rf === 0) {
+          indiceStr = 'N/A';
+        } else {
+          indiceStr = calculaIndicePressao(pf, rf);
+        }
+      }
+      html += `<li><strong>Índice PF${n} vs RF${n} (Pressão):</strong> ${indiceStr}</li>`;
     }
-  }
-  html += `<li><strong>Índice PF${n} vs RF${n}:</strong> ${indiceStr}</li>`;
-}
-html += `</ul></div>`;
+    html += `</ul></div>`;
 
-
-    html += `</div>`; // fechar bloco-transformador
+    html += `</div>`; // fecha bloco transformador
   });
 
   out.innerHTML = html;
-  document.getElementById("btnExportarPDF").style.display = 'inline-block';
 
-  // Agora cria os gráficos de cada transformador
-  function calcularTaxasHoraAHora(dados) {
-    const taxas = [];
-    const horas = [];
+  // Criar gráficos taxa hora a hora para cada transformador encontrado
+  encontradosGlobais.forEach((meta, index) => {
+    const id = meta.id_secagenscore?.trim();
+    if (!id) return;
 
-    // Agrupar por hora
-    const porHora = {};
-    dados.forEach((linha) => {
-      const timestamp = new Date(linha['timestamp']);
-      const hora = new Date(timestamp);
-      hora.setMinutes(0, 0, 0);
-      const chaveHora = hora.toISOString();
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (!serie.length) return;
 
-      if (!porHora[chaveHora]) porHora[chaveHora] = [];
-      porHora[chaveHora].push(parseFloat(linha['LC_3_8']));
-    });
+    const dadosOrdenados = serie
+      .map(l => ({ date: new Date(l.DataHora), valor: Number(l.LC_3_8) }))
+      .filter(d => !isNaN(d.date) && !isNaN(d.valor))
+      .sort((a,b) => a.date - b.date);
 
-    const chavesOrdenadas = Object.keys(porHora).sort();
+    const massaiTon = Number(meta.massai) / 1000;
 
-    for (let i = 1; i < chavesOrdenadas.length; i++) {
-      const hAnterior = chavesOrdenadas[i - 1];
-      const hAtual = chavesOrdenadas[i];
-
-      const mediaAnterior = mediaValida(porHora[hAnterior]);
-      const mediaAtual = mediaValida(porHora[hAtual]);
-
-      if (mediaAnterior != null && mediaAtual != null && mediaAnterior !== 0) {
-        const taxa = ((mediaAtual - mediaAnterior) / mediaAnterior) * 100;
-        taxas.push(parseFloat(taxa.toFixed(2)));
-        horas.push(new Date(hAtual).toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit' }));
-      }
+    const taxasHora = [];
+    for (let i=1; i < dadosOrdenados.length; i++) {
+      const diffHora = (dadosOrdenados[i].date - dadosOrdenados[i-1].date) / 3600000;
+      if (diffHora <= 0) continue;
+      const diffLC = dadosOrdenados[i-1].valor - dadosOrdenados[i].valor;
+      const taxaHora = diffLC / (diffHora * massaiTon);
+      taxasHora.push({ x: i, y: taxaHora });
     }
 
-    return { taxas, horas };
-  }
-
-  function mediaValida(arr) {
-    const validos = arr.filter(v => !isNaN(v));
-    if (validos.length === 0) return null;
-    return validos.reduce((a, b) => a + b, 0) / validos.length;
-  }
-
-  function mostrarTaxasHoraAHora(dados) {
-    const { taxas, horas } = calcularTaxasHoraAHora(dados);
-
-    const divResultados = document.getElementById('taxas-hora-a-hora');
-    divResultados.innerHTML = '';
-    taxas.forEach((taxa, i) => {
-      const p = document.createElement('p');
-      p.textContent = `${horas[i]}: ${taxa.toFixed(2)}%`;
-      divResultados.appendChild(p);
-    });
-
-    // Gráfico de pontos
-    const ctx = document.getElementById('grafico-taxas-hora').getContext('2d');
+    const ctx = document.getElementById(`graficoTaxaHora${index}`).getContext('2d');
     new Chart(ctx, {
       type: 'scatter',
       data: {
-        labels: horas,
         datasets: [{
-          label: 'Taxa LC_3_8 (%)',
-          data: taxas.map((valor, idx) => ({ x: idx, y: valor })),
-          borderColor: 'blue',
-          backgroundColor: 'blue',
-          showLine: false,
-          pointRadius: 4
+          label: 'Taxa Hora a Hora (L/(h*t))',
+          data: taxasHora,
+          backgroundColor: 'rgba(54, 162, 235, 0.8)'
         }]
       },
       options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (items) => horas[items[0].dataIndex],
-              label: (item) => `${item.raw.y.toFixed(2)}%`
-            }
-          }
-        },
         scales: {
           x: {
-            title: { display: true, text: 'Horas' },
-            ticks: {
-              callback: function(value, index) {
-                return horas[index];
-              },
-              maxRotation: 90,
-              minRotation: 45
-            }
+            title: {
+              display: true,
+              text: 'Hora'
+            },
+            ticks: { stepSize: 1 }
           },
           y: {
-            title: { display: true, text: 'Taxa (%)' }
+            title: {
+              display: true,
+              text: 'Taxa (L/(h*t))'
+            }
           }
         }
       }
     });
-  }
+  });
+
+  // Mostrar botão exportar PDF
+  document.getElementById('btnExportarPDF').style.display = 'block';
+}
 
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
   const resultado = document.getElementById('resultado');
-
   html2canvas(resultado).then(canvas => {
     const imgData = canvas.toDataURL('image/png');
-    const pdf = new jspdf.jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4'
-    });
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth() - 40; // margem 20 px cada lado
+    const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+    const imgProps= pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 20, 20, pdfWidth, pdfHeight);
-    pdf.save('resultado_transformador.pdf');
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save("Relatorio_Transformador.pdf");
   });
 });
-  
 </script>
 
 </body>
