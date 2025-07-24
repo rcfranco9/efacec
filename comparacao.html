@@ -349,7 +349,7 @@ function calculaTaxasHoraASeguir(id, massaKg) {
 
   for (let i = 1; i < serie.length; i++) {
     const deltaLC = serie[i].lc - serie[i - 1].lc;
-    const deltaH = (serie[i].ts - serie[i - 1].ts) / (1000 * 3600); // diferença em horas
+    const deltaH = (serie[i].ts - serie[i - 1].ts) / (1000 * 3600); // em horas
     if (deltaH > 0) {
       const taxa = deltaLC / (deltaH * ton);
       taxas.push(+taxa.toFixed(4));
@@ -358,7 +358,8 @@ function calculaTaxasHoraASeguir(id, massaKg) {
     }
   }
 
-  const labels = taxas.map((_, i) => (i + 1).toString()); // 1,2,3,4...
+  // Labels 1, 2, 3, ... para cada intervalo
+  const labels = taxas.map((_, i) => (i + 1).toString());
 
   return { labels, taxas };
 }
@@ -367,14 +368,12 @@ const { labels: labels1, taxas: taxas1 } = calculaTaxasHoraASeguir(id1, m1.massa
 const { labels: labels2, taxas: taxas2 } = calculaTaxasHoraASeguir(id2, m2.massai);
 
 const ctx = document.getElementById("graficoTaxas").getContext("2d");
-if (window.chartTaxas) {
-  window.chartTaxas.destroy();
-}
+if (window.chartTaxas) window.chartTaxas.destroy();
 
 window.chartTaxas = new Chart(ctx, {
   type: 'line',
   data: {
-    labels: labels1.length > labels2.length ? labels1 : labels2,
+    labels: labels1.length > labels2.length ? labels1 : labels2, // usa o maior conjunto de labels
     datasets: [
       {
         label: `${m1.subprojecto || id1}`,
@@ -382,7 +381,7 @@ window.chartTaxas = new Chart(ctx, {
         borderColor: 'rgba(41, 128, 185, 1)',
         backgroundColor: 'rgba(41, 128, 185, 0.1)',
         tension: 0.3,
-        fill: true,
+        fill: true
       },
       {
         label: `${m2.subprojecto || id2}`,
@@ -390,7 +389,7 @@ window.chartTaxas = new Chart(ctx, {
         borderColor: 'rgba(231, 76, 60, 1)',
         backgroundColor: 'rgba(231, 76, 60, 0.1)',
         tension: 0.3,
-        fill: true,
+        fill: true
       }
     ]
   },
@@ -405,12 +404,22 @@ window.chartTaxas = new Chart(ctx, {
     },
     scales: {
       x: {
-        title: { display: true, text: 'Hora' },
         type: 'category',
-        ticks: { stepSize: 1, maxRotation: 0, minRotation: 0 }
+        title: {
+          display: true,
+          text: 'Hora'
+        },
+        ticks: {
+          stepSize: 1,
+          maxRotation: 0,
+          minRotation: 0
+        }
       },
       y: {
-        title: { display: true, text: 'Taxa de Remoção de Água (L/(h*t))' },
+        title: {
+          display: true,
+          text: 'Taxa (L/h*t)'
+        },
         beginAtZero: true
       }
     }
