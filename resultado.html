@@ -433,44 +433,52 @@ function buscarPorNome() {
 
     const massaiTon = Number(meta.massai) / 1000;
 
-    const taxasHora = [];
-    for (let i=1; i < dadosOrdenados.length; i++) {
-      const diffHora = (dadosOrdenados[i].date - dadosOrdenados[i-1].date) / 3600000;
-      if (diffHora <= 0) continue;
-      const diffLC = dadosOrdenados[i-1].valor - dadosOrdenados[i].valor;
-      const taxaHora = diffLC / (diffHora * massaiTon);
-      taxasHora.push({ x: i, y: taxaHora });
-    }
+function criarGraficoTaxa(idCanvas, taxas) {
+  const ctx = document.getElementById(idCanvas).getContext('2d');
 
-    const ctx = document.getElementById(`graficoTaxaHora${index}`).getContext('2d');
-    new Chart(ctx, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          label: 'Taxa Hora a Hora (L/(h*t))',
-          data: taxasHora,
-          backgroundColor: 'rgba(54, 162, 235, 0.8)'
-        }]
-      },
-      options: {
-        scales: {
-          x: {
-            title: {
-              display: true,
-              text: 'Hora'
-            },
-            ticks: { stepSize: 1 }
+  // Mapear dados com x começando no 0
+  const dataPontos = taxas.map((taxa, i) => ({ x: i, y: taxa }));
+
+  new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Taxa LC_3_8 (L/(h*t))',
+        data: dataPontos,
+        backgroundColor: 'rgba(54, 162, 235, 0.8)'
+      }]
+    },
+    options: {
+      scales: {
+        x: {
+          type: 'linear',
+          title: {
+            display: true,
+            text: 'Hora (0, 1, 2, 3, ...)'
           },
-          y: {
-            title: {
-              display: true,
-              text: 'Taxa (L/(h*t))'
+          ticks: {
+            stepSize: 1,
+            callback: function(value) {
+              return Number(value).toFixed(0);
             }
+          },
+          min: 0,
+          max: dataPontos.length > 0 ? dataPontos.length - 1 : 0
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Taxa (L/(h*t))'
           }
         }
-      }
-    });
+      },
+      plugins: {
+        legend: { display: true }
+      },
+      responsive: true
+    }
   });
+}
 
   // Mostrar botão exportar PDF
   document.getElementById('btnExportarPDF').style.display = 'block';
