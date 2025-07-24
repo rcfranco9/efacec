@@ -105,6 +105,7 @@
 
 <label for="nomeInput">Nome do transformador:</label>
 <input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
+
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
 <canvas id="graficoTaxas" width="400" height="200" style="margin-top: 20px;"></canvas>
 
@@ -444,94 +445,102 @@ html += `</ul></div>`;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
 
   // Agora cria os gráficos de cada transformador
-  encontradosGlobais.forEach((meta, index) => {
-    const ctx = document.getElementById(`graficoTaxa${index}`)?.getContext('2d');
-    if (!ctx) return;
+  function calcularTaxasHoraAHora(dados) {
+    const taxas = [];
+    const horas = [];
 
-    const id = meta.id_secagenscore?.trim();
-    if (!id) return;
+    // Agrupar por hora
+    const porHora = {};
+    dados.forEach((linha) => {
+      const timestamp = new Date(linha['timestamp']);
+      const hora = new Date(timestamp);
+      hora.setMinutes(0, 0, 0);
+      const chaveHora = hora.toISOString();
 
-    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-    if (!serie.length) return;
+      if (!porHora[chaveHora]) porHora[chaveHora] = [];
+      porHora[chaveHora].push(parseFloat(linha['LC_3_8']));
+    });
 
-    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
-    const massaiTon = Number(meta.massai) / 1000;
+    const chavesOrdenadas = Object.keys(porHora).sort();
 
-    const taxas3h = [];
-    for (let i = 0; i < 6; i++) {
-      const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
-      const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
-      const registrosIntervalo = serie.filter(l => {
-        const d = new Date(l.DataHora);
-        return d >= inicioIntervalo && d <= fimIntervalo;
-      }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+    for (let i = 1; i < chavesOrdenadas.length; i++) {
+      const hAnterior = chavesOrdenadas[i - 1];
+      const hAtual = chavesOrdenadas[i];
 
-      if (registrosIntervalo.length >= 2) {
-        const lcInicio = Number(registrosIntervalo[0].LC_3_8);
-        const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
-        if (!isNaN(lcInicio) && !isNaN(lcFim)) {
-          const difIntervalo = lcFim - lcInicio;
-          const taxaIntervalo = difIntervalo / (3 * massaiTon);
-          taxas3h.unshift(taxaIntervalo);
-          continue;
-        }
+      const mediaAnterior = mediaValida(porHora[hAnterior]);
+      const mediaAtual = mediaValida(porHora[hAtual]);
+
+      if (mediaAnterior != null && mediaAtual != null && mediaAnterior !== 0) {
+        const taxa = ((mediaAtual - mediaAnterior) / mediaAnterior) * 100;
+        taxas.push(parseFloat(taxa.toFixed(2)));
+        horas.push(new Date(hAtual).toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit' }));
       }
-      taxas3h.unshift(null);
     }
 
-    const labels = ['0-3h','3-6h','6-9h','9-12h','2-15h','15-18h'];
-    const dataPoints = taxas3h.map(v => v === null ? null : Number(v.toFixed(3)));
+    return { taxas, horas };
+  }
 
+  function mediaValida(arr) {
+    const validos = arr.filter(v => !isNaN(v));
+    if (validos.length === 0) return null;
+    return validos.reduce((a, b) => a + b, 0) / validos.length;
+  }
+
+  function mostrarTaxasHoraAHora(dados) {
+    const { taxas, horas } = calcularTaxasHoraAHora(dados);
+
+    const divResultados = document.getElementById('taxas-hora-a-hora');
+    divResultados.innerHTML = '';
+    taxas.forEach((taxa, i) => {
+      const p = document.createElement('p');
+      p.textContent = `${horas[i]}: ${taxa.toFixed(2)}%`;
+      divResultados.appendChild(p);
+    });
+
+    // Gráfico de pontos
+    const ctx = document.getElementById('grafico-taxas-hora').getContext('2d');
     new Chart(ctx, {
       type: 'scatter',
       data: {
-        labels: labels,
+        labels: horas,
         datasets: [{
-          label: 'Taxa de remoção (L/(h*t))',
-          data: dataPoints.map((y, i) => y === null ? null : {x: i * 3, y: y}),
-          backgroundColor: 'rgba(41, 128, 185, 0.8)',
-          borderColor: 'rgba(41, 128, 185, 1)',
-          showLine: true,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 5
+          label: 'Taxa LC_3_8 (%)',
+          data: taxas.map((valor, idx) => ({ x: idx, y: valor })),
+          borderColor: 'blue',
+          backgroundColor: 'blue',
+          showLine: false,
+          pointRadius: 4
         }]
       },
       options: {
-        scales: {
-          x: {
-            type: 'linear',
-            title: {
-              display: true,
-              text: 'Tempo (horas atrás)'
-            },
-            ticks: {
-              stepSize: 3,
-              callback: val => `${val}-${val + 3}h`
-            },
-            min: 0,
-            max: 18,
-          },
-          y: {
-            title: {
-              display: true,
-              text: 'Taxa (L/(h*t))'
-            },
-            beginAtZero: true
-          }
-        },
+        responsive: true,
         plugins: {
-          legend: { display: true },
+          legend: { display: false },
           tooltip: {
             callbacks: {
-              label: context => `Taxa: ${context.parsed.y.toFixed(3)} L/(h*t)`
+              title: (items) => horas[items[0].dataIndex],
+              label: (item) => `${item.raw.y.toFixed(2)}%`
             }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Horas' },
+            ticks: {
+              callback: function(value, index) {
+                return horas[index];
+              },
+              maxRotation: 90,
+              minRotation: 45
+            }
+          },
+          y: {
+            title: { display: true, text: 'Taxa (%)' }
           }
         }
       }
     });
-  });
-}
+  }
 
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
   const resultado = document.getElementById('resultado');
@@ -550,6 +559,7 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
     pdf.save('resultado_transformador.pdf');
   });
 });
+  
 </script>
 
 </body>
