@@ -321,6 +321,9 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
+  const blocos1 = calcTaxaPorBlocos(id1, m1.massai);
+const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
+
 
   if (!t1 || !t2) {
     out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
@@ -328,74 +331,92 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     return;
   }
 
-  // --- INÍCIO DA ALTERAÇÃO: Gráfico hora a hora da série completa ---
+  const te1 = maxTEfromSerie(id1);
+  const te2 = maxTEfromSerie(id2);
+  const pe1_417 = minPE(id1, 'PE_4_17');
+  const pe2_417 = minPE(id2, 'PE_4_17');
+  const pe1_551 = minPE(id1, 'PE_5_5_1');
+  const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  const serie1 = getSerie(id1);
-  const serie2 = getSerie(id2);
+  
+// Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
+function calculaTaxasHoraASeguir(id, massaKg) {
+  const serie = getSerie(id);
+  if (serie.length < 2) return { labels: [], taxas: [] };
 
-  function formatHora(ts) {
-    const d = new Date(ts);
-    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  const ton = parseNum(massaKg) / 1000 || 1;
+  const taxas = [];
+
+  for (let i = 1; i < serie.length; i++) {
+    const deltaLC = serie[i].lc - serie[i - 1].lc;
+    const deltaH = (serie[i].ts - serie[i - 1].ts) / (1000 * 3600); // diferença em horas
+    if (deltaH > 0) {
+      const taxa = deltaLC / (deltaH * ton);
+      taxas.push(+taxa.toFixed(4));
+    } else {
+      taxas.push(null);
+    }
   }
 
-  // Para os labels usa os timestamps da primeira série
-  const labels = serie1.map(p => formatHora(p.ts));
+  const labels = taxas.map((_, i) => (i + 1).toString()); // 1,2,3,4...
 
-  const data1 = serie1.map(p => p.lc);
-  const data2 = serie2.map(p => p.lc);
+  return { labels, taxas };
+}
 
-  const ctx = document.getElementById("graficoTaxas").getContext("2d");
+const { labels: labels1, taxas: taxas1 } = calculaTaxasHoraASeguir(id1, m1.massai);
+const { labels: labels2, taxas: taxas2 } = calculaTaxasHoraASeguir(id2, m2.massai);
 
-  // Destrói gráfico antigo se existir
-  if (window.chartTaxas) {
-    window.chartTaxas.destroy();
-  }
+const ctx = document.getElementById("graficoTaxas").getContext("2d");
+if (window.chartTaxas) {
+  window.chartTaxas.destroy();
+}
 
-  // Cria novo gráfico
-  window.chartTaxas = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: `${m1.subprojecto || id1}`,
-          data: data1,
-          borderColor: 'rgba(41, 128, 185, 1)',
-          backgroundColor: 'rgba(41, 128, 185, 0.1)',
-          tension: 0.3,
-          fill: true,
-        },
-        {
-          label: `${m2.subprojecto || id2}`,
-          data: data2,
-          borderColor: 'rgba(231, 76, 60, 1)',
-          backgroundColor: 'rgba(231, 76, 60, 0.1)',
-          tension: 0.3,
-          fill: true,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: {
-          display: true,
-          text: 'Evolução da Secagem Hora a Hora (LC_3_8)'
-        }
+window.chartTaxas = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels1.length > labels2.length ? labels1 : labels2,
+    datasets: [
+      {
+        label: `${m1.subprojecto || id1}`,
+        data: taxas1,
+        borderColor: 'rgba(41, 128, 185, 1)',
+        backgroundColor: 'rgba(41, 128, 185, 0.1)',
+        tension: 0.3,
+        fill: true,
       },
-      scales: {
-        x: {
-          title: { display: true, text: 'Hora' },
-          ticks: { maxRotation: 90, minRotation: 45 }
-        },
-        y: {
-          title: { display: true, text: 'LC_3_8' },
-          beginAtZero: true
-        }
+      {
+        label: `${m2.subprojecto || id2}`,
+        data: taxas2,
+        borderColor: 'rgba(231, 76, 60, 1)',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        tension: 0.3,
+        fill: true,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: 'Taxa de Remoção de Água Hora a Hora (L/(h*t))'
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Hora' },
+        type: 'category',
+        ticks: { stepSize: 1, maxRotation: 0, minRotation: 0 }
+      },
+      y: {
+        title: { display: true, text: 'Taxa de Remoção de Água (L/(h*t))' },
+        beginAtZero: true
       }
     }
-  });
+  }
+});
+
   
   let html = '';
 
