@@ -1,486 +1,395 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8" />
-<title>Filtragem de Transformadores com Índices PF/RF - Completo</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<style>
-  body {
-  font-family: Arial, sans-serif;
-  margin: 20px;
-  background-color: #f9f9f9;
-  color: #222;
-}
-
-h1 {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 30px;
-}
-
-label {
-  display: inline-block;
-  margin: 10px 10px 5px 0;
-  font-weight: bold;
-  color: #34495e;
-}
-
-input[type="file"],
-input[type="text"] {
-  margin-bottom: 15px;
-  padding: 6px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 180px;
-  font-size: 14px;
-}
-
-input[type="text"]:disabled {
-  background-color: #eee;
-  cursor: not-allowed;
-}
-
-button {
-  background-color: #2980b9;
-  color: white;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: background-color 0.3s ease;
-}
-
-button:disabled {
-  background-color: #aaa;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background-color: #1f618d;
-}
-
-#resultado {
-  background-color: white;
-  border-radius: 6px;
-  padding: 15px 20px;
-  margin-top: 25px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: 15px;
-  line-height: 1.4;
-}
-
-.transformador-dados {
-  border: 1px solid #ddd;
-  padding: 15px 20px;
-  margin-bottom: 25px;
-  border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.transformador-dados strong {
-  color: #2c3e50;
-}
-
-.transformador-dados ul {
-  margin-top: 8px;
-  margin-bottom: 15px;
-  padding-left: 20px;
-}
-
-.transformador-dados ul li {
-  margin-bottom: 6px;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 20px;
-  font-size: 14px;
-}
-
-table thead tr {
-  background-color: #2980b9;
-  color: white;
-  text-align: center;
-}
-
-table tbody tr:nth-child(odd) {
-  background-color: #f4f6f7;
-}
-
-table th, table td {
-  border: 1px solid #ddd;
-  padding: 8px 12px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-table tbody tr:hover {
-  background-color: #d0e4f7;
-}
-
-h3 {
-  text-align: center;
-  color: #34495e;
-  margin-bottom: 12px;
-}
-
-canvas {
-  display: block;
-  margin: 0 auto 30px auto;
-  max-width: 600px;
-  max-height: 300px;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-  background-color: white;
-  border-radius: 6px;
-}
-
-@media (max-width: 650px) {
-  input[type="file"], input[type="text"] {
-    width: 100%;
-  }
-  #resultado, .transformador-dados, canvas {
-    max-width: 100%;
-  }
-}
-
-</style>
+  <meta charset="UTF-8" />
+  <title>Filtragem de Transformadores com Índices</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
+      padding: 30px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+    h1 {
+      color: #2c3e50;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: 600;
+      color: #34495e;
+    }
+    input, button {
+      padding: 10px;
+      width: 100%;
+      margin-top: 8px;
+      border-radius: 5px;
+      border: 1px solid #bbb;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      font-weight: bold;
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) {
+      background-color: #3498db;
+    }
+    button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    #resultado {
+      margin-top: 30px;
+      padding: 20px;
+      background: #fff;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      min-height: 100px;
+      overflow-x: auto;
+    }
+    .transformador-dados {
+      background: #fdfdfd;
+      border: 1px solid #ccc;
+      padding: 15px 20px;
+      margin-top: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      transition: background 0.3s;
+    }
+    .transformador-dados:hover {
+      background: #f0f8ff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #bbb;
+      padding: 6px 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background-color: #2980b9;
+      color: white;
+    }
+    strong {
+      color: #2c3e50;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Filtragem de Transformadores com Índices PF/RF</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
+    <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
-<label for="csvMeta">1) CSV1 (Meta):</label>
-<input type="file" id="csvMeta" accept=".csv" />
+  <label for="csvMeta">1) CSV1 (Meta):</label>
+  <input type="file" id="csvMeta" accept=".csv" />
 
-<label for="csvSerie">2) CSV2 (Série):</label>
-<input type="file" id="csvSerie" accept=".csv" />
+  <label for="csvSerie">2) CSV2 (Série):</label>
+  <input type="file" id="csvSerie" accept=".csv" />
 
-<label for="csv3">3) CSV3 (PFxTAquec, RFxTAquec, PFxPRem, RFxPRem):</label>
-<input type="file" id="csv3" accept=".csv" />
+  <label for="csv3">3) CSV3 (PFxTAquec, RFxTAquec, PFxPRem, RFxPRem):</label>
+  <input type="file" id="csv3" accept=".csv" />
 
-<label for="potenciaInput">Potência (ex: 140):</label>
-<input type="text" id="potenciaInput" placeholder="Potência" disabled />
+  <label for="potenciaInput">Potência (ex: 140):</label>
+  <input type="text" id="potenciaInput" placeholder="Potência" disabled />
 
-<label for="tensaoInput">Tensão (ex: 240.5):</label>
-<input type="text" id="tensaoInput" placeholder="Tensão" disabled />
+  <label for="tensaoInput">Tensão (ex: 240.5):</label>
+  <input type="text" id="tensaoInput" placeholder="Tensão" disabled />
 
-<button id="btnFiltrar" disabled>Procurar</button>
+  <button id="btnFiltrar" disabled>Procurar</button>
 
-<div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
+  <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
 
-<div style="margin-top: 30px;">
-  <h3>Taxas de Remoção de Água (últimas 18h em blocos de 3h)</h3>
-  <canvas id="graficoTaxasRemocao" width="600" height="300"></canvas>
-</div>
+  <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
-<button id="btnExportarPDF" style="display:none; margin-top: 20px;">Exportar PDF</button>
+  <script>
+    let dadosMeta = [], dadosSerie = [], dadosPF = [];
 
-<script>
-  let dadosMeta = [], dadosSerie = [], dadosPF = [];
-  let meuGrafico = null;
-
-  // --- Funções auxiliares (formatNum, parseNum, checkReady, etc.) ---
-
-  function formatNum(v, dec = 3) {
-    const n = parseFloat(v);
-    if (isNaN(n) || n === 0) return 'N/A';
-    return parseFloat(n.toFixed(dec)).toString();
-  }
-
-  function parseNum(v) {
-    const n = parseFloat((v||'').toString().replace(',', '.').trim());
-    return isNaN(n) ? NaN : n;
-  }
-
-  function checkReady() {
-    const ok = dadosMeta.length && dadosSerie.length && dadosPF.length;
-    ['potenciaInput','tensaoInput','btnFiltrar'].forEach(id => {
-      document.getElementById(id).disabled = !ok;
-    });
-    if (ok) {
-      document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
-    } else {
-      document.getElementById('resultado').textContent = 'Carrega os três ficheiros CSV.';
+    function formatNum(v, dec = 3) {
+      const n = parseFloat(v);
+      if (isNaN(n) || n === 0) return 'N/A';
+      const f = n.toFixed(dec);
+      return parseFloat(f).toString();
     }
-  }
 
-  // --- Funções para cálculos ---
+    function parseNum(v) {
+      const n = parseFloat((v||'').toString().replace(',', '.').trim());
+      return isNaN(n) ? NaN : n;
+    }
 
-  function calcLC(id, massaiKg) {
-    const linhas = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora);
-    const registos = linhas.map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
-                          .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
-    if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0, delta10h: 0, taxa10h: 0 };
-    registos.sort((a,b) => a.ts - b.ts);
-    const ultimo = registos[registos.length - 1];
-    const alvoTS = ultimo.ts - 10 * 3600000;
-    let anterior10h = registos[0];
-    for (let i = registos.length - 1; i >= 0; i--) {
-      if (registos[i].ts <= alvoTS) {
-        anterior10h = registos[i];
-        break;
+    function checkReady() {
+      const ok = dadosMeta.length && dadosSerie.length && dadosPF.length;
+      ['potenciaInput','tensaoInput','btnFiltrar'].forEach(id => document.getElementById(id).disabled = !ok);
+      if (ok) {
+        document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
       }
     }
-    const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
-    const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
-    const ton = parseNum(massaiKg) / 1000 || 1;
-    const difLC = +ultimo.valor.toFixed(3);
-    const taxa = +(difLC / (dur * ton)).toFixed(2);
-    const taxa10h = +(delta10h / (10 * ton)).toFixed(2);
-    return { difLC, dur, taxa, delta10h, taxa10h };
-  }
 
-  function maxTEfromSerie(id) {
-    const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const valores = [];
-    dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
-      .forEach(linha => colunas.forEach(col => {
-        const val = parseNum(linha[col]);
-        if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
-      }));
-    return valores.length > 0 ? Math.max(...valores).toFixed(2) : 'N/A';
-  }
-
-  function minPE(id, coluna) {
-    const valores = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
-      .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
-    return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
-  }
-
-  function pegaDadosPF(id) {
-    const reg = dadosPF.find(r => (r.id_secagenscore||'').trim() === id);
-    if (!reg) return null;
-    const PFxTAquec = [], RFxTAquec = [], PFxPRem = [], RFxPRem = [];
-    for(let n=1; n<=6; n++) {
-      PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
-      RFxTAquec.push(parseNum(reg[`RF${n}TAquec`]));
-      PFxPRem.push(parseNum(reg[`PF${n}PRem`]));
-      RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
-    }
-    return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
-  }
-
-  function calculaIndiceTemperatura(pf, rf) {
-    if (isNaN(pf) || isNaN(rf)) return 'N/A';
-    const diff = rf - pf;
-    if (diff >= 5) return '100%';
-    if (diff <= -5) return '0%';
-    const proporcao = (diff + 5) / 10;
-    return `${Math.round(proporcao * 100)}%`;
-  }
-
-  function calculaIndicePressao(pf, rf) {
-    if (isNaN(pf) || isNaN(rf)) return 'N/A';
-    const diff = rf - pf;
-    if (diff >= 5) return '0%';
-    if (diff <= -5) return '100%';
-    if (diff === 0) return '50%';
-    const proporcao = (5 - diff) / 10;
-    return `${Math.round(proporcao * 100)}%`;
-  }
-
-  function calculaTaxasRemocaoBlocos(id, massaiKg) {
-    const registos = dadosSerie
-      .filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora)
-      .map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
-      .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
-    if (registos.length === 0) return Array(6).fill('N/A');
-    registos.sort((a,b) => a.ts - b.ts);
-    const now = registos[registos.length - 1].ts;
-    const ton = parseNum(massaiKg) / 1000 || 1;
-    const blocosTaxas = [];
-    for(let i=5; i>=0; i--) {
-      const fim = now - i * 3 * 3600000;
-      const inicio = fim - 3 * 3600000;
-      const bloco = registos.filter(r => r.ts >= inicio && r.ts <= fim);
-      if (bloco.length < 2) {
-        blocosTaxas.push('N/A');
-        continue;
+    function calcLC(id, massaiKg) {
+      const linhas = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora);
+      const registos = linhas.map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
+      if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0, delta10h: 0, taxa10h: 0 };
+      registos.sort((a,b) => a.ts - b.ts);
+      const ultimo = registos[registos.length - 1];
+      const alvoTS = ultimo.ts - 10 * 3600000;
+      let anterior10h = registos[0];
+      for (let i = registos.length - 1; i >= 0; i--) {
+        if (registos[i].ts <= alvoTS) { anterior10h = registos[i]; break; }
       }
-      const valInicio = bloco[0].valor;
-      const valFim = bloco[bloco.length - 1].valor;
-      const deltaLC = valFim - valInicio;
-      const taxa = deltaLC / (3 * ton);
-      blocosTaxas.push(taxa.toFixed(3));
-    }
-    return blocosTaxas;
-  }
-
-  function desenharGraficoTaxasRemocao(taxas) {
-    const ctx = document.getElementById('graficoTaxasRemocao').getContext('2d');
-    if (meuGrafico) meuGrafico.destroy();
-    const pontos = taxas.map((t,i) => ({ x: i, y: isNaN(t) ? null : parseFloat(t) }));
-    meuGrafico = new Chart(ctx, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          label: 'Taxas de remoção (L/(h*t))',
-          data: pontos,
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
-          pointRadius: 6,
-          showLine: true,
-          borderColor: 'rgba(255, 99, 132, 0.7)',
-        }]
-      },
-      options: {
-        scales: {
-          x: {
-            type: 'linear',
-            position: 'bottom',
-            ticks: {
-              callback: val => {
-                const labels = ['15-18h atrás', '12-15h atrás', '9-12h atrás', '6-9h atrás', '3-6h atrás', '0-3h atrás'];
-                return labels[val] || val;
-              }
-            },
-            min: 0,
-            max: 5
-          },
-          y: { beginAtZero: true }
-        }
-      }
-    });
-  }
-
-  // --- Eventos de carregamento dos CSVs e habilitação dos inputs ---
-  document.getElementById('csvMeta').addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosMeta = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-  document.getElementById('csvSerie').addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosSerie = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-  document.getElementById('csv3').addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => Papa.parse(ev.target.result, {
-      header:true, skipEmptyLines:true,
-      complete: res => { dadosPF = res.data; checkReady(); }
-    });
-    r.readAsText(f);
-  });
-
-  document.getElementById('btnFiltrar').addEventListener('click', () => {
-    const potRaw = document.getElementById('potenciaInput').value.trim();
-    const tenRaw = document.getElementById('tensaoInput').value.trim();
-
-    const pot = potRaw.replace(',', '.');
-    const ten = tenRaw.replace(',', '.');
-
-    const encontrados = dadosMeta.filter(r => {
-      const potencia = (r.potencia || '').trim().replace(',', '.');
-      const tensao = (r.tensao || '').trim().replace(',', '.');
-      return potencia === pot && tensao === ten;
-    });
-
-    const out = document.getElementById('resultado');
-    if (encontrados.length === 0) {
-      out.textContent = 'Nenhum transformador encontrado com esses valores de potência e tensão.';
-      document.getElementById('btnExportarPDF').style.display = 'none';
-      return;
+      const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
+      const dur = +(((ultimo.ts - registos[0].ts) / 36e5)).toFixed(2) || 1;
+      const ton = parseNum(massaiKg) / 1000 || 1;
+      const difLC = +ultimo.valor.toFixed(3);
+      const taxa = +(difLC / (dur * ton)).toFixed(2);
+      const taxa10h = +(delta10h / (10 * ton)).toFixed(2);
+      return { difLC, dur, taxa, delta10h, taxa10h };
     }
 
-    let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
+    function maxTEfromSerie(id) {
+      const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+      const valores = [];
+      dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
+        .forEach(linha => colunas.forEach(col => {
+          const val = parseNum(linha[col]);
+          if (!isNaN(val) && val > 0 && val <= 140) valores.push(val);
+        }));
+      return valores.length > 0 ? Math.max(...valores).toFixed(2) : 'N/A';
+    }
 
-    encontrados.forEach((m,i) => {
-      const id = (m.id_secagenscore||'').trim();
-      const stats = calcLC(id, m.massai);
-      const mTon = (parseNum(m.massai)/1000).toFixed(3);
-      const teMax = maxTEfromSerie(id);
-      const pe417 = minPE(id, 'PE_4_17');
-      const pe551 = minPE(id, 'PE_5_5_1');
+    function minPE(id, coluna) {
+      const valores = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id)
+        .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
+      return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
+    }
+// Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
+function calculaIndiceTemperatura(pf, rf) {
+  if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  const diff = rf - pf;
+  if (diff >= 5) return '100%';
+  if (diff <= -5) return '0%';
+  const proporcao = (diff + 5) / 10; // linear entre -5 e 5
+  const indice = Math.round(proporcao * 100);
+  return `${indice}%`;
+}
 
-      const dadosPFRF = pegaDadosPF(id);
-      const taxasRemocao = calculaTaxasRemocaoBlocos(id, m.massai);
+// Função para calcular índice para PRem (pressões) - com a tua regra inversa
+function calculaIndicePressao(pf, rf) {
+  if (isNaN(pf) || isNaN(rf)) return 'N/A';
+  const diff = rf - pf;
+  if (diff >= 5) return '0%';
+  if (diff <= -5) return '100%';
+  if (diff === 0) return '50%';
+  // interpolação linear entre -5 e 5, invertida
+  const proporcao = (5 - diff) / 10;
+  const indice = Math.round(proporcao * 100);
+  return `${indice}%`;
+}
 
-      html += `<div class="transformador-dados">
-        <strong>#${i+1} — ID:</strong> ${id}<br>
-        <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
-        <strong>Potência:</strong> ${m.potencia} kVA<br>
-        <strong>Tensão:</strong> ${m.tensao} V<br>
-        <strong>Massa (kg):</strong> ${m.massai}<br>
-        <ul>
-          <li><strong>Duração (h):</strong> ${stats.dur}</li>
-          <li><strong>LC 3.8 (%):</strong> ${formatNum(stats.difLC)}</li>
-          <li><strong>Taxa total LC (L/(h*t)):</strong> ${formatNum(stats.taxa)}</li>
-          <li><strong>Delta 10h (%):</strong> ${formatNum(stats.delta10h)}</li>
-          <li><strong>Taxa 10h LC (L/(h*t)):</strong> ${formatNum(stats.taxa10h)}</li>
-          <li><strong>Máx TE 5_4_x:</strong> ${teMax}</li>
-          <li><strong>Mín PE 4_17:</strong> ${pe417}</li>
-          <li><strong>Mín PE 5_5_1:</strong> ${pe551}</li>
-        </ul>`;
 
-      if (dadosPFRF) {
-        html += `<strong>Índices PFxTAquec / RFxTAquec</strong><br><table><thead><tr><th>Pos</th><th>PF</th><th>RF</th><th>Índice Temperatura</th></tr></thead><tbody>`;
-        for(let n=0; n<6; n++) {
-          const pf = dadosPFRF.PFxTAquec[n];
-          const rf = dadosPFRF.RFxTAquec[n];
-          const idx = calculaIndiceTemperatura(pf, rf);
-          html += `<tr><td>${n+1}</td><td>${formatNum(pf)}</td><td>${formatNum(rf)}</td><td>${idx}</td></tr>`;
-        }
-        html += `</tbody></table>`;
-
-        html += `<strong>Índices PFxPRem / RFxPRem</strong><br><table><thead><tr><th>Pos</th><th>PF</th><th>RF</th><th>Índice Pressão</th></tr></thead><tbody>`;
-        for(let n=0; n<6; n++) {
-          const pf = dadosPFRF.PFxPRem[n];
-          const rf = dadosPFRF.RFxPRem[n];
-          const idx = calculaIndicePressao(pf, rf);
-          html += `<tr><td>${n+1}</td><td>${formatNum(pf)}</td><td>${formatNum(rf)}</td><td>${idx}</td></tr>`;
-        }
-        html += `</tbody></table>`;
+    // Pega os dados PF e RF do csv3 para o id dado
+    // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
+    function pegaDadosPF(id) {
+      const reg = dadosPF.find(r => (r.id_secagenscore||'').trim() === id);
+      if (!reg) return null;
+      // Extrair os 6 valores de cada grupo:
+      const PFxTAquec = [], RFxTAquec = [], PFxPRem = [], RFxPRem = [];
+      for(let n=1; n<=6; n++) {
+        PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
+        RFxTAquec.push(parseNum(reg[`RF${n}TAquec`]));
+        PFxPRem.push(parseNum(reg[`PF${n}PRem`]));
+        RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
       }
+      return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
+    }
 
-      html += `<strong>Taxas de Remoção (L/(h*t)) em blocos de 3h nas últimas 18h:</strong><br><ul>`;
-      taxasRemocao.forEach((tx,i) => {
-        html += `<li>${['15-18h','12-15h','9-12h','6-9h','3-6h','0-3h'][i]} atrás: ${tx}</li>`;
+    document.getElementById('csvMeta').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
       });
-      html += `</ul></div>`;
-      
-      desenharGraficoTaxasRemocao(taxasRemocao);
+      r.readAsText(f);
     });
 
-    out.innerHTML = html;
-    document.getElementById('btnExportarPDF').style.display = 'inline-block';
-  });
-
-  // --- Exportar para PDF ---
-  document.getElementById('btnExportarPDF').addEventListener('click', () => {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF();
-    html2canvas(document.getElementById('resultado')).then(canvas => {
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save('transformadores.pdf');
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
     });
-  });
-</script>
+
+    document.getElementById('csv3').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosPF = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
+
+    document.getElementById('btnFiltrar').addEventListener('click', () => {
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.';
+        return;
+      }
+
+      const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.';
+        return;
+      }
+
+      let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
+
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLC(id, m.massai);
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
+        const teMax = maxTEfromSerie(id);
+        const pe417 = minPE(id, 'PE_4_17');
+        const pe551 = minPE(id, 'PE_5_5_1');
+
+        // Pegar dados PF e RF do csv3
+        const dadosPFRF = pegaDadosPF(id);
+        function mostrarTaxasRemocao18Horas(taxasPorHora) {
+  const blocos = [
+    '15-18', '12-15', '9-12', '6-9', '3-6', '0-3'
+  ];
+  const resultado = [];
+
+  for (let i = 0; i < 6; i++) {
+    const inicio = i * 3;
+    const fim = inicio + 3;
+    const bloco = taxasPorHora.slice(inicio, fim);
+    const soma = bloco.reduce((acc, val) => acc + (isFinite(val) ? val : 0), 0);
+    const media = bloco.length > 0 ? soma / bloco.length : 0;
+    resultado.unshift(`Bloco ${blocos[i]}: ${media.toFixed(2)}%`);
+  }
+
+  document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
+}
+
+
+        html += `<div class="transformador-dados">
+          <strong>#${i+1} — ID:</strong> ${id}<br>
+          <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
+          <strong>Massa dos isolantes:</strong> ${formatNum(mTon, 3)} t<br>
+          <strong>Duração total:</strong> ${formatNum(stats.dur, 2)} h<br>
+          <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
+          <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
+          <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+          <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
+          <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
+
+       if(dadosPFRF) {
+  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxTAquec</th>
+      <th>RFxTAquec</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
+
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>TAquec ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxPRem</th>
+      <th>RFxPRem</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
+
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>PRem ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+} else {
+  html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
+}
+
+html += `</div>`;
+      });
+
+      out.innerHTML = html;
+      document.getElementById('btnExportarPDF').style.display = 'inline-block';
+    });
+
+    document.getElementById("btnExportarPDF").addEventListener("click", async () => {
+      const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
+      const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let cursorY = 20;
+      const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
+      for (let i = 0; i < transformadores.length; i++) {
+        const el = transformadores[i];
+        await html2canvas(el, { scale: 2 }).then(canvas => {
+          const imgData = canvas.toDataURL("image/png");
+          const imgProps = doc.getImageProperties(imgData);
+          const imgWidth = pageWidth - 40;
+          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+          if (cursorY + imgHeight > pageHeight - 20) {
+            doc.addPage();
+            cursorY = 20;
+          }
+          doc.addImage(imgData, "PNG", 20, cursorY, imgWidth, imgHeight);
+          cursorY += imgHeight + 10;
+        });
+      }
+      const pot = document.getElementById("potenciaInput").value.trim().replace(/\s+/g, "_");
+      const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
+      doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
+    });
+  </script>
+
 </body>
 </html>
-
