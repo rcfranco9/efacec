@@ -405,72 +405,75 @@ document.getElementById('btnComparar').addEventListener('click', () => {
       </tr>
     </thead>
     <tbody>`;
-
-  // Mostra até 18h (6 blocos de 3h), mas blocosHoraAHora são hora a hora. Vamos mostrar os primeiros 18 (ou menos)
-  const blocos1 = blocosHoraAHora1.slice(0, 18);
-  const blocos2 = blocosHoraAHora2.slice(0, 18);
-
-  for (let i = 0; i < blocos1.length; i++) {
-    const b1 = blocos1[i];
-    const b2 = blocos2[i] || { taxa: NaN, intervalo: '' };
-    html += `<tr>
-      <td>${b1.intervalo}</td>
-      <td>${formatNum(b1.taxa)}</td>
-      <td>${formatNum(b2.taxa)}</td>
-    </tr>`;
-  }
-  html += `</tbody></table>`;
-
-  out.innerHTML = html;
-
   // Gráfico de taxas ao longo do tempo para os dois transformadores
-  const ctx = document.getElementById('graficoTaxas').getContext('2d');
+ function calcularTaxasRemocaoAguaPorHora(dados) {
+      const taxas = [];
+      const horas = [];
 
-  // Destrói gráfico anterior (se existir)
-  if(window.graficoAtual) {
-    window.graficoAtual.destroy();
-  }
+      for (let i = 1; i < dados.length; i++) {
+        const anterior = parseFloat(dados[i - 1].valor);
+        const atual = parseFloat(dados[i].valor);
 
-  const labels = blocosHoraAHora1.map(b => b.intervalo);
-  const dados1 = blocosHoraAHora1.map(b => b.taxa);
-  const dados2 = blocosHoraAHora2.map(b => b.taxa);
-
-  window.graficoAtual = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: m1.subprojecto || id1,
-          data: dados1,
-          borderColor: 'rgb(54, 162, 235)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          fill: true,
-          tension: 0.2,
-        },
-        {
-          label: m2.subprojecto || id2,
-          data: dados2,
-          borderColor: 'rgb(255, 99, 132)',
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          fill: true,
-          tension: 0.2,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Taxa (L/h*t)' }
-        },
-        x: {
-          title: { display: true, text: 'Intervalo de tempo' }
+        if (!isNaN(anterior) && !isNaN(atual)) {
+          const taxa = anterior - atual;
+          taxas.push(taxa.toFixed(2));
+          horas.push("Hora " + i);
         }
       }
+
+      return { horas, taxas };
     }
-  });
+
+    function desenharGrafico(taxas, horas) {
+      const ctx = document.getElementById("graficoTaxas").getContext("2d");
+
+      if (chart) {
+        chart.destroy(); // Remove o gráfico anterior
+      }
+
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: horas,
+          datasets: [{
+            label: "Taxa de Remoção de Água (por hora)",
+            data: taxas,
+            borderColor: "blue",
+            backgroundColor: "lightblue",
+            fill: false,
+            tension: 0.1,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: "Taxa"
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: "Horas"
+              }
+            }
+          }
+        }
+      });
+    }
 
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
 });
