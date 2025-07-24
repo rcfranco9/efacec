@@ -179,30 +179,29 @@
         .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
       return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
     }
-// Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
-function calculaIndiceTemperatura(pf, rf) {
-  if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  const diff = rf - pf;
-  if (diff >= 5) return '100%';
-  if (diff <= -5) return '0%';
-  const proporcao = (diff + 5) / 10; // linear entre -5 e 5
-  const indice = Math.round(proporcao * 100);
-  return `${indice}%`;
-}
+    // Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
+    function calculaIndiceTemperatura(pf, rf) {
+      if (isNaN(pf) || isNaN(rf)) return 'N/A';
+      const diff = rf - pf;
+      if (diff >= 5) return '100%';
+      if (diff <= -5) return '0%';
+      const proporcao = (diff + 5) / 10; // linear entre -5 e 5
+      const indice = Math.round(proporcao * 100);
+      return `${indice}%`;
+    }
 
-// Função para calcular índice para PRem (pressões) - com a tua regra inversa
-function calculaIndicePressao(pf, rf) {
-  if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  const diff = rf - pf;
-  if (diff >= 5) return '0%';
-  if (diff <= -5) return '100%';
-  if (diff === 0) return '50%';
-  // interpolação linear entre -5 e 5, invertida
-  const proporcao = (5 - diff) / 10;
-  const indice = Math.round(proporcao * 100);
-  return `${indice}%`;
-}
-
+    // Função para calcular índice para PRem (pressões) - com a tua regra inversa
+    function calculaIndicePressao(pf, rf) {
+      if (isNaN(pf) || isNaN(rf)) return 'N/A';
+      const diff = rf - pf;
+      if (diff >= 5) return '0%';
+      if (diff <= -5) return '100%';
+      if (diff === 0) return '50%';
+      // interpolação linear entre -5 e 5, invertida
+      const proporcao = (5 - diff) / 10;
+      const indice = Math.round(proporcao * 100);
+      return `${indice}%`;
+    }
 
     // Pega os dados PF e RF do csv3 para o id dado
     // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
@@ -218,6 +217,42 @@ function calculaIndicePressao(pf, rf) {
         RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
       }
       return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
+    }
+
+    // Função que calcula médias das taxas LC_3_8 em blocos de 3h para as últimas 18h para um dado transformador
+    function calculaTaxasRemocaoBlocos(id) {
+      // Filtra registos do transformador com LC_3_8 e DataHora válidos
+      const registos = dadosSerie
+        .filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora)
+        .map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
+
+      if (registos.length === 0) return Array(6).fill('N/A');
+
+      // Ordena do mais recente para o mais antigo
+      registos.sort((a,b) => b.ts - a.ts);
+
+      const agora = registos[0].ts;  // timestamp mais recente
+      const blocos = [];
+
+      // Para cada bloco de 3h, dos últimos 18h (6 blocos)
+      for(let i=0; i<6; i++) {
+        const fim = agora - i * 3 * 3600000;
+        const inicio = fim - 3 * 3600000;
+
+        // Filtra os registos nesse bloco
+        const bloco = registos.filter(r => r.ts > inicio && r.ts <= fim);
+
+        if (bloco.length === 0) {
+          blocos.unshift('N/A');
+          continue;
+        }
+
+        // Média dos valores no bloco
+        const media = bloco.reduce((acc, cur) => acc + cur.valor, 0) / bloco.length;
+        blocos.unshift(media.toFixed(3));
+      }
+      return blocos; // Array com 6 médias, do bloco mais antigo (15-18h) até o mais recente (0-3h)
     }
 
     document.getElementById('csvMeta').addEventListener('change', e => {
@@ -280,24 +315,9 @@ function calculaIndicePressao(pf, rf) {
 
         // Pegar dados PF e RF do csv3
         const dadosPFRF = pegaDadosPF(id);
-        function mostrarTaxasRemocao18Horas(taxasPorHora) {
-  const blocos = [
-    '15-18', '12-15', '9-12', '6-9', '3-6', '0-3'
-  ];
-  const resultado = [];
 
-  for (let i = 0; i < 6; i++) {
-    const inicio = i * 3;
-    const fim = inicio + 3;
-    const bloco = taxasPorHora.slice(inicio, fim);
-    const soma = bloco.reduce((acc, val) => acc + (isFinite(val) ? val : 0), 0);
-    const media = bloco.length > 0 ? soma / bloco.length : 0;
-    resultado.unshift(`Bloco ${blocos[i]}: ${media.toFixed(2)}%`);
-  }
-
-  document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
-}
-
+        // Calcular médias das taxas LC nos blocos 3h últimos 18h
+        const mediasRemocao = calculaTaxasRemocaoBlocos(id);
 
         html += `<div class="transformador-dados">
           <strong>#${i+1} — ID:</strong> ${id}<br>
@@ -309,87 +329,87 @@ function calculaIndicePressao(pf, rf) {
           <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
           <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
           <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
-          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>
+          <strong>Médias da Taxa LC (últimas 18h em blocos de 3h):</strong>
+          <ul style="list-style:none; padding-left:0; margin: 5px 0 15px 0;">
+            <li><strong>15-18h atrás:</strong> ${mediasRemocao[0]}</li>
+            <li><strong>12-15h atrás:</strong> ${mediasRemocao[1]}</li>
+            <li><strong>9-12h atrás:</strong> ${mediasRemocao[2]}</li>
+            <li><strong>6-9h atrás:</strong> ${mediasRemocao[3]}</li>
+            <li><strong>3-6h atrás:</strong> ${mediasRemocao[4]}</li>
+            <li><strong>0-3h atrás:</strong> ${mediasRemocao[5]}</li>
+          </ul>`;
 
-       if(dadosPFRF) {
-  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
-  <table><thead>
-    <tr>
-      <th>Nº</th>
-      <th>PFxTAquec</th>
-      <th>RFxTAquec</th>
-      <th>Índice</th>
-    </tr>
-  </thead><tbody>`;
+        if(dadosPFRF) {
+          html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+          <table><thead>
+            <tr>
+              <th>Nº</th>
+              <th>PFxTAquec</th>
+              <th>RFxTAquec</th>
+              <th>Índice</th>
+            </tr>
+          </thead><tbody>`;
 
-  for(let j=0; j<6; j++) {
-    html += `<tr>
-      <td>TAquec ${j+1}</td>
-      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-    </tr>`;
-  }
-  html += `</tbody></table>`;
+          for(let j=0; j<6; j++) {
+            html += `<tr>
+              <td>TAquec ${j+1}</td>
+              <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+              <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+              <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+            </tr>`;
+          }
 
-  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
-  <table><thead>
-    <tr>
-      <th>Nº</th>
-      <th>PFxPRem</th>
-      <th>RFxPRem</th>
-      <th>Índice</th>
-    </tr>
-  </thead><tbody>`;
+          html += `</tbody></table>`;
 
-  for(let j=0; j<6; j++) {
-    html += `<tr>
-      <td>PRem ${j+1}</td>
-      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-    </tr>`;
-  }
-  html += `</tbody></table>`;
+          html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+          <table><thead>
+            <tr>
+              <th>Nº</th>
+              <th>PFxPRem</th>
+              <th>RFxPRem</th>
+              <th>Índice</th>
+            </tr>
+          </thead><tbody>`;
 
-} else {
-  html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
-}
+          for(let j=0; j<6; j++) {
+            html += `<tr>
+              <td>PRem ${j+1}</td>
+              <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+              <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+              <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+            </tr>`;
+          }
 
-html += `</div>`;
+          html += `</tbody></table>`;
+        } else {
+          html += `<p>Dados PF/RF não disponíveis para este transformador.</p>`;
+        }
+
+        html += `</div>`;
       });
 
       out.innerHTML = html;
       document.getElementById('btnExportarPDF').style.display = 'inline-block';
     });
 
-    document.getElementById("btnExportarPDF").addEventListener("click", async () => {
-      const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
-      const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      let cursorY = 20;
-      const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
-      for (let i = 0; i < transformadores.length; i++) {
-        const el = transformadores[i];
-        await html2canvas(el, { scale: 2 }).then(canvas => {
-          const imgData = canvas.toDataURL("image/png");
-          const imgProps = doc.getImageProperties(imgData);
-          const imgWidth = pageWidth - 40;
-          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-          if (cursorY + imgHeight > pageHeight - 20) {
-            doc.addPage();
-            cursorY = 20;
-          }
-          doc.addImage(imgData, "PNG", 20, cursorY, imgWidth, imgHeight);
-          cursorY += imgHeight + 10;
+    document.getElementById('btnExportarPDF').addEventListener('click', () => {
+      const out = document.getElementById('resultado');
+      html2canvas(out).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
         });
-      }
-      const pot = document.getElementById("potenciaInput").value.trim().replace(/\s+/g, "_");
-      const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
-      doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth() - 20; // margem 10mm cada lado
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
+        pdf.save('relatorio-transformadores.pdf');
+      });
     });
-  </script>
 
+  </script>
 </body>
 </html>
