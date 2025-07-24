@@ -92,7 +92,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadoresaaa</h1>
+<h1>Consulta de Transformadores</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -413,13 +413,14 @@ function buscarPorNome() {
 
   // Criar gráficos para cada bloco encontrado
   encontradosGlobais.forEach((meta, index) => {
-    const id = meta.id_secagenscore?.trim();
-    if (!id) return;
-    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-    if (!serie.length) return;
-    criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon);
+  const id = meta.id_secagenscore?.trim();
+  if (!id) return;
+  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+  if (!serie.length) return;
+  const massaiTon = Number(meta.massai) / 1000; // calcular aqui!
+  criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon);
+});
 
-  });
 
   // Mostrar botão exportar PDF
   document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
