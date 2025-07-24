@@ -447,13 +447,16 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
 
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
 
-  const mediasPorHora = chavesOrdenadas.map(chave => {
-    const valores = dadosPorHora[chave];
-    const soma = valores.reduce((acc, val) => acc + val, 0);
-    return soma / valores.length;
-  });
+ const taxasHoraAHora = chavesOrdenadas.map(chave => {
+  const valores = dadosPorHora[chave];
+  if (!valores || valores.length < 2) return 0; // não dá para calcular diferença
 
-  const taxasHoraAHora = mediasPorHora.map(mediaLC => mediaLC / massaTon);
+  const valorInicial = valores[0];
+  const valorFinal = valores[valores.length - 1];
+  const difLC = valorFinal - valorInicial;
+
+  return difLC / (1 * massaTon); // duração é 1 hora
+});
 
   const pontosGrafico = taxasHoraAHora.map((taxa, index) => ({ x: index, y: taxa }));
 
