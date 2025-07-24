@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -340,7 +340,7 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
 
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-const labels = blocos1.map(b => b.intervalo).reverse();
+const labels = blocos1.map(b => b.intervalo);
 const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 
@@ -384,9 +384,11 @@ window.chartTaxas = new Chart(ctx, {
     },
     scales: {
       x: {
-        title: { display: true, text: 'Intervalo de Horas (há horas atrás)' }
-        reverse: true 
+        title: { display: true, text: 'Intervalo de Horas (há horas atrás)'
+               },
+          reverse: true 
       },
+      
       y: {
         title: { display: true, text: 'Taxa (L/h*t)' },
         beginAtZero: true
