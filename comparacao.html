@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -375,6 +375,14 @@ window.chartTaxas = new Chart(ctx, {
   },
   options: {
     responsive: true,
+      layout: {
+    padding: {
+      left: 10,
+      right: 20,  // mais espaço à direita para não cortar o último label
+      top: 10,
+      bottom: 10
+      }
+    },
     plugins: {
       legend: { position: 'top' },
       title: {
@@ -386,6 +394,7 @@ window.chartTaxas = new Chart(ctx, {
       x: {
         title: { display: true, text: 'Intervalo de Horas (há horas atrás)'
                },
+        
           reverse: true 
       },
       
