@@ -340,61 +340,64 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
 
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-document.getElementById('csvFile').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
+function calcularTaxasRemocaoAguaPorHora(dados) {
+      const horas = [];
+      const taxas = [];
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function (results) {
-          const data = results.data;
-          const lcValues = data.map(row => parseFloat(row['LC_3_8'])).filter(v => !isNaN(v));
+      for (let i = 1; i < dados.length; i++) {
+        const anterior = parseFloat(dados[i - 1]['LC_3_8']);
+        const atual = parseFloat(dados[i]['LC_3_8']);
 
-          const taxas = [];
-          for (let i = 1; i < lcValues.length; i++) {
-            const diff = lcValues[i - 1] - lcValues[i];
-            taxas.push(diff >= 0 ? diff : 0);
-          }
+        if (!isNaN(anterior) && !isNaN(atual)) {
+          const taxa = anterior - atual;
+          taxas.push(taxa);
+          horas.push(i); // 1, 2, 3, 4, ...
+        }
+      }
 
-          const horas = taxas.map((_, i) => i + 1); // eixo x: hora 1, 2, 3...
+      return { horas, taxas };
+    }
 
-          const ctx = document.getElementById('taxaChart').getContext('2d');
-          new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: horas,
-              datasets: [{
-                label: 'Taxa de Remoção de Água (LC_3_8)',
-                data: taxas,
-                borderColor: 'blue',
-                backgroundColor: 'lightblue',
-                fill: true,
-                tension: 0.3
-              }]
+    function desenharGrafico(taxas, horas) {
+      const ctx = document.getElementById('graficoTaxaRemocao').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: horas,
+          datasets: [{
+            label: 'Taxa de Remoção de Água (por hora)',
+            data: taxas,
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0, 123, 255, 0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Taxa de Remoção de Água por Hora'
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Hora'
+              }
             },
-            options: {
-              scales: {
-                x: {
-                  title: {
-                    display: true,
-                    text: 'Horas'
-                  }
-                },
-                y: {
-                  title: {
-                    display: true,
-                    text: 'Taxa de Remoção'
-                  },
-                  beginAtZero: true
-                }
+            y: {
+              title: {
+                display: true,
+                text: 'Taxa de Remoção (LC anterior - LC atual)'
               }
             }
-          });
+          }
         }
       });
-    });
-  
+    }
   let html = '';
 
   [m1, m2].forEach((m) => {
@@ -550,6 +553,15 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.save("comparacao_transformadores.pdf");
   });
 });
+    Papa.parse("dados.csv", {
+    header: true,
+    download: true,
+    complete: function(result) {
+      const dados = result.data;
+      const { horas, taxas } = calcularTaxasRemocaoAguaPorHora(dados);
+      desenharGrafico(taxas, horas);
+    }
+  });
 
 </script>
 
