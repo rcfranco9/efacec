@@ -344,14 +344,29 @@ const labels = blocos1.map(b => b.intervalo).reverse();
 const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 
+const serie1 = getSerie(id1);
+const serie2 = getSerie(id2);
+
+function formatHora(ts) {
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+// Usar timestamps da primeira série para os labels
+const labels = serie1.map(p => formatHora(p.ts));
+
+// Usar LC_3_8 para o y
+const data1 = serie1.map(p => p.lc);
+const data2 = serie2.map(p => p.lc);
+
 const ctx = document.getElementById("graficoTaxas").getContext("2d");
 
-// Se já existir gráfico, destrói para não acumular
+// Se gráfico já existir, destruir
 if (window.chartTaxas) {
   window.chartTaxas.destroy();
 }
 
-// Criar novo gráfico
+// Criar gráfico com a série completa hora a hora
 window.chartTaxas = new Chart(ctx, {
   type: 'line',
   data: {
@@ -362,50 +377,40 @@ window.chartTaxas = new Chart(ctx, {
         data: data1,
         borderColor: 'rgba(41, 128, 185, 1)',
         backgroundColor: 'rgba(41, 128, 185, 0.1)',
-        tension: 0.3
+        tension: 0.3,
+        fill: true,
       },
       {
         label: `${m2.subprojecto || id2}`,
         data: data2,
         borderColor: 'rgba(231, 76, 60, 1)',
         backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        tension: 0.3
+        tension: 0.3,
+        fill: true,
       }
     ]
   },
   options: {
     responsive: true,
-      layout: {
-    padding: {
-      left: 10,
-      right: 20,  // mais espaço à direita para não cortar o último label
-      top: 10,
-      bottom: 10
-      }
-    },
     plugins: {
       legend: { position: 'top' },
       title: {
         display: true,
-        text: 'Taxa de Remoção de Água nas Últimas 18h (blocos de 3h)'
+        text: 'Evolução da Secagem Hora a Hora (LC_3_8)'
       }
     },
     scales: {
       x: {
-        title: { display: true, text: 'Intervalo de Horas (há horas atrás)'
-               },
-        
-          reverse: true 
+        title: { display: true, text: 'Hora' },
+        ticks: { maxRotation: 90, minRotation: 45 }
       },
-      
       y: {
-        title: { display: true, text: 'Taxa (L/h*t)' },
+        title: { display: true, text: 'LC_3_8' },
         beginAtZero: true
       }
     }
   }
 });
-
   
   let html = '';
 
