@@ -52,6 +52,12 @@
       background-color: #95a5a6;
       cursor: not-allowed;
     }
+    #taxas-remocao {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #34495e;
+      text-align: center;
+    }
     #resultado {
       margin-top: 30px;
       padding: 20px;
@@ -96,7 +102,6 @@
 <body>
 
   <h1>Filtragem de Transformadores com Índices PF/RF</h1>
-    <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
   <input type="file" id="csvMeta" accept=".csv" />
@@ -114,6 +119,8 @@
   <input type="text" id="tensaoInput" placeholder="Tensão" disabled />
 
   <button id="btnFiltrar" disabled>Procurar</button>
+
+  <div id="taxas-remocao"></div>
 
   <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
 
@@ -140,6 +147,54 @@
       if (ok) {
         document.getElementById('resultado').textContent = 'CSV carregados. Insere potência e tensão.';
       }
+    }
+
+    // Calcula as médias de taxa de remoção LC em blocos de 3 horas, até 18 horas
+    function calculaTaxasRemocaoPorBloco() {
+      // Usar todos os dados LC_3_8 ordenados por DataHora
+      const dadosOrdenados = dadosSerie
+        .filter(r => r.LC_3_8 && r.DataHora)
+        .map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.valor))
+        .sort((a,b) => a.ts - b.ts);
+      if (dadosOrdenados.length < 2) {
+        return [];
+      }
+      // Último timestamp
+      const ultimoTS = dadosOrdenados[dadosOrdenados.length -1].ts;
+      // Vamos criar uma array com 18 horas anteriores divididas em 6 blocos de 3h
+      const blocos = [];
+      for (let i=0; i<6; i++) {
+        const fimBloco = ultimoTS - (i * 3 * 3600000);
+        const inicioBloco = fimBloco - (3 * 3600000);
+        blocos.push({ inicio: inicioBloco, fim: fimBloco });
+      }
+      // Para cada bloco, calcular média da taxa (diferença entre último e primeiro valor dividido por horas * massa)
+      // Como não temos massa geral, vamos simplesmente fazer média dos valores dentro do bloco
+      // Aqui vamos filtrar valores que estão dentro de cada bloco e calcular média simples
+      const medias = blocos.map(({inicio, fim}) => {
+        const valoresBloco = dadosOrdenados.filter(r => r.ts > inicio && r.ts <= fim).map(r => r.valor);
+        if (valoresBloco.length === 0) return NaN;
+        // Média dos valores do bloco
+        const mediaBloco = valoresBloco.reduce((a,b) => a+b, 0) / valoresBloco.length;
+        return mediaBloco;
+      });
+      // Inverter para mostrar de forma cronológica (blocos mais antigos primeiro)
+      return medias.reverse();
+    }
+
+    // Função para mostrar as médias no HTML
+    function mostrarTaxasRemocao18Horas(taxasPorHora) {
+      const blocosLabels = [
+        '0-3h atrás', '3-6h atrás', '6-9h atrás',
+        '9-12h atrás', '12-15h atrás', '15-18h atrás'
+      ];
+      const resultado = [];
+      for (let i = 0; i < taxasPorHora.length; i++) {
+        const val = isNaN(taxasPorHora[i]) ? 'N/A' : taxasPorHora[i].toFixed(2);
+        resultado.push(`Bloco ${blocosLabels[i]}: ${val} L (média)`);
+      }
+      document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
     }
 
     function calcLC(id, massaiKg) {
@@ -179,37 +234,31 @@
         .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
       return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
     }
-// Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
-function calculaIndiceTemperatura(pf, rf) {
-  if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  const diff = rf - pf;
-  if (diff >= 5) return '100%';
-  if (diff <= -5) return '0%';
-  const proporcao = (diff + 5) / 10; // linear entre -5 e 5
-  const indice = Math.round(proporcao * 100);
-  return `${indice}%`;
-}
 
-// Função para calcular índice para PRem (pressões) - com a tua regra inversa
-function calculaIndicePressao(pf, rf) {
-  if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  const diff = rf - pf;
-  if (diff >= 5) return '0%';
-  if (diff <= -5) return '100%';
-  if (diff === 0) return '50%';
-  // interpolação linear entre -5 e 5, invertida
-  const proporcao = (5 - diff) / 10;
-  const indice = Math.round(proporcao * 100);
-  return `${indice}%`;
-}
+    function calculaIndiceTemperatura(pf, rf) {
+      if (isNaN(pf) || isNaN(rf)) return 'N/A';
+      const diff = rf - pf;
+      if (diff >= 5) return '100%';
+      if (diff <= -5) return '0%';
+      const proporcao = (diff + 5) / 10; // linear entre -5 e 5
+      const indice = Math.round(proporcao * 100);
+      return `${indice}%`;
+    }
 
+    function calculaIndicePressao(pf, rf) {
+      if (isNaN(pf) || isNaN(rf)) return 'N/A';
+      const diff = rf - pf;
+      if (diff >= 5) return '0%';
+      if (diff <= -5) return '100%';
+      if (diff === 0) return '50%';
+      const proporcao = (5 - diff) / 10;
+      const indice = Math.round(proporcao * 100);
+      return `${indice}%`;
+    }
 
-    // Pega os dados PF e RF do csv3 para o id dado
-    // Retorna o objeto com arrays PFxTAquec, RFxTAquec, PFxPRem, RFxPRem
     function pegaDadosPF(id) {
       const reg = dadosPF.find(r => (r.id_secagenscore||'').trim() === id);
       if (!reg) return null;
-      // Extrair os 6 valores de cada grupo:
       const PFxTAquec = [], RFxTAquec = [], PFxPRem = [], RFxPRem = [];
       for(let n=1; n<=6; n++) {
         PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
@@ -262,6 +311,10 @@ function calculaIndicePressao(pf, rf) {
         return;
       }
 
+      // Calcular e mostrar médias de remoção de água (taxas LC_3_8) em blocos de 3h nas últimas 18h
+      const mediasTaxas = calculaTaxasRemocaoPorBloco();
+      mostrarTaxasRemocao18Horas(mediasTaxas);
+
       const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
       if (!encontrados.length) {
         out.textContent = 'Nenhum transformador encontrado.';
@@ -278,26 +331,7 @@ function calculaIndicePressao(pf, rf) {
         const pe417 = minPE(id, 'PE_4_17');
         const pe551 = minPE(id, 'PE_5_5_1');
 
-        // Pegar dados PF e RF do csv3
         const dadosPFRF = pegaDadosPF(id);
-        function mostrarTaxasRemocao18Horas(taxasPorHora) {
-  const blocos = [
-    '15-18', '12-15', '9-12', '6-9', '3-6', '0-3'
-  ];
-  const resultado = [];
-
-  for (let i = 0; i < 6; i++) {
-    const inicio = i * 3;
-    const fim = inicio + 3;
-    const bloco = taxasPorHora.slice(inicio, fim);
-    const soma = bloco.reduce((acc, val) => acc + (isFinite(val) ? val : 0), 0);
-    const media = bloco.length > 0 ? soma / bloco.length : 0;
-    resultado.unshift(`Bloco ${blocos[i]}: ${media.toFixed(2)}%`);
-  }
-
-  document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
-}
-
 
         html += `<div class="transformador-dados">
           <strong>#${i+1} — ID:</strong> ${id}<br>
