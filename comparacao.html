@@ -340,93 +340,63 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
 
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-function calculaTaxasHoraASeguir(id, massaKg) {
-  const serie = getSerie(id); // função que já deves ter no teu código
-  if (serie.length < 2) return { labels: [], taxas: [] };
+function calcularTaxaRemocaoPorHora(dadosLC) {
+    const taxas = [];
+    for (let i = 1; i < dadosLC.length; i++) {
+      const anterior = parseFloat(dadosLC[i - 1]);
+      const atual = parseFloat(dadosLC[i]);
 
-  const ton = parseNum(massaKg) / 1000 || 1;
-  const taxas = [];
-
-  for (let i = 1; i < serie.length; i++) {
-    const deltaLC = serie[i].lc - serie[i - 1].lc;
-    const deltaH = (serie[i].ts - serie[i - 1].ts) / (1000 * 3600); // em horas
-    if (deltaH > 0) {
-      const taxa = deltaLC / (deltaH * ton);
-      taxas.push(+taxa.toFixed(4));
-    } else {
-      taxas.push(null);
+      if (!isNaN(anterior) && !isNaN(atual)) {
+        const diferenca = anterior - atual;
+        taxas.push(diferenca.toFixed(3)); // taxa por hora
+      } else {
+        taxas.push(null); // para manter o alinhamento
+      }
     }
+    return taxas;
   }
 
-  const labels = taxas.map((_, i) => (i + 1).toString());
-
-  return { labels, taxas };
-}
-
-// Chamada
-const { labels: labels1, taxas: taxas1 } = calculaTaxasHoraASeguir(id1, m1.massai);
-const { labels: labels2, taxas: taxas2 } = calculaTaxasHoraASeguir(id2, m2.massai);
-
-// Criar gráfico
-const ctx = document.getElementById("graficoTaxas").getContext("2d");
-if (window.chartTaxas) window.chartTaxas.destroy();
-
-window.chartTaxas = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels1.length > labels2.length ? labels1 : labels2,
-    datasets: [
-      {
-        label: `${m1.subprojecto || id1}`,
-        data: taxas1,
-        borderColor: 'rgba(41, 128, 185, 1)',
-        backgroundColor: 'rgba(41, 128, 185, 0.1)',
-        tension: 0.3,
-        fill: true
+  function plotarGraficoTaxaRemocao(taxas) {
+    const ctx = document.getElementById('graficoTaxaRemocao').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: taxas.map((_, i) => i + 1), // Horas 1,2,3,...
+        datasets: [{
+          label: 'Taxa de Remoção de Água (LC/h)',
+          data: taxas,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.2
+        }]
       },
-      {
-        label: `${m2.subprojecto || id2}`,
-        data: taxas2,
-        borderColor: 'rgba(231, 76, 60, 1)',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        tension: 0.3,
-        fill: true
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: {
-        display: true,
-        text: 'Taxa de Remoção de Água Hora a Hora (L/(h*t))'
-      }
-    },
-    scales: {
-      x: {
-        type: 'category',
-        title: {
-          display: true,
-          text: 'Hora'
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Taxa de Remoção de Água por Hora'
+          }
         },
-        ticks: {
-          stepSize: 1,
-          maxRotation: 0,
-          minRotation: 0
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Hora'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Taxa LC por Hora'
+            }
+          }
         }
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Taxa (L/h*t)'
-        },
-        beginAtZero: true
       }
-    }
+    });
   }
-});
-
 
 
   
