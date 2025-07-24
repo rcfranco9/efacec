@@ -413,49 +413,7 @@
         pdf.save('relatorio_transformadores.pdf');
       });
     });
-    function mostrarGraficoTaxas(taxasPorHora) {
-  const labels = ['-18h', '-15h', '-12h', '-9h', '-6h', '-3h'];
-  const ctx = document.getElementById("graficoTaxasRemocao").getContext("2d");
-
-  new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Taxas (%)",
-        data: taxasPorHora,
-        fill: false,
-        borderColor: "blue",
-        tension: 0.1,
-        pointBackgroundColor: "blue",
-        pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: false,
-      plugins: {
-        legend: {
-          display: true,
-          position: 'top'
-        }
-      },
-      scales: {
-        y: {
-          title: {
-            display: true,
-            text: 'Taxa (%)'
-          }
-        },
-        x: {
-          title: {
-            display: true,
-            text: 'Horas anteriores'
-          }
-        }
-      }
-    }
-  });
-}
+ 
   </script>
 <div class="grafico-taxas">
   <h3>Taxas de Remoção de Água (últimas 18h em blocos de 3h)</h3>
