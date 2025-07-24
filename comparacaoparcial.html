@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Filtragem de Transformadores com Índices</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -309,6 +310,35 @@
       });
       r.readAsText(f);
     });
+    // Função para desenhar gráfico de barras simples com as taxas de remoção
+function desenharGraficoTaxasRemocao(taxas) {
+  const ctx = document.getElementById('graficoTaxasRemocao').getContext('2d');
+
+  // Se já existir gráfico anterior, destrói para evitar sobreposição
+  if(window.meuGrafico) {
+    window.meuGrafico.destroy();
+  }
+
+  window.meuGrafico = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['15-18h atrás', '12-15h atrás', '9-12h atrás', '6-9h atrás', '3-6h atrás', '0-3h atrás'],
+      datasets: [{
+        label: 'Taxas de remoção (L/(h*t))',
+        data: taxas.map(t => isNaN(t) ? 0 : parseFloat(t)),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
 
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
@@ -396,6 +426,17 @@
 
         html += '</div>';
       });
+      if (encontrados.length > 0) {
+  const primeiroId = (encontrados[0].id_secagenscore || '').trim();
+  const primeiraMassa = encontrados[0].massai;
+
+  // Calcula as taxas de remoção em blocos de 3h para o primeiro transformador
+  const taxasParaGrafico = calculaTaxasRemocaoBlocos(primeiroId, primeiraMassa);
+
+  // Desenha o gráfico
+  desenharGraficoTaxasRemocao(taxasParaGrafico);
+}
+
 
       out.innerHTML = html;
       document.getElementById('btnExportarPDF').style.display = 'inline-block';
