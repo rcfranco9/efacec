@@ -120,6 +120,8 @@
 <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
+  
+<canvas id="graficoTaxas" style="max-width: 100%; margin-top: 40px;"></canvas>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 <canvas id="graficoTaxas" style="max-width: 100%; margin-top: 40px;"></canvas>
 
@@ -335,7 +337,62 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
   const pe2_417 = minPE(id2, 'PE_4_17');
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
+// Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
+const labels = blocos1.map(b => b.intervalo).reverse();
+const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
+const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 
+const ctx = document.getElementById("graficoTaxas").getContext("2d");
+
+// Se já existir gráfico, destrói para não acumular
+if (window.chartTaxas) {
+  window.chartTaxas.destroy();
+}
+
+// Criar novo gráfico
+window.chartTaxas = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [
+      {
+        label: `${m1.subprojecto || id1}`,
+        data: data1,
+        borderColor: 'rgba(41, 128, 185, 1)',
+        backgroundColor: 'rgba(41, 128, 185, 0.1)',
+        tension: 0.3
+      },
+      {
+        label: `${m2.subprojecto || id2}`,
+        data: data2,
+        borderColor: 'rgba(231, 76, 60, 1)',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: 'Taxa de Remoção de Água nas Últimas 18h (blocos de 3h)'
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Intervalo de Horas (há horas atrás)' }
+      },
+      y: {
+        title: { display: true, text: 'Taxa (L/h*t)' },
+        beginAtZero: true
+      }
+    }
+  }
+});
+
+  
   let html = '';
 
   [m1, m2].forEach((m) => {
@@ -490,66 +547,6 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
     pdf.save("comparacao_transformadores.pdf");
   });
-});
-  // Gerar gráfico de taxas nas últimas 18h (blocos 3h)
-const ctx = document.getElementById("graficoTaxas").getContext("2d");
-
-const labels = blocos1.map(b => b.intervalo).reverse(); // para mostrar 0-3h mais à direita
-const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
-const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
-
-if (window.chartTaxas) {
-  window.chartTaxas.destroy(); // destrói gráfico anterior se já existir
-}
-
-window.chartTaxas = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [
-      {
-        label: `${m1.subprojecto || id1}`,
-        data: data1,
-        borderColor: 'rgba(41, 128, 185, 1)',
-        backgroundColor: 'rgba(41, 128, 185, 0.1)',
-        tension: 0.3
-      },
-      {
-        label: `${m2.subprojecto || id2}`,
-        data: data2,
-        borderColor: 'rgba(231, 76, 60, 1)',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        tension: 0.3
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top'
-      },
-      title: {
-        display: true,
-        text: 'Taxa de Remoção de Água nas Últimas 18h (3h em 3h)'
-      }
-    },
-    scales: {
-      x: {
-        title: {
-          display: true,
-          text: 'Horas atrás'
-        }
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Taxa (L/h*t)'
-        },
-        beginAtZero: true
-      }
-    }
-  }
 });
 
 </script>
