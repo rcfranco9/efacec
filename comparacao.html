@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Comparar Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
@@ -187,7 +186,7 @@ function calcTaxa(id, massaKg) {
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
 
-  function calcTaxaPorBlocos(id, massaKg) {
+function calcTaxaPorBlocos(id, massaKg) {
   const serie = getSerie(id);
   if (serie.length < 2) return null;
 
@@ -214,7 +213,6 @@ function calcTaxa(id, massaKg) {
   return blocos;
 }
 
-
 function diffClass(v) {
   if (v > 0) return 'diff-positive';
   if (v < 0) return 'diff-negative';
@@ -234,31 +232,24 @@ function checkReady() {
 document.getElementById('csvMeta').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosMeta = res.data; checkReady(); }
-  });
+  // Aqui deves implementar a leitura dos ficheiros CSV para dadosMeta,
+  // usando PapaParse ou outro método, se quiseres carregar ficheiros dinamicamente.
+  // No entanto, neste código não incluí PapaParse.
+  alert('Carregamento de CSV não implementado neste exemplo.');
 });
 
 document.getElementById('csvSerie').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosSerie = res.data; checkReady(); }
-  });
+  alert('Carregamento de CSV não implementado neste exemplo.');
 });
 
 document.getElementById('csvTerceiro').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosTerceiro = res.data; checkReady(); }
-  });
+  alert('Carregamento de CSV não implementado neste exemplo.');
 });
 
-// Agora a função getValorCampo vai buscar no dadosTerceiro
 function getValorCampo(id, campo) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
   if (!reg) return null;
@@ -270,7 +261,6 @@ function classeIndice(indiceStr) {
   return parseInt(indiceStr) >= 50 ? 'diff-positive' : 'diff-negative';
 }
 
-// Funções de cálculo de índice temperatura e pressão
 function calculaIndiceTemperatura(pf, rf) {
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
   if (pf === 0 && rf === 0) return 'N/A'; // se ambos zero, N/A
@@ -294,7 +284,6 @@ function calculaIndicePressao(pf, rf) {
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
 }
-
 
 document.getElementById('btnComparar').addEventListener('click', () => {
   const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
@@ -322,8 +311,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
   const blocos1 = calcTaxaPorBlocos(id1, m1.massai);
-const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
-
+  const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
 
   if (!t1 || !t2) {
     out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
@@ -338,66 +326,7 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  
-// Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-function calcularTaxasRemocaoAguaPorHora(dados) {
-      const horas = [];
-      const taxas = [];
-
-      for (let i = 1; i < dados.length; i++) {
-        const anterior = parseFloat(dados[i - 1]['LC_3_8']);
-        const atual = parseFloat(dados[i]['LC_3_8']);
-
-        if (!isNaN(anterior) && !isNaN(atual)) {
-          const taxa = anterior - atual;
-          taxas.push(taxa);
-          horas.push(i); // 1, 2, 3, 4, ...
-        }
-      }
-
-      return { horas, taxas };
-    }
-
-    function desenharGrafico(taxas, horas) {
-      const ctx = document.getElementById('graficoTaxaRemocao').getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: horas,
-          datasets: [{
-            label: 'Taxa de Remoção de Água (por hora)',
-            data: taxas,
-            borderColor: 'blue',
-            backgroundColor: 'rgba(0, 123, 255, 0.2)',
-            fill: true,
-            tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Taxa de Remoção de Água por Hora'
-            }
-          },
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'Hora'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Taxa de Remoção (LC anterior - LC atual)'
-              }
-            }
-          }
-        }
-      });
-    }
+  // Prepara o HTML para mostrar os resultados
   let html = '';
 
   [m1, m2].forEach((m) => {
@@ -447,123 +376,114 @@ function calcularTaxasRemocaoAguaPorHora(dados) {
   </thead>
   <tbody>`;
 
-for (let i = 0; i < 6; i++) {
-  const b1 = blocos1[i] || {};
-  const b2 = blocos2[i] || {};
-  html += `<tr>
-    <td>${b1.intervalo || 'N/A'}</td>
-    <td>${formatNum(b1.taxa)}</td>
-    <td>${formatNum(b2.taxa)}</td>
-  </tr>`;
-}
+  for (let i = 0; i < 6; i++) {
+    const b1 = blocos1[i] || {};
+    const b2 = blocos2[i] || {};
+    html += `<tr>
+      <td>${b1.intervalo || 'N/A'}</td>
+      <td>${formatNum(b1.taxa)}</td>
+      <td>${formatNum(b2.taxa)}</td>
+    </tr>`;
+  }
 
-html += `</tbody></table>`;
+  html += `</tbody></table>`;
 
-
-  // Bloco PFxTAquec, RFxTAquec e Índices (temperatura)
   html += `<hr><h3>Comparação PFxTAquec e RFxTAquec</h3>`;
   html += `<table>
   <thead>
     <tr>
       <th>Parâmetro</th>
-      <th>${m1.subprojecto || id1} PF</th>
-      <th>${m1.subprojecto || id1} RF</th>
-      <th>Índice ${m1.subprojecto || id1}</th>
-      <th>${m2.subprojecto || id2} PF</th>
-      <th>${m2.subprojecto || id2} RF</th>
-      <th>Índice ${m2.subprojecto || id2}</th>
+      <th>Transformador 1</th>
+      <th>Transformador 2</th>
+      <th>Índice Temperatura</th>
+      <th>Índice Pressão</th>
     </tr>
   </thead>
   <tbody>`;
 
-  for (let n = 1; n <= 6; n++) {
-    const pf1 = parseNum(getValorCampo(id1, `PF${n}TAquec`));
-    const rf1 = parseNum(getValorCampo(id1, `RF${n}TAquec`));
-    const pf2 = parseNum(getValorCampo(id2, `PF${n}TAquec`));
-    const rf2 = parseNum(getValorCampo(id2, `RF${n}TAquec`));
+  const pf1 = parseNum(getValorCampo(id1, 'PFxTAquec'));
+  const pf2 = parseNum(getValorCampo(id2, 'PFxTAquec'));
+  const rf1 = parseNum(getValorCampo(id1, 'RFxTAquec'));
+  const rf2 = parseNum(getValorCampo(id2, 'RFxTAquec'));
 
-    const idx1 = calculaIndiceTemperatura(pf1, rf1);
-    const idx2 = calculaIndiceTemperatura(pf2, rf2);
+  const indTemp = calculaIndiceTemperatura(pf1, rf1);
+  const indPress = calculaIndicePressao(pf1, rf1);
 
-    html += `<tr>
-      <td>TAquec ${n}</td>
-      <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
-      <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
-      <td class="${classeIndice(idx1)}">${idx1}</td>
-      <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
-      <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
-      <td class="${classeIndice(idx2)}">${idx2}</td>
-    </tr>`;
-  }
+  html += `<tr>
+    <td>PFxTAquec</td>
+    <td>${formatNum(pf1)}</td>
+    <td>${formatNum(pf2)}</td>
+    <td rowspan="2" class="${classeIndice(indTemp)}">${indTemp}</td>
+    <td rowspan="2" class="${classeIndice(indPress)}">${indPress}</td>
+  </tr>`;
 
-  html += `</tbody></table>`;
-
-  // Bloco PFxPRem, RFxPRem e Índices (pressão)
-  html += `<hr><h3>Comparação PFxPRem e RFxPRem</h3>`;
-  html += `<table>
-  <thead>
-    <tr>
-      <th>Parâmetro</th>
-      <th>${m1.subprojecto || id1} PF</th>
-      <th>${m1.subprojecto || id1} RF</th>
-      <th>Índice ${m1.subprojecto || id1}</th>
-      <th>${m2.subprojecto || id2} PF</th>
-      <th>${m2.subprojecto || id2} RF</th>
-      <th>Índice ${m2.subprojecto || id2}</th>
-    </tr>
-  </thead>
-  <tbody>`;
-
-  for (let n = 1; n <= 6; n++) {
-    const pf1 = parseNum(getValorCampo(id1, `PF${n}PRem`));
-    const rf1 = parseNum(getValorCampo(id1, `RF${n}PRem`));
-    const pf2 = parseNum(getValorCampo(id2, `PF${n}PRem`));
-    const rf2 = parseNum(getValorCampo(id2, `RF${n}PRem`));
-
-    const idx1 = calculaIndicePressao(pf1, rf1);
-    const idx2 = calculaIndicePressao(pf2, rf2);
-
-    html += `<tr>
-      <td>PRem ${n}</td>
-      <td>${isNaN(pf1) ? 'N/A' : pf1}</td>
-      <td>${isNaN(rf1) ? 'N/A' : rf1}</td>
-      <td class="${classeIndice(idx1)}">${idx1}</td>
-      <td>${isNaN(pf2) ? 'N/A' : pf2}</td>
-      <td>${isNaN(rf2) ? 'N/A' : rf2}</td>
-      <td class="${classeIndice(idx2)}">${idx2}</td>
-    </tr>`;
-  }
+  html += `<tr>
+    <td>RFxTAquec</td>
+    <td>${formatNum(rf1)}</td>
+    <td>${formatNum(rf2)}</td>
+  </tr>`;
 
   html += `</tbody></table>`;
 
   out.innerHTML = html;
-  document.getElementById("btnExportarPDF").style.display = 'inline-block';
-});
 
-document.getElementById("btnExportarPDF").addEventListener("click", () => {
-  const resultado = document.getElementById("resultado");
-  html2canvas(resultado, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jspdf.jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: [canvas.width, canvas.height]
-    });
-    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-    pdf.save("comparacao_transformadores.pdf");
-  });
-});
-    Papa.parse("dados.csv", {
-    header: true,
-    download: true,
-    complete: function(result) {
-      const dados = result.data;
-      const { horas, taxas } = calcularTaxasRemocaoAguaPorHora(dados);
-      desenharGrafico(taxas, horas);
+  // Desenha o gráfico de taxa total e taxa 10h para os dois transformadores
+
+  const ctx = document.getElementById('grafico-taxa-remocao').getContext('2d');
+  if (window.graficoExistente) {
+    window.graficoExistente.destroy();
+  }
+
+  window.graficoExistente = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Taxa Total (L/h*t)', 'Taxa Últimas 10h (L/h*t)'],
+      datasets: [
+        {
+          label: m1.subprojecto || id1,
+          data: [t1.taxaTotal, t1.taxa10h],
+          backgroundColor: 'rgba(54, 162, 235, 0.7)'
+        },
+        {
+          label: m2.subprojecto || id2,
+          data: [t2.taxaTotal, t2.taxa10h],
+          backgroundColor: 'rgba(255, 99, 132, 0.7)'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Comparação das Taxas de Remoção de Água'
+        }
+      }
     }
   });
 
-</script>
+  document.getElementById("btnExportarPDF").style.display = 'inline-block';
+});
 
+// Exportar para PDF
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+  const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+  const elemento = document.getElementById('resultado');
+
+  html2canvas(elemento).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth() - 40;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+    pdf.addImage(imgData, 'PNG', 20, 20, pdfWidth, pdfHeight);
+    pdf.save('comparacao_transformadores.pdf');
+  });
+});
+
+</script>
 </body>
 </html>
