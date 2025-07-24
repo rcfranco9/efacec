@@ -88,39 +88,28 @@
       margin: 20px 0;
       border-top: 1px dashed #aaa;
     }
-    /* Área para mostrar valores hora a hora */
-    #taxasHoraValor {
-      margin-top: 15px;
-      background: #f0f8ff;
-      padding: 10px;
-      border-radius: 6px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      max-height: 150px;
-      overflow-y: auto;
-    }
   </style>
 </head>
 <body>
 
-<h1>Consulta de Transformadoresaaaa</h1>
+<h1>Consulta de Transformadores</h1>
 
-<label for="csvFile1">CSV1 (Metadados):</label>
+<label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
 
-<label for="csvFile2">CSV2 (Série temporal):</label>
+<label for="csvFile2">CSV2:</label>
 <input type="file" id="csvFile2" accept=".csv" />
 
-<label for="csvFile3">CSV3 (Referências):</label>
+<label for="csvFile3">CSV3:</label>
 <input type="file" id="csvFile3" accept=".csv" />
 
 <label for="nomeInput">Nome do transformador:</label>
 <input type="text" id="nomeInput" disabled placeholder="Insere o nome do transformador" />
 
 <button onclick="buscarPorNome()" disabled id="btnBuscar">Procurar</button>
+<canvas id="graficoTaxas" width="400" height="200" style="margin-top: 20px;"></canvas>
 
 <div id="resultado">Por favor, carrega os ficheiros CSV antes de procurar.</div>
-
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
@@ -176,7 +165,6 @@ function calcularIndice(pf, rf) {
   if (r >= p + 5) return '100%';
   if (r <= p - 5) return '0%';
   if (r === p) return '50%';
-
   let indice = 50 + ((r - p) * 10);
   if (indice < 0) indice = 0;
   if (indice > 100) indice = 100;
@@ -191,7 +179,6 @@ function calculaIndicePressao(pf, rf) {
   if (diff >= 5) return '0%';
   if (diff <= -5) return '100%';
   if (diff === 0) return '50%';
-
   const proporcao = (5 - diff) / 10;
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
@@ -223,56 +210,53 @@ function buscarPorNome() {
     const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
     if (!serie.length) return;
 
-    // Valores LC e datas ordenadas
     const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-    if (!valoresLC.length) return;
+    const difLC = valoresLC.length > 0 ? valoresLC[valoresLC.length - 1] : 0; 
 
-    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a - b);
+    const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a, b) => a - b);
     if (datas.length < 2) return;
 
-    // Duração total em horas
     const duracao = (datas[datas.length - 1] - datas[0]) / 36e5;
-
-    // Massa isolantes em toneladas (assumindo meta.massai em kg)
     const massaiTon = Number(meta.massai) / 1000;
+    const taxaLC = (difLC / (duracao * massaiTon));
 
-    // Diferença total LC e taxa total
-    const difLC = valoresLC[valoresLC.length -1] - valoresLC[0];
-    const taxaLC = difLC / (duracao * massaiTon);
-
-    // Últimas 10h
-    const final = datas[datas.length - 1];
-    const inicial10h = new Date(final.getTime() - 10 * 3600000);
-    const ultimos10h = serie.filter(l => {
+    const final = new Date(datas[datas.length - 1]);
+    const inicial = new Date(final.getTime() - 10 * 60 * 60 * 1000);
+    const ultimos = serie.filter(l => {
       const d = new Date(l.DataHora);
-      return d >= inicial10h && d <= final;
-    }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+      return !isNaN(d) && d >= inicial && d <= final;
+    }).sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 
     let difLC10h = 0, taxa10h = 0;
-    if (ultimos10h.length >= 2) {
-      difLC10h = Number(ultimos10h[ultimos10h.length -1].LC_3_8) - Number(ultimos10h[0].LC_3_8);
+    if (ultimos.length >= 2) {
+      const lcInicial = Number(ultimos[0].LC_3_8);
+      const lcFinal = Number(ultimos[ultimos.length - 1].LC_3_8);
+      difLC10h = lcFinal - lcInicial;
       taxa10h = difLC10h / (10 * massaiTon);
     }
 
-    // Taxas hora a hora (diferenças entre cada hora)
-    // Vamos assumir que DataHora está bem ordenada, e que é em formato ISO
-    // Criar array de objetos {date, LC_3_8} ordenados
-    const dadosOrdenados = serie
-      .map(l => ({ date: new Date(l.DataHora), valor: Number(l.LC_3_8) }))
-      .filter(d => !isNaN(d.date) && !isNaN(d.valor))
-      .sort((a,b) => a.date - b.date);
+    const taxas3h = [];
+    for (let i = 0; i < 6; i++) {
+      const fimIntervalo = new Date(datas[datas.length - 1].getTime() - (i * 3 * 3600000));
+      const inicioIntervalo = new Date(fimIntervalo.getTime() - 3 * 3600000);
+      const registrosIntervalo = serie.filter(l => {
+        const d = new Date(l.DataHora);
+        return d >= inicioIntervalo && d <= fimIntervalo;
+      }).sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
 
-    // Calcular diferença por hora entre medições consecutivas
-    const taxasHora = [];
-    for (let i=1; i < dadosOrdenados.length; i++) {
-      const diffHora = (dadosOrdenados[i].date - dadosOrdenados[i-1].date) / 3600000;
-      if (diffHora <= 0) continue; // ignorar dados mal ordenados ou repetidos
-      const diffLC = dadosOrdenados[i-1].valor - dadosOrdenados[i].valor; // queda LC
-      const taxaHora = diffLC / (diffHora * massaiTon);
-      taxasHora.push({ hora: dadosOrdenados[i].date.toLocaleString('pt-PT'), taxa: taxaHora });
+      if (registrosIntervalo.length >= 2) {
+        const lcInicio = Number(registrosIntervalo[0].LC_3_8);
+        const lcFim = Number(registrosIntervalo[registrosIntervalo.length - 1].LC_3_8);
+        if (!isNaN(lcInicio) && !isNaN(lcFim)) {
+          const difIntervalo = lcFim - lcInicio;
+          const taxaIntervalo = difIntervalo / (3 * massaiTon);
+          taxas3h.unshift(taxaIntervalo);
+          continue;
+        }
+      }
+      taxas3h.unshift(null);
     }
 
-    // Máximo TE_5_4_X
     const colunasTE = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE = null;
     serie.forEach(linha => {
@@ -284,7 +268,6 @@ function buscarPorNome() {
       });
     });
 
-    // Mínimos PE_5_5_1 e PE_4_17
     let minPE_5_5_1 = null, minPE_4_17 = null;
     serie.forEach(linha => {
       const val1 = Number(linha.PE_5_5_1);
@@ -297,7 +280,6 @@ function buscarPorNome() {
       }
     });
 
-    // Dados ref (CSV3)
     const serieRef = dadosCSV3.filter(l => (l.id_secagenscore || '').trim() === id);
 
     html += `
@@ -317,17 +299,23 @@ function buscarPorNome() {
           <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
         </div>
       </div>
-
       <hr>
 
-      <p><strong>Taxas hora a hora:</strong></p>
-      <div id="taxasHoraValor${index}" style="background:#f0f8ff; padding:10px; border-radius:6px; font-family: monospace; max-height:150px; overflow-y:auto;">
-        ${taxasHora.length > 0 ? taxasHora.map(t => `${t.hora}: ${t.taxa.toFixed(3)} L/(h*t)`).join('\n') : 'Sem dados suficientes para calcular taxas hora a hora.'}
-      </div>
-      <canvas id="graficoTaxaHora${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
+      <p><strong>Taxas de remoção a cada 3h nas últimas 18h:</strong></p>
+      <ul>
+    `;
 
+    for (let i = 0; i < 6; i++) {
+      const taxa = taxas3h[i];
+      const inicioHora = i * 3;
+      const fimHora = inicioHora + 3;
+      html += `<li>${inicioHora}h - ${fimHora}h atrás: ${taxa !== null ? formatNum(taxa) + ' L/(h*t)' : 'N/A'}</li>`;
+    }
+
+    html += `
+      </ul>
       <hr>
-
+      <canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
       <div class="coluna-dados">
         <div>
           <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE, 2)} ºC</p>
@@ -337,21 +325,24 @@ function buscarPorNome() {
           <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17, 3)} mbar</p>
         </div>
       </div>
-
       <hr>
+    `;
 
-      <div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
-      if (serieRef.length) {
-        for (let n = 1; n <= 6; n++) {
-          html += `<p><strong>PF${n}TAquec:</strong> ${serieRef[0][`PF${n}TAquec`] ?? 'N/A'}</p>`;
-        }
-      } else {
-        html += `<p>Sem dados PFxTAquec para este ID.</p>`;
+    // PFxTAquec e RFxTAquec
+    html += `<div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
+    if (serieRef.length) {
+      for (let n = 1; n <= 6; n++) {
+        const pfVal = serieRef[0][`PF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>PF${n}TAquec:</strong> ${pfVal}</p>`;
       }
+    } else {
+      html += `<p>Sem dados PFxTAquec para este ID.</p>`;
+    }
     html += `</div><div><h4>Valores RFxTAquec</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        html += `<p><strong>RF${n}TAquec:</strong> ${serieRef[0][`RF${n}TAquec`] ?? 'N/A'}</p>`;
+        const rfVal = serieRef[0][`RF${n}TAquec`] ?? 'N/A';
+        html += `<p><strong>RF${n}TAquec:</strong> ${rfVal}</p>`;
       }
     } else {
       html += `<p>Sem dados RFxTAquec para este ID.</p>`;
@@ -361,8 +352,8 @@ function buscarPorNome() {
     // Índices PFxTAquec vs RFxTAquec
     html += `<hr><div><h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
     for (let n = 1; n <= 6; n++) {
-      const pf = Number(serieRef[0]?.[`PF${n}TAquec`]);
-      const rf = Number(serieRef[0]?.[`RF${n}TAquec`]);
+      const pf = Number(serieRef[0][`PF${n}TAquec`]);
+      const rf = Number(serieRef[0][`RF${n}TAquec`]);
 
       let indiceStr = 'N/A';
       if (!isNaN(pf) && !isNaN(rf)) {
@@ -380,7 +371,8 @@ function buscarPorNome() {
     html += `<hr><div class="coluna-dados"><div><h4>Valores PFxPRem</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        html += `<p><strong>PF${n}PRem:</strong> ${serieRef[0][`PF${n}PRem`] ?? 'N/A'}</p>`;
+        const pfVal = serieRef[0][`PF${n}PRem`] ?? 'N/A';
+        html += `<p><strong>PF${n}PRem:</strong> ${pfVal}</p>`;
       }
     } else {
       html += `<p>Sem dados PFxPRem para este ID.</p>`;
@@ -388,18 +380,19 @@ function buscarPorNome() {
     html += `</div><div><h4>Valores RFxPRem</h4>`;
     if (serieRef.length) {
       for (let n = 1; n <= 6; n++) {
-        html += `<p><strong>RF${n}PRem:</strong> ${serieRef[0][`RF${n}PRem`] ?? 'N/A'}</p>`;
+        const rfVal = serieRef[0][`RF${n}PRem`] ?? 'N/A';
+        html += `<p><strong>RF${n}PRem:</strong> ${rfVal}</p>`;
       }
     } else {
       html += `<p>Sem dados RFxPRem para este ID.</p>`;
     }
     html += `</div></div>`;
 
-    // Índices PFxPRem vs RFxPRem (índice pressão)
-    html += `<hr><div><h4>Índices PFxPRem vs RFxPRem (Pressão)</h4><ul>`;
+    // Índices PFxPRem vs RFxPRem
+    html += `<hr><div><h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
     for (let n = 1; n <= 6; n++) {
-      const pf = Number(serieRef[0]?.[`PF${n}PRem`]);
-      const rf = Number(serieRef[0]?.[`RF${n}PRem`]);
+      const pf = Number(serieRef[0][`PF${n}PRem`]);
+      const rf = Number(serieRef[0][`RF${n}PRem`]);
 
       let indiceStr = 'N/A';
       if (!isNaN(pf) && !isNaN(rf)) {
@@ -409,50 +402,27 @@ function buscarPorNome() {
           indiceStr = calculaIndicePressao(pf, rf);
         }
       }
-      html += `<li><strong>Índice PF${n} vs RF${n} (Pressão):</strong> ${indiceStr}</li>`;
+      html += `<li><strong>Índice PF${n} vs RF${n} (pressão):</strong> ${indiceStr}</li>`;
     }
     html += `</ul></div>`;
 
-    html += `</div>`; // fecha bloco transformador
+    html += `</div>`;
   });
 
   out.innerHTML = html;
 
-  // Criar gráficos taxa hora a hora para cada transformador encontrado
-encontradosGlobais.forEach((meta, index) => {
-  const id = meta.id_secagenscore?.trim();
-  if (!id) return;
-  
-  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-  if (!serie.length) return;
-
-  // Cria o gráfico da taxa hora a hora para o canvas com id 'graficoTaxa' + index
-encontradosGlobais.forEach((meta, index) => {
-  const id = meta.id_secagenscore?.trim();
-  if (!id) return;
-  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-  if (!serie.length) return;
-  criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie);
-});
-
-  // Primeiro, agrupar os dados por hora
-  const dadosPorHora = {};
-
-  dadosSerie.forEach(linha => {
-    const dataHora = new Date(linha.DataHora);
-    if (isNaN(dataHora)) return;
-
-    // Arredonda para a hora (minutos, segundos, ms = 0)
-    dataHora.setMinutes(0, 0, 0);
-    const key = dataHora.getTime();
-
-    if (!dadosPorHora[key]) dadosPorHora[key] = [];
-    const valorLC = parseFloat(linha.LC_3_8);
-    if (!isNaN(valorLC)) dadosPorHora[key].push(valorLC);
+  // Criar gráficos para cada bloco encontrado
+  encontradosGlobais.forEach((meta, index) => {
+    const id = meta.id_secagenscore?.trim();
+    if (!id) return;
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+    if (!serie.length) return;
+    criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie);
   });
 
-  // Ordenar as chaves (timestamps)
-  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b) => a - b);
+  // Mostrar botão exportar PDF
+  document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
+}
 
 // Função para criar gráfico taxa hora a hora
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
@@ -526,21 +496,21 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
   });
 }
 
-
-  // Mostrar botão exportar PDF
-  document.getElementById('btnExportarPDF').style.display = 'block';
-}),
-
+// Exportar resultado para PDF
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
-  const resultado = document.getElementById('resultado');
-  html2canvas(resultado).then(canvas => {
+  const elemento = document.getElementById('resultado');
+  html2canvas(elemento).then(canvas => {
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
-    const imgProps= pdf.getImageProperties(imgData);
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save("Relatorio_Transformador.pdf");
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+    const imgX = (pdfWidth - imgWidth * ratio) / 2;
+    const imgY = 20;
+    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+    pdf.save('resultado_transformadores.pdf');
   });
 });
 </script>
