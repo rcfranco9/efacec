@@ -417,7 +417,8 @@ function buscarPorNome() {
     if (!id) return;
     const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
     if (!serie.length) return;
-    criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie);
+    criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon);
+
   });
 
   // Mostrar botão exportar PDF
@@ -425,13 +426,13 @@ function buscarPorNome() {
 }
 
 // Função para criar gráfico taxa hora a hora
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   const dadosPorHora = {};
 
   dadosSerie.forEach(linha => {
     const dataHora = new Date(linha.DataHora);
     if (isNaN(dataHora)) return;
-    dataHora.setMinutes(0, 0, 0);
+    dataHora.setMinutes(0, 0, 0); // arredondar para a hora cheia
     const chaveHora = dataHora.getTime();
     if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
     const valorLC = parseFloat(linha.LC_3_8);
@@ -440,20 +441,20 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
 
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
 
+  // Calcula a média LC por hora
   const mediasPorHora = chavesOrdenadas.map(chave => {
     const valores = dadosPorHora[chave];
     const soma = valores.reduce((acc, val) => acc + val, 0);
     return soma / valores.length;
   });
 
-  const taxasHoraAHora = [];
-  for (let i = 1; i < mediasPorHora.length; i++) {
-    const dif = mediasPorHora[i] - mediasPorHora[i - 1];
-    taxasHoraAHora.push(dif);
-  }
+  // Agora calculamos a taxa LC por hora dividindo pela massa e pela duração = 1 hora
+  const taxasHoraAHora = mediasPorHora.map(mediaLC => mediaLC / massaTon);
 
+  // Prepara dados para o gráfico (x = índice hora, y = taxa)
   const pontosGrafico = taxasHoraAHora.map((taxa, index) => ({ x: index, y: taxa }));
 
+  // Apagar gráfico antigo se existir
   if (window[idCanvas + '_chart']) {
     window[idCanvas + '_chart'].destroy();
   }
@@ -463,10 +464,10 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
     type: 'scatter',
     data: {
       datasets: [{
-        label: 'Taxa hora a hora (diferença LC_3_8)',
+        label: 'Taxa LC por hora (L/(h*t))',
         data: pontosGrafico,
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
         pointRadius: 5
       }]
     },
@@ -476,7 +477,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
         legend: { display: true },
         tooltip: {
           callbacks: {
-            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)}`
+            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
           }
         }
       },
@@ -489,7 +490,8 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
           max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
         },
         y: {
-          title: { display: true, text: 'Diferença LC_3_8' }
+          title: { display: true, text: 'Taxa LC (L/(h*t))' },
+          beginAtZero: true
         }
       }
     }
