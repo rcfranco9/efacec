@@ -91,12 +91,21 @@
     strong {
       color: #2c3e50;
     }
+    ul {
+      list-style:none;
+      padding-left: 0;
+      margin: 5px 0 15px 0;
+    }
+    ul li strong {
+      display: inline-block;
+      width: 110px;
+    }
   </style>
 </head>
 <body>
 
   <h1>Filtragem de Transformadores com Índices PF/RF</h1>
-    <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
+  <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
   <input type="file" id="csvMeta" accept=".csv" />
@@ -179,6 +188,7 @@
         .map(r => parseNum(r[coluna])).filter(v => !isNaN(v) && v > 0.1);
       return valores.length ? Math.min(...valores).toFixed(3) : 'N/A';
     }
+    
     // Função para calcular índice para TAquec (temperaturas) - mantém a lógica original
     function calculaIndiceTemperatura(pf, rf) {
       if (isNaN(pf) || isNaN(rf)) return 'N/A';
@@ -219,8 +229,8 @@
       return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
     }
 
-    // Função que calcula médias das taxas LC_3_8 em blocos de 3h para as últimas 18h para um dado transformador
-    function calculaTaxasRemocaoBlocos(id) {
+    // Nova função para calcular as taxas de remoção LC em blocos de 3h nas últimas 18h
+    function calculaTaxasRemocaoBlocos(id, massaiKg) {
       // Filtra registos do transformador com LC_3_8 e DataHora válidos
       const registos = dadosSerie
         .filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora)
@@ -229,30 +239,40 @@
 
       if (registos.length === 0) return Array(6).fill('N/A');
 
-      // Ordena do mais recente para o mais antigo
-      registos.sort((a,b) => b.ts - a.ts);
+      // Ordena do mais antigo para o mais recente (ascendente)
+      registos.sort((a,b) => a.ts - b.ts);
 
-      const agora = registos[0].ts;  // timestamp mais recente
-      const blocos = [];
+      const now = registos[registos.length - 1].ts;  // timestamp mais recente
+      const ton = parseNum(massaiKg) / 1000 || 1;
 
-      // Para cada bloco de 3h, dos últimos 18h (6 blocos)
-      for(let i=0; i<6; i++) {
-        const fim = agora - i * 3 * 3600000;
+      const blocosTaxas = [];
+
+      for(let i=5; i>=0; i--) { // i = 5: 0-3h atrás ... i=0: 15-18h atrás
+        const fim = now - i * 3 * 3600000;
         const inicio = fim - 3 * 3600000;
 
-        // Filtra os registos nesse bloco
-        const bloco = registos.filter(r => r.ts > inicio && r.ts <= fim);
+        // Pega os registos dentro do bloco [inicio, fim]
+        const bloco = registos.filter(r => r.ts >= inicio && r.ts <= fim);
 
-        if (bloco.length === 0) {
-          blocos.unshift('N/A');
+        if (bloco.length < 2) {
+          blocosTaxas.push('N/A');
           continue;
         }
 
-        // Média dos valores no bloco
-        const media = bloco.reduce((acc, cur) => acc + cur.valor, 0) / bloco.length;
-        blocos.unshift(media.toFixed(3));
+        // Valores extremos no bloco
+        const valInicio = bloco[0].valor;
+        const valFim = bloco[bloco.length - 1].valor;
+
+        // Diferença LC
+        const deltaLC = valFim - valInicio;
+
+        // Taxa = diferença / (3h * ton)
+        const taxa = deltaLC / (3 * ton);
+
+        blocosTaxas.push(taxa.toFixed(3));
       }
-      return blocos; // Array com 6 médias, do bloco mais antigo (15-18h) até o mais recente (0-3h)
+
+      return blocosTaxas; // array de 6 valores, do bloco 15-18h até 0-3h atrás
     }
 
     document.getElementById('csvMeta').addEventListener('change', e => {
@@ -316,8 +336,8 @@
         // Pegar dados PF e RF do csv3
         const dadosPFRF = pegaDadosPF(id);
 
-        // Calcular médias das taxas LC nos blocos 3h últimos 18h
-        const mediasRemocao = calculaTaxasRemocaoBlocos(id);
+        // Calcula taxas de remoção por blocos de 3h
+        const taxasRemocao = calculaTaxasRemocaoBlocos(id, m.massai);
 
         html += `<div class="transformador-dados">
           <strong>#${i+1} — ID:</strong> ${id}<br>
@@ -327,66 +347,52 @@
           <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
           <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
           <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+          
+          <strong>Taxas de remoção LC (últimas 18h em blocos de 3h):</strong>
+          <ul>
+            <li><strong>15-18h atrás:</strong> ${taxasRemocao[0]}</li>
+            <li><strong>12-15h atrás:</strong> ${taxasRemocao[1]}</li>
+            <li><strong>9-12h atrás:</strong> ${taxasRemocao[2]}</li>
+            <li><strong>6-9h atrás:</strong> ${taxasRemocao[3]}</li>
+            <li><strong>3-6h atrás:</strong> ${taxasRemocao[4]}</li>
+            <li><strong>0-3h atrás:</strong> ${taxasRemocao[5]}</li>
+          </ul>
+
           <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
           <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
-          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>
-          <strong>Médias da Taxa LC (últimas 18h em blocos de 3h):</strong>
-          <ul style="list-style:none; padding-left:0; margin: 5px 0 15px 0;">
-            <li><strong>15-18h atrás:</strong> ${mediasRemocao[0]}</li>
-            <li><strong>12-15h atrás:</strong> ${mediasRemocao[1]}</li>
-            <li><strong>9-12h atrás:</strong> ${mediasRemocao[2]}</li>
-            <li><strong>6-9h atrás:</strong> ${mediasRemocao[3]}</li>
-            <li><strong>3-6h atrás:</strong> ${mediasRemocao[4]}</li>
-            <li><strong>0-3h atrás:</strong> ${mediasRemocao[5]}</li>
-          </ul>`;
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
 
-        if(dadosPFRF) {
-          html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
-          <table><thead>
-            <tr>
-              <th>Nº</th>
-              <th>PFxTAquec</th>
-              <th>RFxTAquec</th>
-              <th>Índice</th>
-            </tr>
-          </thead><tbody>`;
+       if(dadosPFRF) {
+  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+  <table>
+    <thead><tr><th>#</th><th>PFxTAquec</th><th>RFxTAquec</th><th>Índice TAquec</th></tr></thead><tbody>`;
+  for(let j=0;j<6;j++) {
+    html += `<tr>
+      <td>${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j], 3)}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j], 3)}</td>
+      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
 
-          for(let j=0; j<6; j++) {
-            html += `<tr>
-              <td>TAquec ${j+1}</td>
-              <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-              <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-              <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-            </tr>`;
-          }
+  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+  <table>
+    <thead><tr><th>#</th><th>PFxPRem</th><th>RFxPRem</th><th>Índice PRem</th></tr></thead><tbody>`;
+  for(let j=0;j<6;j++) {
+    html += `<tr>
+      <td>${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j], 3)}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j], 3)}</td>
+      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+} else {
+  html += `<p><em>Sem dados PFx/RFx para este transformador.</em></p>`;
+}
 
-          html += `</tbody></table>`;
-
-          html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
-          <table><thead>
-            <tr>
-              <th>Nº</th>
-              <th>PFxPRem</th>
-              <th>RFxPRem</th>
-              <th>Índice</th>
-            </tr>
-          </thead><tbody>`;
-
-          for(let j=0; j<6; j++) {
-            html += `<tr>
-              <td>PRem ${j+1}</td>
-              <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-              <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-              <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-            </tr>`;
-          }
-
-          html += `</tbody></table>`;
-        } else {
-          html += `<p>Dados PF/RF não disponíveis para este transformador.</p>`;
-        }
-
-        html += `</div>`;
+        html += '</div>';
       });
 
       out.innerHTML = html;
@@ -394,22 +400,19 @@
     });
 
     document.getElementById('btnExportarPDF').addEventListener('click', () => {
-      const out = document.getElementById('resultado');
-      html2canvas(out).then(canvas => {
+      const element = document.getElementById('resultado');
+      html2canvas(element).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jspdf.jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4'
-        });
+        const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
         const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth() - 20; // margem 10mm cada lado
+        const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth, pdfHeight);
-        pdf.save('relatorio-transformadores.pdf');
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save('relatorio_transformadores.pdf');
       });
     });
-
   </script>
+
 </body>
 </html>
+ml>
