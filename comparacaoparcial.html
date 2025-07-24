@@ -318,26 +318,54 @@ function desenharGraficoTaxasRemocao(taxas) {
   if(window.meuGrafico) {
     window.meuGrafico.destroy();
   }
+function desenharGraficoTaxasRemocaoPontos(taxas) {
+  const ctx = document.getElementById('graficoTaxasRemocao').getContext('2d');
+
+  if(window.meuGrafico) {
+    window.meuGrafico.destroy();
+  }
+
+  // Prepara os pontos (x, y), aqui x é índice (0 a 5) ou tempo, y é taxa
+  const pontos = taxas.map((t, i) => ({
+    x: i,
+    y: isNaN(t) ? null : parseFloat(t)
+  }));
 
   window.meuGrafico = new Chart(ctx, {
-    type: 'bar',
+    type: 'scatter',
     data: {
-      labels: ['15-18h atrás', '12-15h atrás', '9-12h atrás', '6-9h atrás', '3-6h atrás', '0-3h atrás'],
       datasets: [{
         label: 'Taxas de remoção (L/(h*t))',
-        data: taxas.map(t => isNaN(t) ? 0 : parseFloat(t)),
-        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 1
+        data: pontos,
+        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+        pointRadius: 6,
+        showLine: true, // liga os pontos com linha
+        borderColor: 'rgba(255, 99, 132, 0.7)',
       }]
     },
     options: {
       scales: {
-        y: { beginAtZero: true }
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          ticks: {
+            callback: function(value) {
+              // Mapeia índices para labels
+              const labels = ['15-18h atrás', '12-15h atrás', '9-12h atrás', '6-9h atrás', '3-6h atrás', '0-3h atrás'];
+              return labels[value] || value;
+            },
+          },
+          min: 0,
+          max: 5
+        },
+        y: {
+          beginAtZero: true
+        }
       }
     }
   });
 }
+
 
 
     document.getElementById('btnFiltrar').addEventListener('click', () => {
