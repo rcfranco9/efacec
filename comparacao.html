@@ -321,9 +321,6 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
-  const blocos1 = calcTaxaPorBlocos(id1, m1.massai);
-const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
-
 
   if (!t1 || !t2) {
     out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
@@ -331,86 +328,74 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
     return;
   }
 
-  const te1 = maxTEfromSerie(id1);
-  const te2 = maxTEfromSerie(id2);
-  const pe1_417 = minPE(id1, 'PE_4_17');
-  const pe2_417 = minPE(id2, 'PE_4_17');
-  const pe1_551 = minPE(id1, 'PE_5_5_1');
-  const pe2_551 = minPE(id2, 'PE_5_5_1');
+  // --- INÍCIO DA ALTERAÇÃO: Gráfico hora a hora da série completa ---
 
-  
-// Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-const labels = blocos1.map(b => b.intervalo).reverse();
-const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
-const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
+  const serie1 = getSerie(id1);
+  const serie2 = getSerie(id2);
 
-const serie1 = getSerie(id1);
-const serie2 = getSerie(id2);
+  function formatHora(ts) {
+    const d = new Date(ts);
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  }
 
-function formatHora(ts) {
-  const d = new Date(ts);
-  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
-}
+  // Para os labels usa os timestamps da primeira série
+  const labels = serie1.map(p => formatHora(p.ts));
 
-// Usar timestamps da primeira série para os labels
-const labels = serie1.map(p => formatHora(p.ts));
+  const data1 = serie1.map(p => p.lc);
+  const data2 = serie2.map(p => p.lc);
 
-// Usar LC_3_8 para o y
-const data1 = serie1.map(p => p.lc);
-const data2 = serie2.map(p => p.lc);
+  const ctx = document.getElementById("graficoTaxas").getContext("2d");
 
-const ctx = document.getElementById("graficoTaxas").getContext("2d");
+  // Destrói gráfico antigo se existir
+  if (window.chartTaxas) {
+    window.chartTaxas.destroy();
+  }
 
-// Se gráfico já existir, destruir
-if (window.chartTaxas) {
-  window.chartTaxas.destroy();
-}
-
-// Criar gráfico com a série completa hora a hora
-window.chartTaxas = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [
-      {
-        label: `${m1.subprojecto || id1}`,
-        data: data1,
-        borderColor: 'rgba(41, 128, 185, 1)',
-        backgroundColor: 'rgba(41, 128, 185, 0.1)',
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: `${m2.subprojecto || id2}`,
-        data: data2,
-        borderColor: 'rgba(231, 76, 60, 1)',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        tension: 0.3,
-        fill: true,
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      title: {
-        display: true,
-        text: 'Evolução da Secagem Hora a Hora (LC_3_8)'
-      }
+  // Cria novo gráfico
+  window.chartTaxas = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: `${m1.subprojecto || id1}`,
+          data: data1,
+          borderColor: 'rgba(41, 128, 185, 1)',
+          backgroundColor: 'rgba(41, 128, 185, 0.1)',
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: `${m2.subprojecto || id2}`,
+          data: data2,
+          borderColor: 'rgba(231, 76, 60, 1)',
+          backgroundColor: 'rgba(231, 76, 60, 0.1)',
+          tension: 0.3,
+          fill: true,
+        }
+      ]
     },
-    scales: {
-      x: {
-        title: { display: true, text: 'Hora' },
-        ticks: { maxRotation: 90, minRotation: 45 }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Evolução da Secagem Hora a Hora (LC_3_8)'
+        }
       },
-      y: {
-        title: { display: true, text: 'LC_3_8' },
-        beginAtZero: true
+      scales: {
+        x: {
+          title: { display: true, text: 'Hora' },
+          ticks: { maxRotation: 90, minRotation: 45 }
+        },
+        y: {
+          title: { display: true, text: 'LC_3_8' },
+          beginAtZero: true
+        }
       }
     }
-  }
-});
+  });
   
   let html = '';
 
