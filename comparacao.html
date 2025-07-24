@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Comparar Transformadores</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -120,6 +121,7 @@
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
+<canvas id="graficoTaxas" style="max-width: 100%; margin-top: 40px;"></canvas>
 
 <script>
 let dadosMeta = [], dadosSerie = [], dadosTerceiro = [];
@@ -377,9 +379,7 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
   <thead>
     <tr>
       <th>Intervalo</th>
-      <th>Δ Água ${m1.subprojecto || id1} (L)</th>
       <th>Taxa ${m1.subprojecto || id1} (L/h*t)</th>
-      <th>Δ Água ${m2.subprojecto || id2} (L)</th>
       <th>Taxa ${m2.subprojecto || id2} (L/h*t)</th>
     </tr>
   </thead>
@@ -390,9 +390,7 @@ for (let i = 0; i < 6; i++) {
   const b2 = blocos2[i] || {};
   html += `<tr>
     <td>${b1.intervalo || 'N/A'}</td>
-    <td>${formatNum(b1.delta)}</td>
     <td>${formatNum(b1.taxa)}</td>
-    <td>${formatNum(b2.delta)}</td>
     <td>${formatNum(b2.taxa)}</td>
   </tr>`;
 }
@@ -493,6 +491,67 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.save("comparacao_transformadores.pdf");
   });
 });
+  // Gerar gráfico de taxas nas últimas 18h (blocos 3h)
+const ctx = document.getElementById("graficoTaxas").getContext("2d");
+
+const labels = blocos1.map(b => b.intervalo).reverse(); // para mostrar 0-3h mais à direita
+const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
+const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
+
+if (window.chartTaxas) {
+  window.chartTaxas.destroy(); // destrói gráfico anterior se já existir
+}
+
+window.chartTaxas = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [
+      {
+        label: `${m1.subprojecto || id1}`,
+        data: data1,
+        borderColor: 'rgba(41, 128, 185, 1)',
+        backgroundColor: 'rgba(41, 128, 185, 0.1)',
+        tension: 0.3
+      },
+      {
+        label: `${m2.subprojecto || id2}`,
+        data: data2,
+        borderColor: 'rgba(231, 76, 60, 1)',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top'
+      },
+      title: {
+        display: true,
+        text: 'Taxa de Remoção de Água nas Últimas 18h (3h em 3h)'
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Horas atrás'
+        }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Taxa (L/h*t)'
+        },
+        beginAtZero: true
+      }
+    }
+  }
+});
+
 </script>
 
 </body>
