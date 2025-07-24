@@ -432,7 +432,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   dadosSerie.forEach(linha => {
     const dataHora = new Date(linha.DataHora);
     if (isNaN(dataHora)) return;
-    dataHora.setMinutes(0, 0, 0); // arredondar para a hora cheia
+    dataHora.setMinutes(0, 0, 0); // arredonda para a hora cheia
     const chaveHora = dataHora.getTime();
     if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
     const valorLC = parseFloat(linha.LC_3_8);
@@ -441,25 +441,38 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
 
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
 
-  // Calcula a média LC por hora
   const mediasPorHora = chavesOrdenadas.map(chave => {
     const valores = dadosPorHora[chave];
     const soma = valores.reduce((acc, val) => acc + val, 0);
     return soma / valores.length;
   });
 
-  // Agora calculamos a taxa LC por hora dividindo pela massa e pela duração = 1 hora
   const taxasHoraAHora = mediasPorHora.map(mediaLC => mediaLC / massaTon);
-
-  // Prepara dados para o gráfico (x = índice hora, y = taxa)
   const pontosGrafico = taxasHoraAHora.map((taxa, index) => ({ x: index, y: taxa }));
 
-  // Apagar gráfico antigo se existir
+  // Verifica se o canvas existe, se não existir cria-o
+  let canvas = document.getElementById(idCanvas);
+  if (!canvas) {
+    const container = document.createElement('div');
+    container.className = 'grafico';
+    container.innerHTML = `
+      <h4>Gráfico Taxa LC hora a hora</h4>
+      <canvas id="${idCanvas}" width="600" height="300"></canvas>
+    `;
+    document.body.appendChild(container); // ou outro destino correto
+    canvas = document.getElementById(idCanvas);
+  }
+
   if (window[idCanvas + '_chart']) {
     window[idCanvas + '_chart'].destroy();
   }
 
-  const ctx = document.getElementById(idCanvas).getContext('2d');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.error(`Não foi possível obter contexto do canvas ${idCanvas}`);
+    return;
+  }
+
   window[idCanvas + '_chart'] = new Chart(ctx, {
     type: 'scatter',
     data: {
@@ -468,7 +481,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
         data: pontosGrafico,
         backgroundColor: 'rgba(75, 192, 192, 0.7)',
         borderColor: 'rgba(75, 192, 192, 1)',
-        pointRadius: 5
+        pointRadius: 4
       }]
     },
     options: {
@@ -485,7 +498,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
         x: {
           type: 'linear',
           title: { display: true, text: 'Hora (0, 1, 2, ...)' },
-          ticks: { stepSize: 1, precision: 0 },
+          ticks: { stepSize: 1 },
           min: 0,
           max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
         },
@@ -497,6 +510,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     }
   });
 }
+
 
 // Exportar resultado para PDF
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
