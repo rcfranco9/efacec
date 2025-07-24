@@ -427,6 +427,11 @@ encontradosGlobais.forEach((meta, index) => {
   if (!serie.length) return;
 
   // Cria o gráfico da taxa hora a hora para o canvas com id 'graficoTaxa' + index
+encontradosGlobais.forEach((meta, index) => {
+  const id = meta.id_secagenscore?.trim();
+  if (!id) return;
+  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+  if (!serie.length) return;
   criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie);
 });
 
@@ -449,51 +454,73 @@ encontradosGlobais.forEach((meta, index) => {
   // Ordenar as chaves (timestamps)
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b) => a - b);
 
-  // Calcular média por hora
-  const mediasHora = chavesOrdenadas.map(key => {
-    const valores = dadosPorHora[key];
-    const soma = valores.reduce((acc, v) => acc + v, 0);
+// Função para criar gráfico taxa hora a hora
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie) {
+  const dadosPorHora = {};
+
+  dadosSerie.forEach(linha => {
+    const dataHora = new Date(linha.DataHora);
+    if (isNaN(dataHora)) return;
+    dataHora.setMinutes(0, 0, 0);
+    const chaveHora = dataHora.getTime();
+    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
+    const valorLC = parseFloat(linha.LC_3_8);
+    if (!isNaN(valorLC)) dadosPorHora[chaveHora].push(valorLC);
+  });
+
+  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+
+  const mediasPorHora = chavesOrdenadas.map(chave => {
+    const valores = dadosPorHora[chave];
+    const soma = valores.reduce((acc, val) => acc + val, 0);
     return soma / valores.length;
   });
 
-  // Calcular taxa hora a hora: ((mediaAtual - mediaAnterior) / massa) ou % etc (aqui diferença absoluta)
-  // Para o eixo X, queremos horas começando em 0, 1, 2, ...
-  const taxas = [];
-  for (let i = 1; i < mediasHora.length; i++) {
-    const dif = mediasHora[i] - mediasHora[i - 1];
-    taxas.push(dif);
+  const taxasHoraAHora = [];
+  for (let i = 1; i < mediasPorHora.length; i++) {
+    const dif = mediasPorHora[i] - mediasPorHora[i - 1];
+    taxasHoraAHora.push(dif);
   }
 
-  // Preparar dados para o gráfico
-  const dataPontos = taxas.map((taxa, i) => ({ x: i, y: taxa }));
+  const pontosGrafico = taxasHoraAHora.map((taxa, index) => ({ x: index, y: taxa }));
 
-  // Criar gráfico
+  if (window[idCanvas + '_chart']) {
+    window[idCanvas + '_chart'].destroy();
+  }
+
   const ctx = document.getElementById(idCanvas).getContext('2d');
-  new Chart(ctx, {
+  window[idCanvas + '_chart'] = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [{
-        label: 'Taxa de remoção hora a hora (diferença LC_3_8)',
-        data: dataPontos,
-        backgroundColor: 'rgba(75, 192, 192, 0.7)'
+        label: 'Taxa hora a hora (diferença LC_3_8)',
+        data: pontosGrafico,
+        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        pointRadius: 5
       }]
     },
     options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)}`
+          }
+        }
+      },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: 'Hora (0,1,2,...)' },
-          ticks: { stepSize: 1 },
+          title: { display: true, text: 'Hora (0, 1, 2, ...)' },
+          ticks: { stepSize: 1, precision: 0 },
           min: 0,
-          max: dataPontos.length > 0 ? dataPontos.length - 1 : 0
+          max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
         },
         y: {
           title: { display: true, text: 'Diferença LC_3_8' }
         }
-      },
-      responsive: true,
-      plugins: {
-        legend: { display: true }
       }
     }
   });
