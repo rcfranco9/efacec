@@ -419,66 +419,86 @@ function buscarPorNome() {
   out.innerHTML = html;
 
   // Criar gráficos taxa hora a hora para cada transformador encontrado
-  encontradosGlobais.forEach((meta, index) => {
-    const id = meta.id_secagenscore?.trim();
-    if (!id) return;
+encontradosGlobais.forEach((meta, index) => {
+  const id = meta.id_secagenscore?.trim();
+  if (!id) return;
+  
+  const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
+  if (!serie.length) return;
 
-    const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
-    if (!serie.length) return;
+  // Cria o gráfico da taxa hora a hora para o canvas com id 'graficoTaxa' + index
+  criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie);
+});
 
-    const dadosOrdenados = serie
-      .map(l => ({ date: new Date(l.DataHora), valor: Number(l.LC_3_8) }))
-      .filter(d => !isNaN(d.date) && !isNaN(d.valor))
-      .sort((a,b) => a.date - b.date);
+  // Primeiro, agrupar os dados por hora
+  const dadosPorHora = {};
 
-    const massaiTon = Number(meta.massai) / 1000;
+  dadosSerie.forEach(linha => {
+    const dataHora = new Date(linha.DataHora);
+    if (isNaN(dataHora)) return;
 
-function criarGraficoTaxa(idCanvas, taxas) {
-  const ctx = document.getElementById(idCanvas).getContext('2d');
+    // Arredonda para a hora (minutos, segundos, ms = 0)
+    dataHora.setMinutes(0, 0, 0);
+    const key = dataHora.getTime();
 
-  // Mapear dados com x começando no 0
+    if (!dadosPorHora[key]) dadosPorHora[key] = [];
+    const valorLC = parseFloat(linha.LC_3_8);
+    if (!isNaN(valorLC)) dadosPorHora[key].push(valorLC);
+  });
+
+  // Ordenar as chaves (timestamps)
+  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b) => a - b);
+
+  // Calcular média por hora
+  const mediasHora = chavesOrdenadas.map(key => {
+    const valores = dadosPorHora[key];
+    const soma = valores.reduce((acc, v) => acc + v, 0);
+    return soma / valores.length;
+  });
+
+  // Calcular taxa hora a hora: ((mediaAtual - mediaAnterior) / massa) ou % etc (aqui diferença absoluta)
+  // Para o eixo X, queremos horas começando em 0, 1, 2, ...
+  const taxas = [];
+  for (let i = 1; i < mediasHora.length; i++) {
+    const dif = mediasHora[i] - mediasHora[i - 1];
+    taxas.push(dif);
+  }
+
+  // Preparar dados para o gráfico
   const dataPontos = taxas.map((taxa, i) => ({ x: i, y: taxa }));
 
+  // Criar gráfico
+  const ctx = document.getElementById(idCanvas).getContext('2d');
   new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [{
-        label: 'Taxa LC_3_8 (L/(h*t))',
+        label: 'Taxa de remoção hora a hora (diferença LC_3_8)',
         data: dataPontos,
-        backgroundColor: 'rgba(54, 162, 235, 0.8)'
+        backgroundColor: 'rgba(75, 192, 192, 0.7)'
       }]
     },
     options: {
       scales: {
         x: {
           type: 'linear',
-          title: {
-            display: true,
-            text: 'Hora (0, 1, 2, 3, ...)'
-          },
-          ticks: {
-            stepSize: 1,
-            callback: function(value) {
-              return Number(value).toFixed(0);
-            }
-          },
+          title: { display: true, text: 'Hora (0,1,2,...)' },
+          ticks: { stepSize: 1 },
           min: 0,
           max: dataPontos.length > 0 ? dataPontos.length - 1 : 0
         },
         y: {
-          title: {
-            display: true,
-            text: 'Taxa (L/(h*t))'
-          }
+          title: { display: true, text: 'Diferença LC_3_8' }
         }
       },
+      responsive: true,
       plugins: {
         legend: { display: true }
-      },
-      responsive: true
+      }
     }
   });
 }
+
 
   // Mostrar botão exportar PDF
   document.getElementById('btnExportarPDF').style.display = 'block';
