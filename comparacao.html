@@ -340,36 +340,38 @@ const blocos2 = calcTaxaPorBlocos(id2, m2.massai);
 
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-function calcularTaxaRemocaoPorHora(dadosLC) {
+function calcularTaxaRemocao(dados) {
     const taxas = [];
-    for (let i = 1; i < dadosLC.length; i++) {
-      const anterior = parseFloat(dadosLC[i - 1]);
-      const atual = parseFloat(dadosLC[i]);
+    const horas = [];
 
-      if (!isNaN(anterior) && !isNaN(atual)) {
-        const diferenca = anterior - atual;
-        taxas.push(diferenca.toFixed(3)); // taxa por hora
-      } else {
-        taxas.push(null); // para manter o alinhamento
+    for (let i = 1; i < dados.length; i++) {
+      const prev = parseFloat(dados[i - 1]["LC_3_8"]);
+      const atual = parseFloat(dados[i]["LC_3_8"]);
+
+      if (!isNaN(prev) && !isNaN(atual)) {
+        const taxa = atual - prev;
+        taxas.push(taxa.toFixed(2));
+        horas.push(i); // Hora 1, 2, 3, ...
       }
     }
-    return taxas;
+
+    return { taxas, horas };
   }
 
-  function plotarGraficoTaxaRemocao(taxas) {
-    const ctx = document.getElementById('graficoTaxaRemocao').getContext('2d');
+  function desenharGraficoRemocao(taxas, horas) {
+    const ctx = document.getElementById("grafico-remocao").getContext("2d");
+
     new Chart(ctx, {
-      type: 'line',
+      type: "line",
       data: {
-        labels: taxas.map((_, i) => i + 1), // Horas 1,2,3,...
+        labels: horas,
         datasets: [{
-          label: 'Taxa de Remoção de Água (LC/h)',
+          label: "Taxa de Remoção de Água (LC_3_8/h)",
           data: taxas,
-          borderColor: 'rgba(75, 192, 192, 1)',
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderWidth: 2,
-          pointRadius: 3,
-          tension: 0.2
+          borderColor: "blue",
+          backgroundColor: "rgba(0, 0, 255, 0.1)",
+          fill: true,
+          tension: 0.3,
         }]
       },
       options: {
@@ -377,26 +379,39 @@ function calcularTaxaRemocaoPorHora(dadosLC) {
         plugins: {
           title: {
             display: true,
-            text: 'Taxa de Remoção de Água por Hora'
+            text: 'Taxa de Remoção de Água por Hora',
+            font: {
+              size: 18
+            }
           }
         },
         scales: {
           x: {
             title: {
               display: true,
-              text: 'Hora'
+              text: "Horas"
             }
           },
           y: {
             title: {
               display: true,
-              text: 'Taxa LC por Hora'
+              text: "Taxa LC/h"
             }
           }
         }
       }
     });
   }
+
+  // Exemplo com PapaParse
+  Papa.parse("dados.csv", {
+    header: true,
+    download: true,
+    complete: function(results) {
+      const { taxas, horas } = calcularTaxaRemocao(results.data);
+      desenharGraficoRemocao(taxas, horas);
+    }
+  });
 
 
   
