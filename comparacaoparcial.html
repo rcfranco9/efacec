@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RFaaa</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -117,7 +117,8 @@
   <button id="btnFiltrar" disabled>Procurar</button>
 
   <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
- 
+  <canvas id="graficoTaxaHora" style="margin-top:30px; background:white; padding:15px; border-radius:10px; border:1px solid #ccc;"></canvas>
+
 
   <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
@@ -268,31 +269,26 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
     porHora[hora].push(valor);
   });
 
-   const medias = horasOrdenadas.map(h => {
-  const arr = porHora[h];
-  const diff = arr[arr.length - 1] - arr[0]; // diferença último - primeiro
-  return { hora: h.slice(11), media: diff };
-});
+  const horasOrdenadas = Object.keys(porHora).sort();
+  const medias = horasOrdenadas.map(h => {
+    const arr = porHora[h];
+    const media = arr.reduce((acc, v) => acc + v, 0) / arr.length;
+    return { hora: h.slice(11), media };
+  });
 
+  const taxas = [];
+  const ton = parseNum(massaKg) / 1000 || 1;
+  for (let i = 1; i < medias.length; i++) {
+    const delta = medias[i].media - medias[i - 1].media;
+    const taxa = +(delta / ton).toFixed(2);
+    taxas.push({ hora: medias[i].hora, taxa });
   }
 
-const ton = parseNum(massaKg) / 1000 || 1;
-const taxas = medias.map(m => ({
-  hora: m.hora,
-  taxa: +(m.media / ton).toFixed(2) // media aqui é o diff já calculado
-}));
-
-
   desenharGrafico(taxas, canvasId);
-
+}
     let graficoRemocao = null;
 
 function desenharGrafico(taxas, canvasId) {
-  if (!taxas || taxas.length === 0) {
-    document.getElementById(canvasId).style.display = "none";
-    return;
-  }
-
   const ctx = document.getElementById(canvasId).getContext("2d");
   const labels = taxas.map(t => t.hora);
   const dados = taxas.map(t => t.taxa);
@@ -333,100 +329,123 @@ function desenharGrafico(taxas, canvasId) {
 
 
 
+
     document.getElementById('btnFiltrar').addEventListener('click', () => {
-  const pot = document.getElementById('potencia').value.trim();
-  const ten = document.getElementById('tensao').value.trim();
-  const out = document.getElementById('resultado');
-  if (!pot || !ten) {
-    out.textContent = 'Preenche ambos os campos.';
-    return;
-  }
-
-  const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
-  if (!encontrados.length) {
-    out.textContent = 'Nenhum transformador encontrado.';
-    return;
-  }
-
-  let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
-
-  encontrados.forEach((m, i) => {
-    const id = (m.id_secagenscore || '').trim();
-
-    const stats = calcLC(id, m.massai);
-    const mTon = (parseNum(m.massai) / 1000).toFixed(3);
-    const teMax = maxTEfromSerie(id);
-    const pe417 = minPE(id, 'PE_4_17');
-    const pe551 = minPE(id, 'PE_5_5_1');
-
-    const dadosPFRF = pegaDadosPF(id);
-
-    html += `<div class="transformador-dados">
-      <strong>#${i + 1} — ID:</strong> ${id}<br>
-      <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
-      <strong>Massa dos isolantes:</strong> ${mTon} t<br>
-      <strong>Duração total:</strong> ${stats.dur.toFixed(2)} h<br>
-      <strong>Quantidade de água removida:</strong> ${stats.difLC.toFixed(3)} L<br>
-      <strong>Taxa de remoção de água:</strong> ${stats.taxa.toFixed(3)} (L/(h*t))<br>
-      <strong>Taxa de remoção de água nas últimas 10h:</strong> ${stats.taxa10h.toFixed(3)} (L/(h*t))<br>
-      <strong>Maior valor de temperatura nas sondas:</strong> ${teMax} ºC<br>
-      <strong>Menor valor de pressão:</strong> ${pe551} mbar<br>
-      <strong>Menor valor de vácuo fino:</strong> ${pe417} mbar<br>`;
-
-    if (dadosPFRF) {
-      html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
-      <table><thead>
-        <tr><th>Nº</th><th>PFxTAquec</th><th>RFxTAquec</th><th>Índice</th></tr>
-      </thead><tbody>`;
-
-      for (let j = 0; j < 6; j++) {
-        html += `<tr>
-          <td>TAquec ${j + 1}</td>
-          <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
-          <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
-          <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
-        </tr>`;
+      const pot = document.getElementById('potenciaInput').value.trim();
+      const ten = document.getElementById('tensaoInput').value.trim();
+      const out = document.getElementById('resultado');
+      if (!pot || !ten) {
+        out.textContent = 'Preenche ambos os campos.';
+        return;
       }
 
-      html += `</tbody></table>`;
-
-      html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
-      <table><thead>
-        <tr><th>Nº</th><th>PFxPRem</th><th>RFxPRem</th><th>Índice</th></tr>
-      </thead><tbody>`;
-
-      for (let j = 0; j < 6; j++) {
-        html += `<tr>
-          <td>PRem ${j + 1}</td>
-          <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
-          <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
-          <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
-        </tr>`;
+      const encontrados = dadosMeta.filter(r => (r.potencia||'').trim() === pot && (r.tensao||'').trim() === ten);
+      if (!encontrados.length) {
+        out.textContent = 'Nenhum transformador encontrado.';
+        return;
       }
-      html += `</tbody></table>`;
-    } else {
-      html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
-    }
 
-    // Aqui adicionamos o título e o canvas para o gráfico
-    const canvasId = `grafico_remocao_${i}`;
-    html += `<h4>Taxa de Remoção Hora a Hora</h4>`;
-    html += `<canvas id="${canvasId}" style="margin-top:20px; background:white; padding:15px; border-radius:10px; border:1px solid #ccc;"></canvas>`;
+      let html = `<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
 
-    html += `</div>`; // Fecha o bloco transformador
-  });
+      encontrados.forEach((m, i) => {
+        const id = (m.id_secagenscore||'').trim();
+        const stats = calcLC(id, m.massai);
+        const mTon = (parseNum(m.massai)/1000).toFixed(3);
+        const teMax = maxTEfromSerie(id);
+        const pe417 = minPE(id, 'PE_4_17');
+        const pe551 = minPE(id, 'PE_5_5_1');
 
-  out.innerHTML = html;
+        // Pegar dados PF e RF do csv3
+        const dadosPFRF = pegaDadosPF(id);
+        function mostrarTaxasRemocao18Horas(taxasPorHora) {
+  const blocos = [
+    '15-18', '12-15', '9-12', '6-9', '3-6', '0-3'
+  ];
+  const resultado = [];
 
-  // Depois de inserir o HTML, chamamos o cálculo e desenho do gráfico para cada transformador
-  encontrados.forEach((m, i) => {
-    const id = (m.id_secagenscore || '').trim();
-    const canvasId = `grafico_remocao_${i}`;
-    setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
-  });
+  for (let i = 0; i < 6; i++) {
+    const inicio = i * 3;
+    const fim = inicio + 3;
+    const bloco = taxasPorHora.slice(inicio, fim);
+    const soma = bloco.reduce((acc, val) => acc + (isFinite(val) ? val : 0), 0);
+    const media = bloco.length > 0 ? soma / bloco.length : 0;
+    resultado.unshift(`Bloco ${blocos[i]}: ${media.toFixed(2)}%`);
+  }
 
-  document.getElementById('btnExportarPDF').style.display = 'inline-block';
-});
+  document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
+}
+
+
+        html += `<div class="transformador-dados">
+          <strong>#${i+1} — ID:</strong> ${id}<br>
+          <strong>Projecto:</strong> ${m.subprojecto || 'N/A'}<br>
+          <strong>Massa dos isolantes:</strong> ${formatNum(mTon, 3)} t<br>
+          <strong>Duração total:</strong> ${formatNum(stats.dur, 2)} h<br>
+          <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
+          <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
+          <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+          <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax, 2)} ºC<br>
+          <strong>Menor valor de pressão:</strong> ${formatNum(pe551, 3)} mbar<br>
+          <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417, 3)} mbar<br>`;
+
+       if(dadosPFRF) {
+  html += `<h4>Valores e Índices PFxTAquec / RFxTAquec</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxTAquec</th>
+      <th>RFxTAquec</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
+
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>TAquec ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxTAquec[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxTAquec[j])}</td>
+      <td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j], dadosPFRF.RFxTAquec[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+  html += `<h4>Valores e Índices PFxPRem / RFxPRem</h4>
+  <table><thead>
+    <tr>
+      <th>Nº</th>
+      <th>PFxPRem</th>
+      <th>RFxPRem</th>
+      <th>Índice</th>
+    </tr>
+  </thead><tbody>`;
+
+  for(let j=0; j<6; j++) {
+    html += `<tr>
+      <td>PRem ${j+1}</td>
+      <td>${formatNum(dadosPFRF.PFxPRem[j])}</td>
+      <td>${formatNum(dadosPFRF.RFxPRem[j])}</td>
+      <td>${calculaIndicePressao(dadosPFRF.PFxPRem[j], dadosPFRF.RFxPRem[j])}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+
+} else {
+  html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
+}
+const canvasId = `grafico_remocao_${i}`;
+html += `<h4>Taxa de Remoção Hora a Hora</h4>
+<canvas id="${canvasId}" height="200" style="background:white; border-radius:8px; margin-top:15px; border:1px solid #ccc;"></canvas>`;
+
+html += `</div>`;
+
+// Chamar a função de cálculo do gráfico
+setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
+html += `</div>`;
+      });
+
+      out.innerHTML = html;
+      document.getElementById('btnExportarPDF').style.display = 'inline-block';
+    });
 
     document.getElementById("btnExportarPDF").addEventListener("click", async () => {
       const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
@@ -457,4 +476,4 @@ function desenharGrafico(taxas, canvasId) {
   </script>
 
 </body>
-</html>
+</html>tml>
