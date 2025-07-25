@@ -270,11 +270,14 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
   });
 
   const horasOrdenadas = Object.keys(porHora).sort();
-  const medias = horasOrdenadas.map(h => {
-    const arr = porHora[h];
-    const media = arr.reduce((acc, v) => acc + v, 0) / arr.length;
-    return { hora: h.slice(11), media };
-  });
+const taxasHoraAHora = horasOrdenadas.map(h => {
+  const arr = porHora[h];
+  if (arr.length >= 2) {
+    // (último valor da hora - primeiro valor da hora) / (1 * massa em toneladas)
+    return ((arr[arr.length - 1] - arr[0]) / (massaKg / 1000)).toFixed(2);
+  }
+  return 0;
+});
 
   const taxas = [];
   const ton = parseNum(massaKg) / 1000 || 1;
@@ -296,10 +299,10 @@ function desenharGrafico(taxas, canvasId) {
   new Chart(ctx, {
     type: "line",
     data: {
-      labels,
+      labels: horasOrdenadas,
       datasets: [{
         label: "Taxa de Remoção de Água (L/h*t)",
-        data: dados,
+        data: taxasHoraAHora,
         borderColor: "#2980b9",
         backgroundColor: "rgba(52, 152, 219, 0.2)",
         fill: true,
