@@ -272,7 +272,7 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
 // Formatar só para mostrar as horas
 const labelsHoras = horasOrdenadas.map(h => {
   const hora = parseInt(h.substring(11, 13), 10); // extrai e converte para número
-  return (hora + 1).toString().padStart(2, '0');  // subtrai 1 e volta a formatar como string de 2 dígitos
+  return (hora);  // subtrai 1 e volta a formatar como string de 2 dígitos
 });
   const taxasHoraAHora = horasOrdenadas.map(h => {
     const arr = porHora[h];
