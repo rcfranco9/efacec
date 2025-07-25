@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RFaaa</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -471,7 +471,9 @@ setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
       const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
       doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
     });
+        
   </script>
 
 </body>
 </html>
+}
