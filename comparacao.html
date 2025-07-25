@@ -186,19 +186,21 @@ function calcTaxa(id, massaKg) {
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
-
-function calcTaxaPorHora(id, massaKg) {
+function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
   const serie = getSerie(id);
   if (serie.length < 2) return null;
 
   const ton = parseNum(massaKg) / 1000 || 1;
-  const fim = serie[serie.length - 1].ts;
   const blocos = [];
 
-  // Últimas N horas (exemplo: últimas 18h)
-  for (let i = 18; i > 0; i--) {
-    const tIni = fim - i * 3600 * 1000;
-    const tFim = fim - (i - 1) * 3600 * 1000;
+  // Descobrir o início e fim dos dados
+  const tIniGlobal = serie[0].ts;
+  const tFimGlobal = serie[serie.length - 1].ts;
+  const horas = Math.floor((tFimGlobal - tIniGlobal) / (3600 * 1000));
+
+  for (let i = 1; i <= horas; i++) {
+    const tIni = tIniGlobal + (i - 1) * 3600 * 1000;
+    const tFim = tIniGlobal + i * 3600 * 1000;
 
     const anterior = serie.findLast(r => r.ts <= tIni);
     const atual = serie.findLast(r => r.ts <= tFim);
@@ -206,15 +208,14 @@ function calcTaxaPorHora(id, massaKg) {
     if (anterior && atual && atual.ts > anterior.ts) {
       const delta = +(atual.lc - anterior.lc).toFixed(3);
       const taxa = +(delta / ton).toFixed(4);
-      blocos.push({ intervalo: `${i-1}h atrás`, delta, taxa });
+      blocos.push({ intervalo: `${i-1}-${i}h`, delta, taxa });
     } else {
-      blocos.push({ intervalo: `${i-1}h atrás`, delta: 'N/A', taxa: 'N/A' });
+      blocos.push({ intervalo: `${i-1}-${i}h`, delta: 'N/A', taxa: 'N/A' });
     }
   }
 
   return blocos;
 }
-
 
 function diffClass(v) {
   if (v > 0) return 'diff-positive';
@@ -340,8 +341,8 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-const blocos1 = calcTaxaPorHora(id1, m1.massai);
-const blocos2 = calcTaxaPorHora(id2, m2.massai);
+const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
+const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
 
 const labels = blocos1.map(b => b.intervalo).reverse();
 const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
