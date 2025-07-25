@@ -92,7 +92,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadoresaaah1>
+<h1>Consulta de Transformadoresaaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -473,48 +473,45 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     window[idCanvas + '_chart'].destroy();
   }
 
-const ctx = document.getElementById(idCanvas).getContext("2d");
+  const ctx = canvasEl.getContext('2d');
 
-window[idCanvas + '_chart'] = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: pontosGrafico.map((_, i) => i), // usa os índices como hora
-    datasets: [{
-      label: 'Taxa LC por hora (L/(h*t))',
-      data: pontosGrafico.map(p => p.y), // apenas os valores Y
-      borderColor: "#2980b9",
-      backgroundColor: "rgba(52, 152, 219, 0.2)",
-      fill: true,
-      tension: 0.2,
-      pointRadius: 4,
-      pointBackgroundColor: 'rgba(75, 192, 192, 1)'
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: true, position: 'top' },
-      tooltip: {
-        callbacks: {
-          label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
+  window[idCanvas + '_chart'] = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Taxa LC por hora (L/(h*t))',
+        data: pontosGrafico,
+        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        pointRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Hora (0, 1, 2, ...)' },
+          ticks: { stepSize: 1, precision: 0 },
+          min: 0,
+          max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
+        },
+        y: {
+          title: { display: true, text: 'Taxa LC (L/(h*t))' },
+          beginAtZero: true
         }
       }
-    },
-    scales: {
-      x: {
-        title: { display: true, text: 'Hora' },
-        ticks: { stepSize: 1, precision: 0 },
-        min: 0,
-        max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
-      },
-      y: {
-        beginAtZero: true,
-        title: { display: true, text: 'Taxa LC (L/(h*t))' }
-      }
     }
-  }
-});
-
+  });
+}
 
 // Exportar resultado para PDF
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
@@ -533,7 +530,6 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
     pdf.save('resultado_transformadores.pdf');
   });
 });
-} 
 </script>
 
 </body>
