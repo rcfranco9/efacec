@@ -404,15 +404,11 @@ window.chartTaxas = new Chart(ctx, {
       
       y: {
         title: { display: true, text: 'Taxa (L/h*t)' },
-        beginAtZero: true, 
-        suggestedMin: -200,   
-        suggestedMax: 20,  
-        
+        beginAtZero: true
       }
     }
   }
 });
-
 
   
   let html = '';
@@ -555,6 +551,7 @@ html += `</tbody></table>`;
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
+});
 
 document.getElementById("btnExportarPDF").addEventListener("click", () => {
   const resultado = document.getElementById("resultado");
@@ -573,4 +570,4 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 </script>
 
 </body>
-</html>
+</html>html>
