@@ -268,9 +268,6 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
     porHora[hora].push(valor);
   });
 
-  const horasOrdenadas = Object.keys(porHora).sort();
-  const medias = horasOrdenadas.map(h => {
-    const arr = porHora[h];
    const medias = horasOrdenadas.map(h => {
   const arr = porHora[h];
   const diff = arr[arr.length - 1] - arr[0]; // diferença último - primeiro
@@ -279,13 +276,12 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
 
   });
 
-  const taxas = [];
-  const ton = parseNum(massaKg) / 1000 || 1;
-  for (let i = 1; i < medias.length; i++) {
-    const delta = medias[i].media - medias[i - 1].media;
-    const taxa = +(delta / ton).toFixed(2);
-    taxas.push({ hora: medias[i].hora, taxa });
-  }
+const ton = parseNum(massaKg) / 1000 || 1;
+const taxas = medias.map(m => ({
+  hora: m.hora,
+  taxa: +(m.media / ton).toFixed(2) // media aqui é o diff já calculado
+}));
+
 
   desenharGrafico(taxas, canvasId);
 }
