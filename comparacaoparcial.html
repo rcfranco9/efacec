@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RFaaaa</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -291,7 +291,7 @@ const  TaxasHoraAHora = horasOrdenadas.map(h => {
 }
     let graficoRemocao = null;
 
-function desenharGrafico(taxas, canvasId) {
+function desenharGrafico(horasOrdenadas,TaxasHoraAHora,canvasId) {
 const ctx = document.getElementById(canvasId).getContext("2d");
   const labels = taxas.map(t => t.hora);
   const dados = taxas.map(t => t.taxa);
@@ -436,7 +436,7 @@ const ctx = document.getElementById(canvasId).getContext("2d");
   html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
 }
 const canvasId = `grafico_remocao_${i}`;
-
+html += `<canvas id="${canvasId}" height="200"></canvas>`;
 html += `</div>`;
 
 // Chamar a função de cálculo do gráfico
