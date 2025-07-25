@@ -402,28 +402,16 @@ window.chartTaxas = new Chart(ctx, {
           reverse: true 
       },
       
-  
- y: {
-  title: { display: true, text: 'Taxa (L/h*t)' },
-  beginAtZero: true,
-  min: -200,
-  max: 20,
-  ticks: {
-    stepSize: 1, // passo pequeno para positivos
-    callback: function(value) {
-      if (value < 0) {
-        // Só mostra negativos múltiplos de 50
-        return value % 50 === 0 ? value : '';
+      y: {
+        title: { display: true, text: 'Taxa (L/h*t)' },
+        beginAtZero: true, 
+        suggestedMin: -200,   
+        suggestedMax: 20,  
+        
       }
-      // Só mostra positivos múltiplos de 1
-      return value % 1 === 0 ? value : '';
     }
   }
-}
-  }
-}
-    });
-  });
+});
 
 
   
