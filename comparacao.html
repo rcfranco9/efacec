@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -402,21 +402,24 @@ window.chartTaxas = new Chart(ctx, {
           reverse: true 
       },
       
-    y: {
+  
+ y: {
   title: { display: true, text: 'Taxa (L/h*t)' },
   beginAtZero: true,
   min: -200,
   max: 20,
   ticks: {
-    stepSize: 2, // passo pequeno para positivos
+    stepSize: 1, // passo pequeno para positivos
     callback: function(value) {
       if (value < 0) {
-        // Só mostra negativos múltiplos de 20
-        return value % 20 === 0 ? value : '';
+        // Só mostra negativos múltiplos de 50
+        return value % 50 === 0 ? value : '';
       }
-      // Só mostra positivos múltiplos de 2
-      return value % 2 === 0 ? value : '';
+      // Só mostra positivos múltiplos de 1
+      return value % 1 === 0 ? value : '';
     }
+  }
+}
   }
 }
     }
