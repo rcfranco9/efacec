@@ -289,6 +289,11 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
     let graficoRemocao = null;
 
 function desenharGrafico(taxas, canvasId) {
+  if (!taxas || taxas.length === 0) {
+    document.getElementById(canvasId).style.display = "none";
+    return;
+  }
+
   const ctx = document.getElementById(canvasId).getContext("2d");
   const labels = taxas.map(t => t.hora);
   const dados = taxas.map(t => t.taxa);
@@ -326,7 +331,6 @@ function desenharGrafico(taxas, canvasId) {
     }
   });
 }
-
 
 
 
@@ -434,7 +438,6 @@ function desenharGrafico(taxas, canvasId) {
 }
 const canvasId = `grafico_remocao_${i}`;
 html += `<h4>Taxa de Remoção Hora a Hora</h4>
-<canvas id="${canvasId}" height="200" style="background:white; border-radius:8px; margin-top:15px; border:1px solid #ccc;"></canvas>`;
 
 html += `</div>`;
 
