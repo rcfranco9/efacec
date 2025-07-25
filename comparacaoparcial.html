@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RFaaaa</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -256,14 +256,11 @@ function calculaIndicePressao(pf, rf) {
       r.readAsText(f);
     });
 function calcularTaxasHoraAHora(id, massaKg, canvasId) {
-const registos = linhas.map(r => {
-  const dataHora = new Date(r.DataHora);
-  return {
-    hora: `${dataHora.getFullYear()}-${(dataHora.getMonth()+1).toString().padStart(2,'0')}-${dataHora.getDate().toString().padStart(2,'0')} ${dataHora.getHours().toString().padStart(2,'0')}`,
+  const linhas = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora);
+  const registos = linhas.map(r => ({
+    hora: new Date(r.DataHora).toISOString().substring(0, 13),
     valor: parseNum(r.LC_3_8)
-  };
-}).filter(r => !isNaN(r.valor));
-
+  })).filter(r => !isNaN(r.valor));
   
   const porHora = {};
   registos.forEach(({ hora, valor }) => {
@@ -273,7 +270,10 @@ const registos = linhas.map(r => {
  
   const horasOrdenadas = Object.keys(porHora).sort();
 // Formatar só para mostrar as horas
-const labelsHoras = horasOrdenadas.map(h => h.substring(11, 13));
+const labelsHoras = horasOrdenadas.map(h => {
+  const hora = parseInt(h.substring(11, 13), 10); // extrai e converte para número
+  return (hora - 1).toString().padStart(2, '0');  // subtrai 1 e volta a formatar como string de 2 dígitos
+});
   const taxasHoraAHora = horasOrdenadas.map(h => {
     const arr = porHora[h];
     if (arr.length >= 2) {
