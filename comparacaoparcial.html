@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RFaaa</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -254,35 +254,38 @@ function calculaIndicePressao(pf, rf) {
         complete: res => { dadosPF = res.data; checkReady(); }
       });
       r.readAsText(f);
- });
+    });
+function calcularTaxasHoraAHora(id, massaKg, canvasId) {
 
-    function calcularTaxasHoraAHora(id, massaKg, canvasId) {
-const linhas = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora);
-const registos = linhas.map(r => ({
-  hora: new Date(r.DataHora).toISOString().substring(0, 13),
-  valor: parseNum(r.LC_3_8)
-})).filter(r => !isNaN(r.valor));
+  const linhas = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora);
+  const registos = linhas.map(r => ({
+    hora: new Date(r.DataHora).toISOString().substring(0, 13), // YYYY-MM-DDTHH
+    valor: parseNum(r.LC_3_8)
+  })).filter(r => !isNaN(r.valor));
 
-const porHora = {};
-registos.forEach(({ hora, valor }) => {
-  if (!porHora[hora]) porHora[hora] = [];
-  porHora[hora].push(valor);
-});
+  const porHora = {};
+  registos.forEach(({ hora, valor }) => {
+    if (!porHora[hora]) porHora[hora] = [];
+    porHora[hora].push(valor);
+  });
 
-const horasOrdenadas = Object.keys(porHora).sort();
-const medias = horasOrdenadas.map(h => {
-  const arr = porHora[h];
-  const diff = arr[arr.length - 1] - arr[0];
-  return { hora: h.slice(11), media: diff };
-});
-const ton = parseFloat(massaiKg) / 1000 || 1;
-const taxas = medias.map(m => ({
-  hora: m.hora,
-  taxa: +(m.media / ton).toFixed(2)
-}));
+  const horasOrdenadas = Object.keys(porHora).sort();
+  const medias = horasOrdenadas.map(h => {
+    const arr = porHora[h];
+    const media = arr.reduce((acc, v) => acc + v, 0) / arr.length;
+    return { hora: h.slice(11), media };
+  });
 
-desenharGrafico(taxas, canvasId);
+  const taxas = [];
+  const ton = parseNum(massaKg) / 1000 || 1;
+  for (let i = 1; i < medias.length; i++) {
+    const delta = medias[i].media - medias[i - 1].media;
+    const taxa = +(delta / ton).toFixed(2);
+    taxas.push({ hora: medias[i].hora, taxa });
+  }
 
+  desenharGrafico(taxas, canvasId);
+}
     let graficoRemocao = null;
 
 function desenharGrafico(taxas, canvasId) {
@@ -370,7 +373,7 @@ function desenharGrafico(taxas, canvasId) {
   }
 
   document.getElementById('taxas-remocao').innerHTML = resultado.join('<br>');
-        
+}
 
 
         html += `<div class="transformador-dados">
@@ -437,12 +440,12 @@ html += `</div>`;
 
 // Chamar a função de cálculo do gráfico
 setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
-
-    
+html += `</div>`;
+      });
 
       out.innerHTML = html;
       document.getElementById('btnExportarPDF').style.display = 'inline-block';
-    }
+    });
 
     document.getElementById("btnExportarPDF").addEventListener("click", async () => {
       const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
@@ -470,9 +473,7 @@ setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
       const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
       doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
     });
-        
   </script>
 
 </body>
-</html>
-
+</html>tml>
