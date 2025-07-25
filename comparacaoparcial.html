@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Filtragem de Transformadores com Índices</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
@@ -116,6 +117,8 @@
   <button id="btnFiltrar" disabled>Procurar</button>
 
   <div id="resultado">Carrega primeiro os três ficheiros CSV.</div>
+  <canvas id="graficoTaxaHora" style="margin-top:30px; background:white; padding:15px; border-radius:10px; border:1px solid #ccc;"></canvas>
+
 
   <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
@@ -252,6 +255,80 @@ function calculaIndicePressao(pf, rf) {
       });
       r.readAsText(f);
     });
+    function calcularTaxasHoraAHora(id, massaKg) {
+  const linhas = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora);
+  const registos = linhas.map(r => ({
+    hora: new Date(r.DataHora).toISOString().substring(0, 13), // YYYY-MM-DDTHH
+    valor: parseNum(r.LC_3_8)
+  })).filter(r => !isNaN(r.valor));
+
+  const porHora = {};
+  registos.forEach(({ hora, valor }) => {
+    if (!porHora[hora]) porHora[hora] = [];
+    porHora[hora].push(valor);
+  });
+
+  const horasOrdenadas = Object.keys(porHora).sort();
+  const medias = horasOrdenadas.map(h => {
+    const arr = porHora[h];
+    const media = arr.reduce((acc, v) => acc + v, 0) / arr.length;
+    return { hora: h.slice(11), media };
+  });
+
+  const taxas = [];
+  const ton = parseNum(massaKg) / 1000 || 1;
+  for (let i = 1; i < medias.length; i++) {
+    const delta = medias[i].media - medias[i - 1].media;
+    const taxa = +(delta / ton).toFixed(2);
+    taxas.push({ hora: medias[i].hora, taxa });
+  }
+
+  desenharGrafico(taxas);
+}
+    let graficoRemocao = null;
+
+function desenharGrafico(taxas) {
+  const ctx = document.getElementById("graficoTaxaHora").getContext("2d");
+  const labels = taxas.map(t => t.hora);
+  const dados = taxas.map(t => t.taxa);
+
+  if (graficoRemocao) graficoRemocao.destroy();
+
+  graficoRemocao = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Taxa de Remoção de Água (L/h*t)",
+        data: dados,
+        borderColor: "#2980b9",
+        backgroundColor: "rgba(52, 152, 219, 0.2)",
+        fill: true,
+        tension: 0.2,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          title: { display: true, text: 'Taxa (L/h*t)' },
+          beginAtZero: true
+        },
+        x: {
+          title: { display: true, text: 'Hora' }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { callbacks: {
+          label: ctx => `${ctx.parsed.y} L/h*t`
+        }}
+      }
+    }
+  });
+}
+
+
 
     document.getElementById('btnFiltrar').addEventListener('click', () => {
       const pot = document.getElementById('potenciaInput').value.trim();
@@ -355,7 +432,14 @@ function calculaIndicePressao(pf, rf) {
 } else {
   html += `<em>Dados PF/RF não encontrados para este transformador.</em>`;
 }
+const canvasId = `grafico_remocao_${i}`;
+html += `<h4>Taxa de Remoção Hora a Hora</h4>
+<canvas id="${canvasId}" height="200" style="background:white; border-radius:8px; margin-top:15px; border:1px solid #ccc;"></canvas>`;
 
+html += `</div>`;
+
+// Chamar a função de cálculo do gráfico
+setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
 html += `</div>`;
       });
 
