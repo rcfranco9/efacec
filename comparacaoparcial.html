@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RFaaaa</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -272,7 +272,7 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
 // Formatar só para mostrar as horas
 const labelsHoras = horasOrdenadas.map(h => {
   const hora = parseInt(h.substring(11, 13), 10); // extrai e converte para número
-  return (hora - 1).toString().padStart(2, '0');  // subtrai 1 e volta a formatar como string de 2 dígitos
+  return (hora + 1).toString().padStart(2, '0');  // subtrai 1 e volta a formatar como string de 2 dígitos
 });
   const taxasHoraAHora = horasOrdenadas.map(h => {
     const arr = porHora[h];
