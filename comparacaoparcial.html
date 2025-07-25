@@ -96,7 +96,7 @@
 </head>
 <body>
 
-  <h1>Filtragem de Transformadores com Índices PF/RF</h1>
+  <h1>Filtragem de Transformadores com Índices PF/RFaaa</h1>
     <div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
 
   <label for="csvMeta">1) CSV1 (Meta):</label>
@@ -271,8 +271,12 @@ function calcularTaxasHoraAHora(id, massaKg, canvasId) {
   const horasOrdenadas = Object.keys(porHora).sort();
   const medias = horasOrdenadas.map(h => {
     const arr = porHora[h];
-    const media = arr.reduce((acc, v) => acc + v, 0) / arr.length;
-    return { hora: h.slice(11), media };
+   const medias = horasOrdenadas.map(h => {
+  const arr = porHora[h];
+  const diff = arr[arr.length - 1] - arr[0]; // diferença último - primeiro
+  return { hora: h.slice(11), media: diff };
+});
+
   });
 
   const taxas = [];
