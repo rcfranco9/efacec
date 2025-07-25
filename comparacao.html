@@ -322,8 +322,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
- const blocos1 = calcTaxaPorHora(id1, m1.massai);
-const blocos2 = calcTaxaPorHora(id2, m2.massai);
+ 
 
 
   if (!t1 || !t2) {
