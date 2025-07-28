@@ -92,7 +92,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadores</h1>
+<h1>Consulta de Transformadoresaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -348,32 +348,37 @@ if (primeiraHoraPressaoBaixa) {
 
   html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
 
-let tempoAtual = 0;
-let mensagens = '';
+  // Pega o valor RF1DAquec (em horas) do primeiro registo da série de referência
+  const rf1dAquecStr = serieRef[0]?.RF1DAquec;
+  const rf1dAquec = parseFloat(rf1dAquecStr);
+  const horasAquecimento = (!isNaN(rf1dAquec) && rf1dAquec > 0) ? rf1dAquec : 10; // fallback para 10h
 
-function somarEAdicionar(coluna, texto) {
-  const valor = parseFloat(serieRef[0][coluna]);
-  if (isNaN(valor) || valor === 0) {
-    mensagens += `<p><strong>N/A:</strong> ${texto}</p>`;
-  } else {
-    tempoAtual += valor;
-    mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> ${texto}</p>`;
-  }
+  const dFimAquecimento = new Date(d.getTime() + horasAquecimento * 3600000);
+  const diaF = String(dFimAquecimento.getDate()).padStart(2, '0');
+  const mesF = String(dFimAquecimento.getMonth()+1).padStart(2, '0');
+  const anoF = dFimAquecimento.getFullYear();
+  const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
+  const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
+
+  html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+
+  // Pega o valor RF1DRem (em horas) para zona de remoção
+  const rf1dRemStr = serieRef[0]?.RF1DRem;
+  const horasRemocao = (!isNaN(parseFloat(rf1dRemStr)) && parseFloat(rf1dRemStr) > 0) ? parseFloat(rf1dRemStr) : 2; // fallback para 2h
+
+  // Somar RF1DRem ao fim do aquecimento
+  const dZonaRemocao = new Date(dFimAquecimento.getTime() + horasRemocao * 3600000);
+  const diaZ = String(dZonaRemocao.getDate()).padStart(2, '0');
+  const mesZ = String(dZonaRemocao.getMonth()+1).padStart(2, '0');
+  const anoZ = dZonaRemocao.getFullYear();
+  const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
+  const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
+
+  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+
+} else {
+  html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
 }
-
-somarEAdicionar('RF1DAquec', 'Acabou o aquecimento da 1ª fase');
-somarEAdicionar('RF1DRem', 'Acabou a zona de remoção da 1ª fase');
-somarEAdicionar('RF2DAquec', 'Acabou o aquecimento da 2ª fase');
-somarEAdicionar('RF2DRem', 'Acabou a zona de remoção da 2ª fase');
-somarEAdicionar('RF3DAquec', 'Acabou o aquecimento da 3ª fase');
-somarEAdicionar('RF3DRem', 'Acabou a zona de remoção da 3ª fase');
-somarEAdicionar('RF4DAquec', 'Acabou o aquecimento da 4ª fase');
-somarEAdicionar('RF4DRem', 'Acabou a zona de remoção da 4ª fase');
-somarEAdicionar('RF5DAquec', 'Acabou o aquecimento da 5ª fase');
-somarEAdicionar('RF5DRem', 'Acabou a zona de remoção da 5ª fase');
-somarEAdicionar('RF6DAquec', 'Acabou o aquecimento da 6ª fase');
-somarEAdicionar('RF6DRem', 'Acabou a zona de remoção da 6ª fase');
-
 
 
     // PFxTAquec e RFxTAquec
@@ -455,7 +460,7 @@ somarEAdicionar('RF6DRem', 'Acabou a zona de remoção da 6ª fase');
     html += `</ul></div>`;
 
     html += `</div>`;
-  }
+  });
 
   out.innerHTML = html;
 
@@ -472,7 +477,7 @@ somarEAdicionar('RF6DRem', 'Acabou a zona de remoção da 6ª fase');
 
   // Mostrar botão exportar PDF
   document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
-});
+}
 
 // Função para criar gráfico taxa hora a hora
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
@@ -582,7 +587,6 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
     pdf.save('resultado_transformadores.pdf');
   });
 });
-}
 </script>
 
 </body>
