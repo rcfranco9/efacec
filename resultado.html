@@ -348,129 +348,32 @@ if (primeiraHoraPressaoBaixa) {
 
   html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
 
-  // Pega o valor RF1DAquec (em horas) do primeiro registo da série de referência
-  const rf1dAquecStr = serieRef[0]?.RF1DAquec;
-  const rf1dAquec = parseFloat(rf1dAquecStr);
-  const horasAquecimento = (!isNaN(rf1dAquec) && rf1dAquec > 0) ? rf1dAquec : 10; // fallback para 10h
+let tempoAtual = 0;
+let mensagens = '';
 
-  const dFimAquecimento = new Date(d.getTime() + horasAquecimento * 3600000);
-  const diaF = String(dFimAquecimento.getDate()).padStart(2, '0');
-  const mesF = String(dFimAquecimento.getMonth()+1).padStart(2, '0');
-  const anoF = dFimAquecimento.getFullYear();
-  const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
-  const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
-
-  html += `<p><strong>Acabou o aquecimento da primeira fase às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
-
-  // Pega o valor RF1DRem (em horas) para zona de remoção
-  const rf1dRemStr = serieRef[0]?.RF1DRem;
-  const horasRemocao = (!isNaN(parseFloat(rf1dRemStr)) && parseFloat(rf1dRemStr) > 0) ? parseFloat(rf1dRemStr) : 2; // fallback para 2h
-
-  // Somar RF1DRem ao fim do aquecimento
-  const dZonaRemocao = new Date(dFimAquecimento.getTime() + horasRemocao * 3600000);
-  const diaZ = String(dZonaRemocao.getDate()).padStart(2, '0');
-  const mesZ = String(dZonaRemocao.getMonth()+1).padStart(2, '0');
-  const anoZ = dZonaRemocao.getFullYear();
-  const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
-  const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
-
-  html += `<p><strong>Fim da remoção na primeira fase às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
-
- const rf2dAquec = parseFloat(serieRef[0]?.RF2DAquec);
-  const horasAquecimento2 = (!isNaN(rf2dAquec) && rf2dAquec > 0) ? rf2dAquec : 0; // 0h fallback se não houver valor
-  const dFimAquecimento2 = new Date(dZonaRemocao.getTime() + horasAquecimento2 * 3600000);
-
-  const diaF2 = String(dFimAquecimento2.getDate()).padStart(2, '0');
-  const mesF2 = String(dFimAquecimento2.getMonth() + 1).padStart(2, '0');
-  const anoF2 = dFimAquecimento2.getFullYear();
-  const horaF2 = String(dFimAquecimento2.getHours()).padStart(2, '0');
-  const minF2 = String(dFimAquecimento2.getMinutes()).padStart(2, '0');
-
-  html += `<p><strong>Acabou a zona de aquecimento da 2ª fase às:</strong> ${diaF2}/${mesF2}/${anoF2} ${horaF2}:${minF2}</p>`;
-
-const rf2dRem = parseFloat(serieRef[0]?.RF2DRem);
-  const horasRemocao2 = (!isNaN(rf2dRem) && rf2dRem > 0) ? rf2dRem : 0;
-  const dFimRemocao2 = new Date(dFimAquecimento2.getTime() + horasRemocao2 * 3600000);
-
-  const diaR2 = String(dFimRemocao2.getDate()).padStart(2, '0');
-  const mesR2 = String(dFimRemocao2.getMonth() + 1).padStart(2, '0');
-  const anoR2 = dFimRemocao2.getFullYear();
-  const horaR2 = String(dFimRemocao2.getHours()).padStart(2, '0');
-  const minR2 = String(dFimRemocao2.getMinutes()).padStart(2, '0');
-
-  html += `<p><strong>Acabou a zona de remoção da 2ª fase às:</strong> ${diaR2}/${mesR2}/${anoR2} ${horaR2}:${minR2}</p>`;
-// RF3DAquec (horas) - fim zona aquecimento 3ª fase
-const rf3dAquec = parseFloat(serieRef[0]?.RF3DAquec);
-const horasAquec3 = (!isNaN(rf3dAquec) && rf3dAquec > 0) ? rf3dAquec : 0;
-const dFimAquecimento3 = new Date(dFimRemocao2.getTime() + horasAquec3 * 3600000);
-
-const diaA3 = String(dFimAquecimento3.getDate()).padStart(2, '0');
-const mesA3 = String(dFimAquecimento3.getMonth() + 1).padStart(2, '0');
-const anoA3 = dFimAquecimento3.getFullYear();
-const horaA3 = String(dFimAquecimento3.getHours()).padStart(2, '0');
-const minA3 = String(dFimAquecimento3.getMinutes()).padStart(2, '0');
-
-html += `<p><strong>Acabou a zona de aquecimento da 3ª fase às:</strong> ${diaA3}/${mesA3}/${anoA3} ${horaA3}:${minA3}</p>`;
-// RF3DRem (horas) - fim zona remoção 3ª fase
-const rf3dRem = parseFloat(serieRef[0]?.RF3DRem);
-const horasRemocao3 = (!isNaN(rf3dRem) && rf3dRem > 0) ? rf3dRem : 0;
-const dFimRemocao3 = new Date(dFimAquecimento3.getTime() + horasRemocao3 * 3600000);
-
-const diaR3 = String(dFimRemocao3.getDate()).padStart(2, '0');
-const mesR3 = String(dFimRemocao3.getMonth() + 1).padStart(2, '0');
-const anoR3 = dFimRemocao3.getFullYear();
-const horaR3 = String(dFimRemocao3.getHours()).padStart(2, '0');
-const minR3 = String(dFimRemocao3.getMinutes()).padStart(2, '0');
-
-html += `<p><strong>Acabou a zona de remoção da 3ª fase às:</strong> ${diaR3}/${mesR3}/${anoR3} ${horaR3}:${minR3}</p>`;
-// RF4DAquec (horas) - fim zona aquecimento 4ª fase
-const rf4dAquec = parseFloat(serieRef[0]?.RF4DAquec);
-const horasAquec4 = (!isNaN(rf4dAquec) && rf4dAquec > 0) ? rf4dAquec : 0;
-const dFimAquecimento4 = new Date(dFimRemocao3.getTime() + horasAquec4 * 3600000);
-
-const diaA4 = String(dFimAquecimento4.getDate()).padStart(2, '0');
-const mesA4 = String(dFimAquecimento4.getMonth() + 1).padStart(2, '0');
-const anoA4 = dFimAquecimento4.getFullYear();
-const horaA4 = String(dFimAquecimento4.getHours()).padStart(2, '0');
-const minA4 = String(dFimAquecimento4.getMinutes()).padStart(2, '0');
-
-html += `<p><strong>Acabou a zona de aquecimento da 4ª fase às:</strong> ${diaA4}/${mesA4}/${anoA4} ${horaA4}:${minA4}</p>`;
-// RF4DRem (horas) - fim zona remoção 4ª fase
-const rf4dRem = parseFloat(serieRef[0]?.RF4DRem);
-const horasRemocao4 = (!isNaN(rf4dRem) && rf4dRem > 0) ? rf4dRem : 0;
-const dFimRemocao4 = new Date(dFimAquecimento4.getTime() + horasRemocao4 * 3600000);
-
-const diaR4 = String(dFimRemocao4.getDate()).padStart(2, '0');
-const mesR4 = String(dFimRemocao4.getMonth() + 1).padStart(2, '0');
-const anoR4 = dFimRemocao4.getFullYear();
-const horaR4 = String(dFimRemocao4.getHours()).padStart(2, '0');
-const minR4 = String(dFimRemocao4.getMinutes()).padStart(2, '0');
-
-html += `<p><strong>Acabou a zona de remoção da 4ª fase às:</strong> ${diaR4}/${mesR4}/${anoR4} ${horaR4}:${minR4}</p>`;
-const rf5DAquec = parseFloat(serieRef[0]['RF5DAquec']);
-if (!isNaN(rf5DAquec)) {
-  tempoAtual += rf5DAquec;
-  mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> Acabou a zona de aquecimento da 5ª fase</p>`;
-}
-const rf5DRem = parseFloat(serieRef[0]['RF5DRem']);
-if (!isNaN(rf5DRem)) {
-  tempoAtual += rf5DRem;
-  mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> Acabou a zona de remoção da 5ª fase</p>`;
-}
-const rf6DAquec = parseFloat(serieRef[0]['RF6DAquec']);
-if (!isNaN(rf6DAquec)) {
-  tempoAtual += rf6DAquec;
-  mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> Acabou a zona de aquecimento da 6ª fase</p>`;
-}
-const rf6DRem = parseFloat(serieRef[0]['RF6DRem']);
-if (!isNaN(rf6DRem)) {
-  tempoAtual += rf6DRem;
-  mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> Acabou a zona de remoção da 6ª fase</p>`;
+function somarEAdicionar(coluna, texto) {
+  const valor = parseFloat(serieRef[0][coluna]);
+  if (isNaN(valor) || valor === 0) {
+    mensagens += `<p><strong>N/A:</strong> ${texto}</p>`;
+  } else {
+    tempoAtual += valor;
+    mensagens += `<p><strong>${tempoAtual.toFixed(2)} h:</strong> ${texto}</p>`;
+  }
 }
 
-} else {
-  html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
-}
+somarEAdicionar('RF1DAquec', 'Acabou o aquecimento da 1ª fase');
+somarEAdicionar('RF1DRem', 'Acabou a zona de remoção da 1ª fase');
+somarEAdicionar('RF2DAquec', 'Acabou o aquecimento da 2ª fase');
+somarEAdicionar('RF2DRem', 'Acabou a zona de remoção da 2ª fase');
+somarEAdicionar('RF3DAquec', 'Acabou o aquecimento da 3ª fase');
+somarEAdicionar('RF3DRem', 'Acabou a zona de remoção da 3ª fase');
+somarEAdicionar('RF4DAquec', 'Acabou o aquecimento da 4ª fase');
+somarEAdicionar('RF4DRem', 'Acabou a zona de remoção da 4ª fase');
+somarEAdicionar('RF5DAquec', 'Acabou o aquecimento da 5ª fase');
+somarEAdicionar('RF5DRem', 'Acabou a zona de remoção da 5ª fase');
+somarEAdicionar('RF6DAquec', 'Acabou o aquecimento da 6ª fase');
+somarEAdicionar('RF6DRem', 'Acabou a zona de remoção da 6ª fase');
+
 
 
     // PFxTAquec e RFxTAquec
