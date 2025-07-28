@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadores</h1>
+<h1>Comparação de Transformadoresaaaa</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -345,15 +345,12 @@ const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
 const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
 
 const labels = blocos1.map(b => {
-  const data = new Date(b.intervalo);
-  if (isNaN(data)) {
-    console.warn('Data inválida em intervalo:', b.intervalo);
-    return 'inválido';
-  }
-  const hora = String(data.getHours()).padStart(2, '0');
-  const minutos = String(data.getMinutes()).padStart(2, '0');
-  return `${hora}`;
+  // Extrai a parte antes do "-" (ex: "0-1h" → "0")
+  const horaInicio = b.intervalo.split('-')[0];
+  const horaFormatada = String(horaInicio).padStart(2, '0') + ":00";
+  return String(horaInicio).padStart(2, '0');
 }).reverse();
+
 
 
 const data1 = blocos1.map(b => {
