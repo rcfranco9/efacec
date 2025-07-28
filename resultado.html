@@ -374,7 +374,7 @@ if (primeiraHoraPressaoBaixa) {
   const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
   const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
 
-  html += `<p><strong>Início da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
 
 } else {
   html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
