@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadores</h1>
+<h1>Comparação de Transformadoresaaaa</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -344,7 +344,13 @@ document.getElementById('btnComparar').addEventListener('click', () => {
 const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
 const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
 
-const labels = blocos1.map(b => b.intervalo).reverse();
+const labels = blocos1.map(b => {
+  const data = new Date(b.intervalo);
+  const hora = String(data.getHours()).padStart(2, '0');
+  const minutos = String(data.getMinutes()).padStart(2, '0');
+  return `${hora}:${minutos}`;
+}).reverse();
+
 const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
 
@@ -396,10 +402,9 @@ window.chartTaxas = new Chart(ctx, {
     },
     scales: {
       x: {
-        title: { display: true, text: 'Intervalo de Horas (há horas atrás)'
+        title: { display: true, text: 'horas'
                },
-        
-          reverse: true 
+        reverse: true 
       },
       
       y: {
