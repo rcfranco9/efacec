@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -348,7 +348,7 @@ const labels = blocos1.map(b => {
   const data = new Date(b.intervalo);
   const hora = String(data.getHours()).padStart(2, '0');
   const minutos = String(data.getMinutes()).padStart(2, '0');
-  return `${hora}:${minutos}`;
+  return `${hora}`;
 }).reverse();
 
 const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
@@ -363,7 +363,7 @@ if (window.chartTaxas) {
 
 // Criar novo gráfico
 window.chartTaxas = new Chart(ctx, {
-  type: 'line',
+  type: 'category',
   data: {
     labels: labels,
     datasets: [
