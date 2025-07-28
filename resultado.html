@@ -94,7 +94,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadores</h1>
+<h1>Consulta de Transformadoresaaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -509,9 +509,11 @@ for (const linha of dadosPressao) {
 
   const ctx = canvasEl.getContext('2d');
 
-
+Chart.register(chartjsPluginAnnotation);
 Chart.register(window['chartjs-plugin-annotation']);
+console.log(window.chartjsPluginAnnotation, window.ChartjsPluginAnnotation);
 
+  
 window[idCanvas + '_chart'] = new Chart(ctx, {
   type: 'line',
   data: {
@@ -571,6 +573,8 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
     pdf.save('resultado_transformadores.pdf');
   });
 });
+}
+  
 </script>
 
 </body>
