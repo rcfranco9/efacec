@@ -92,7 +92,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadores</h1>
+<h1>Consulta de Transformadoresaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -446,27 +446,26 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   });
 
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+
   const labelsHoras = chavesOrdenadas.map(timestamp => {
-  const hora = new Date(Number(timestamp)).getHours();
-  return `${hora + 1}h`; // soma 1 à hora
-});
+    const hora = new Date(Number(timestamp)).getHours();
+    return `${hora + 1}h`; // soma 1 à hora para exibição
+  });
 
+  const taxasHoraAHora = chavesOrdenadas.map(chave => {
+    const valores = dadosPorHora[chave];
+    if (!valores || valores.length < 2) return 0;
 
- const taxasHoraAHora = chavesOrdenadas.map(chave => {
-  const valores = dadosPorHora[chave];
-  if (!valores || valores.length < 2) return 0; // não dá para calcular diferença
+    const valorInicial = valores[0];
+    const valorFinal = valores[valores.length - 1];
+    const difLC = valorFinal - valorInicial;
 
-  const valorInicial = valores[0];
-  const valorFinal = valores[valores.length - 1];
-  const difLC = valorFinal - valorInicial;
-
-  return difLC / (1 * massaTon); // duração é 1 hora
-});
-
-
+    return difLC / (1 * massaTon); // duração é 1 hora
+  });
 
   // DEBUG
-  console.log(`Criando gráfico em ${idCanvas} com pontos:`, pontosGrafico);
+  console.log(`Criando gráfico em ${idCanvas} com labels:`, labelsHoras);
+  console.log(`Taxas:`, taxasHoraAHora);
 
   const canvasEl = document.getElementById(idCanvas);
   if (!canvasEl) {
@@ -481,19 +480,19 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   const ctx = canvasEl.getContext('2d');
 
   window[idCanvas + '_chart'] = new Chart(ctx, {
-type: 'line',
-data: {
-  labels: labelsHoras,
-  datasets: [{
-    label: 'Taxa LC por hora (L/(h*t))',
-    data: taxasHoraAHora,
-    backgroundColor: 'rgba(75, 192, 192, 0.5)',
-    borderColor: 'rgba(75, 192, 192, 1)',
-    pointRadius: 5,
-    fill: false,
-    tension: 0.2
-  }]
-},
+    type: 'line',
+    data: {
+      labels: labelsHoras,
+      datasets: [{
+        label: 'Taxa LC por hora (L/(h*t))',
+        data: taxasHoraAHora,
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        pointRadius: 5,
+        fill: false,
+        tension: 0.2
+      }]
+    },
     options: {
       responsive: true,
       plugins: {
@@ -506,10 +505,8 @@ data: {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Hora (0, 1, 2, ...)' },
-          ticks: { stepSize: 1, precision: 0 },
-          min: 0,
-          max: pontosGrafico.length > 0 ? pontosGrafico.length  : 1
+          title: { display: true, text: 'Hora (real)' },
+          ticks: { stepSize: 1, precision: 0 }
         },
         y: {
           title: { display: true, text: 'Taxa LC (L/(h*t))' },
