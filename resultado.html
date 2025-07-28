@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Consulta Transformador por Nome</title>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -418,7 +420,8 @@ function buscarPorNome() {
   const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
   if (!serie.length) return;
   const massaiTon = Number(meta.massai) / 1000; // calcular aqui!
-  criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon);
+  criarGraficoTaxaHoraAHora("canvasId", dadosLC, massaTon, dadosPressao);
+
 });
 
 
@@ -427,7 +430,7 @@ function buscarPorNome() {
 }
 
 // Função para criar gráfico taxa hora a hora
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
+function criarGraficoTaxaHoraAHora (idCanvas, dadosSerie, massaTon, dadosPressao) {
   if (!massaTon || massaTon <= 0) {
     console.warn('massaTon inválido:', massaTon);
     return;
@@ -462,6 +465,33 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
 
     return difLC / (1 * massaTon); // duração é 1 hora
   });
+  // === ETAPA NOVA: detectar PRIMEIRA hora com pressão < 20
+let anotacoes = [];
+
+for (const linha of dadosPressao) {
+  const valorPressao = parseFloat(linha.PE_5_5_1);
+  if (!isNaN(valorPressao) && valorPressao < 20) {
+    const hora = new Date(linha.DataHora);
+    hora.setMinutes(0, 0, 0);
+    const horaFormatada = `${hora.getHours() + 1}h`; // soma 1 como no labelsHoras
+
+    anotacoes.push({
+      type: 'line',
+      mode: 'vertical',
+      scaleID: 'x',
+      value: horaFormatada,
+      borderColor: 'red',
+      borderWidth: 2,
+      label: {
+        content: 'P < 20',
+        enabled: true,
+        position: 'top',
+        backgroundColor: 'rgba(255,0,0,0.7)'
+      }
+    });
+    break; // PARA no primeiro valor < 20
+  }
+}
 
   // DEBUG
   console.log(`Criando gráfico em ${idCanvas} com labels:`, labelsHoras);
