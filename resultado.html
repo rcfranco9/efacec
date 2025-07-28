@@ -94,7 +94,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadores</h1>
+<h1>Consulta de Transformadoresaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -115,7 +115,9 @@
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
-Chart.register(window.chartjsPluginAnnotation);
+  
+  Chart.register(window['chartjsPluginAnnotation']);
+
 
 console.log(window.chartjsPluginAnnotation);
 
@@ -558,7 +560,12 @@ window[idCanvas + '_chart'] = new Chart(ctx, {
       }
     }
   },
-  plugins: [Chart.registry.getPlugin('annotation')] // <-- e aqui
+  plugins: {
+      annotation: {
+        annotations: anotacoes
+  }
+}
+
 });
 
 
