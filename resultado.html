@@ -360,7 +360,7 @@ if (primeiraHoraPressaoBaixa) {
   const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
   const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
 
-  html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+  html += `<p><strong>Acabou o aquecimento da primeira fase às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
 
   // Pega o valor RF1DRem (em horas) para zona de remoção
   const rf1dRemStr = serieRef[0]?.RF1DRem;
@@ -374,7 +374,7 @@ if (primeiraHoraPressaoBaixa) {
   const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
   const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
 
-  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+  html += `<p><strong>Fim da remoção na primeira fase às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
 
 } else {
   html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
