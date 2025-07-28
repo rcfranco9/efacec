@@ -509,43 +509,50 @@ for (const linha of dadosPressao) {
 
   const ctx = canvasEl.getContext('2d');
 
-  window[idCanvas + '_chart'] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labelsHoras,
-      datasets: [{
-        label: 'Taxa LC por hora (L/(h*t))',
-        data: taxasHoraAHora,
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        pointRadius: 5,
-        fill: false,
-        tension: 0.2
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: true },
-        tooltip: {
-          callbacks: {
-            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
-          }
+
+Chart.register(window['chartjs-plugin-annotation']);
+
+window[idCanvas + '_chart'] = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labelsHoras,
+    datasets: [{
+      label: 'Taxa LC por hora (L/(h*t))',
+      data: taxasHoraAHora,
+      backgroundColor: 'rgba(75, 192, 192, 0.5)',
+      borderColor: 'rgba(75, 192, 192, 1)',
+      pointRadius: 5,
+      fill: false,
+      tension: 0.2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      tooltip: {
+        callbacks: {
+          label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
         }
       },
-      scales: {
-        x: {
-          title: { display: true, text: 'Hora (real)' },
-          ticks: { stepSize: 1, precision: 0 }
-        },
-        y: {
-          title: { display: true, text: 'Taxa LC (L/(h*t))' },
-          beginAtZero: true
-        }
+      annotation: {  // <-- adiciona aqui
+        annotations: anotacoes
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Hora (real)' },
+        ticks: { stepSize: 1, precision: 0 }
+      },
+      y: {
+        title: { display: true, text: 'Taxa LC (L/(h*t))' },
+        beginAtZero: true
       }
     }
-  });
-}
+  },
+  plugins: [Chart.registry.getPlugin('annotation')] // <-- e aqui
+});
+
 
 // Exportar resultado para PDF
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
