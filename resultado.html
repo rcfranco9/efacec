@@ -446,6 +446,11 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   });
 
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+  const labelsHoras = chavesOrdenadas.map(timestamp => {
+  const hora = new Date(Number(timestamp)).getHours();
+  return `${hora + 1}h`; // soma 1 à hora
+});
+
 
  const taxasHoraAHora = chavesOrdenadas.map(chave => {
   const valores = dadosPorHora[chave];
@@ -458,7 +463,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   return difLC / (1 * massaTon); // duração é 1 hora
 });
 
-  const pontosGrafico = taxasHoraAHora.map((taxa, index) => ({ x: index, y: taxa }));
+
 
   // DEBUG
   console.log(`Criando gráfico em ${idCanvas} com pontos:`, pontosGrafico);
@@ -476,16 +481,20 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   const ctx = canvasEl.getContext('2d');
 
   window[idCanvas + '_chart'] = new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      datasets: [{
-        label: 'Taxa LC por hora (L/(h*t))',
-        data: pontosGrafico,
-        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        pointRadius: 5
-      }]
-    },
+type: 'line',
+data: {
+  labels: labelsHoras,
+  datasets: [{
+    label: 'Taxa LC por hora (L/(h*t))',
+    data: taxasHoraAHora,
+    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+    borderColor: 'rgba(75, 192, 192, 1)',
+    pointRadius: 5,
+    fill: false,
+    tension: 0.2
+  }]
+}
+
     options: {
       responsive: true,
       plugins: {
@@ -498,11 +507,10 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
       },
       scales: {
         x: {
-          type: 'linear',
           title: { display: true, text: 'Hora (0, 1, 2, ...)' },
           ticks: { stepSize: 1, precision: 0 },
           min: 0,
-          max: pontosGrafico.length > 0 ? pontosGrafico.length - 1 : 0
+          max: pontosGrafico.length > 0 ? pontosGrafico.length  : 1
         },
         y: {
           title: { display: true, text: 'Taxa LC (L/(h*t))' },
