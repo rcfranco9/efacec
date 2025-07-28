@@ -117,6 +117,13 @@
 <label>Nome Transformador 2 :</label>
 <input type="text" id="nome2" disabled>
 
+  <div id="escolhaIdContainer" style="display: none;">
+  <label for="selectId">Escolha um ID:</label>
+  <select id="selectId"></select>
+  <button id="btnComparar">Comparar</button>
+</div>
+
+  
 <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
@@ -187,6 +194,40 @@ function calcTaxa(id, massaKg) {
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
+  function consultarPorNome(nome, massaKg) {
+  const idsEncontrados = [...new Set(dadosSerie
+    .filter(r => (r.nome || '').toLowerCase() === nome.toLowerCase())
+    .map(r => r.id_secagenscore)
+    .filter(id => id))]; // remove null/undefined
+
+  const container = document.getElementById('escolhaIdContainer');
+  const select = document.getElementById('selectId');
+
+  if (idsEncontrados.length === 0) {
+    alert('Nenhum ID encontrado com esse nome.');
+    container.style.display = 'none';
+    return;
+  }
+
+  if (idsEncontrados.length === 1) {
+    // Só um ID → segue diretamente para comparação
+    const idUnico = idsEncontrados[0];
+    container.style.display = 'none';
+    calcularTaxasHoraAHora(idUnico, massaKg, 'canvas1');
+    calcularComparacoes(idUnico); // ou a função que usas
+  } else {
+    // Vários IDs → mostra dropdown
+    select.innerHTML = ''; // limpa opções anteriores
+    idsEncontrados.forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      select.appendChild(opt);
+    });
+    container.style.display = 'block'; // mostra o dropdown
+  }
+}
+
 function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
   const serie = getSerie(id);
   if (serie.length < 2) return null;
@@ -302,6 +343,18 @@ function calculaIndicePressao(pf, rf) {
 
 
 document.getElementById('btnComparar').addEventListener('click', () => {
+  const idEscolhido = document.getElementById('selectId').value;
+  const massaKg = parseFloat(document.getElementById('massaInput').value); // adapta se tiveres outro input
+
+  if (!idEscolhido || isNaN(massaKg)) {
+    alert("Seleciona um ID e introduz a massa corretamente.");
+    return;
+  }
+
+  calcularTaxasHoraAHora(idEscolhido, massaKg, 'canvas1');
+  calcularComparacoes(idEscolhido);
+});
+
   const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
   const nome2 = document.getElementById('nome2').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
