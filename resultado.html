@@ -328,8 +328,12 @@ function buscarPorNome() {
       <hr>
     `;
     // Encontrar a primeira hora em que pressão PE_5_5_1 foi abaixo de 20
+let html = '';
+
+// 1. Ordenar a série por DataHora
 let primeiraHoraPressaoBaixa = null;
 const serieOrdenada = serie.slice().sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+
 for (const linha of serieOrdenada) {
   const pressao = Number(linha.PE_5_5_1);
   if (!isNaN(pressao) && pressao < 20) {
@@ -338,47 +342,53 @@ for (const linha of serieOrdenada) {
   }
 }
 
+// 2. Se encontrar pressão baixa, começa o cálculo
 if (primeiraHoraPressaoBaixa) {
-  const d = new Date(primeiraHoraPressaoBaixa);
-  const dia = String(d.getDate()).padStart(2, '0');
-  const mes = String(d.getMonth()+1).padStart(2, '0');
-  const ano = d.getFullYear();
-  const hora = String(d.getHours()).padStart(2, '0');
-  const min = String(d.getMinutes()).padStart(2, '0');
+  const dInicio = new Date(primeiraHoraPressaoBaixa);
+  const formatarData = (data) => {
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = data.getFullYear();
+    const hora = String(data.getHours()).padStart(2, '0');
+    const min = String(data.getMinutes()).padStart(2, '0');
+    return `${dia}/${mes}/${ano} ${hora}:${min}`;
+  };
 
-  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
+  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(dInicio)}</p>`;
 
-  // Pega o valor RF1DAquec (em horas) do primeiro registo da série de referência
-  const rf1dAquecStr = serieRef[0]?.RF1DAquec;
-  const rf1dAquec = parseFloat(rf1dAquecStr);
-  const horasAquecimento = (!isNaN(rf1dAquec) && rf1dAquec > 0) ? rf1dAquec : 10; // fallback para 10h
+  // 3. Função auxiliar para somar horas
+  const somarHoras = (data, horas) => new Date(data.getTime() + horas * 3600000);
 
-  const dFimAquecimento = new Date(d.getTime() + horasAquecimento * 3600000);
-  const diaF = String(dFimAquecimento.getDate()).padStart(2, '0');
-  const mesF = String(dFimAquecimento.getMonth()+1).padStart(2, '0');
-  const anoF = dFimAquecimento.getFullYear();
-  const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
-  const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
+  // 4. Lista de fases
+  const fases = [1, 2, 3, 4, 5, 6];
 
-  html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+  let dataAtual = dInicio;
 
-  // Pega o valor RF1DRem (em horas) para zona de remoção
-  const rf1dRemStr = serieRef[0]?.RF1DRem;
-  const horasRemocao = (!isNaN(parseFloat(rf1dRemStr)) && parseFloat(rf1dRemStr) > 0) ? parseFloat(rf1dRemStr) : 2; // fallback para 2h
+  for (const fase of fases) {
+    const valAquecStr = serieRef[0]?.[`RF${fase}DAquec`];
+    const valRemStr = serieRef[0]?.[`RF${fase}DRem`];
 
-  // Somar RF1DRem ao fim do aquecimento
-  const dZonaRemocao = new Date(dFimAquecimento.getTime() + horasRemocao * 3600000);
-  const diaZ = String(dZonaRemocao.getDate()).padStart(2, '0');
-  const mesZ = String(dZonaRemocao.getMonth()+1).padStart(2, '0');
-  const anoZ = dZonaRemocao.getFullYear();
-  const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
-  const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
+    const valAquec = parseFloat(valAquecStr);
+    const valRem = parseFloat(valRemStr);
 
-  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+    // Aquecimento
+    if (!isNaN(valAquec) && valAquec > 0) {
+      dataAtual = somarHoras(dataAtual, valAquec);
+      html += `<p><strong>Acabou o aquecimento da ${fase}ª fase às:</strong> ${formatarData(dataAtual)}</p>`;
+    } else {
+      html += `<p><strong>Acabou o aquecimento da ${fase}ª fase:</strong> N/A</p>`;
+    }
 
-} else {
-  html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
+    // Remoção
+    if (!isNaN(valRem) && valRem > 0) {
+      dataAtual = somarHoras(dataAtual, valRem);
+      html += `<p><strong>Fim da zona de remoção da ${fase}ª fase às:</strong> ${formatarData(dataAtual)}</p>`;
+    } else {
+      html += `<p><strong>Fim da zona de remoção da ${fase}ª fase:</strong> N/A</p>`;
+    }
+  }
 }
+
 
 
     // PFxTAquec e RFxTAquec
