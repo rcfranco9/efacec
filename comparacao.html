@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -123,7 +123,9 @@
 <label for="selectId2" style="display:none;" id="labelSelectId2">Escolha o ID para o segundo transformador:</label>
 <select id="selectId2" style="display:none;"></select>
 
-<button id="btnComparar" disabled>Comparar</button>
+  <button id="btnConfirmarEscolha" style="display:none; margin-top: 10px;">Confirmar Escolha</button>
+
+  <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
   
@@ -376,7 +378,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   // Só 1 candidato para cada, processa logo
   processarComparacao(candidatos1[0], candidatos2[0]);
 });
-
+document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('btnConfirmarEscolha').addEventListener('click', () => {
   const select1 = document.getElementById('selectId1');
   const select2 = document.getElementById('selectId2');
@@ -413,7 +415,7 @@ document.getElementById('btnConfirmarEscolha').addEventListener('click', () => {
 
   processarComparacao(m1, m2);
 });
-
+});
 
 function processarComparacao(m1, m2) {
   const out = document.getElementById('resultado');
