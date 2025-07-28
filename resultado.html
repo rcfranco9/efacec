@@ -473,21 +473,23 @@ for (const linha of dadosPressao) {
     const hora = new Date(linha.DataHora);
     hora.setMinutes(0, 0, 0);
     const horaFormatada = `${hora.getHours() + 1}h`; // soma 1 como no labelsHoras
+const indiceLinha = labelsHoras.indexOf(horaFormatada);
+if (indiceLinha >= 0) {
+  anotacoes.push({
+    type: 'line',
+    xMin: indiceLinha,
+    xMax: indiceLinha,
+    borderColor: 'red',
+    borderWidth: 2,
+    label: {
+      content: 'P < 20',
+      enabled: true,
+      position: 'start',
+      backgroundColor: 'rgba(255,0,0,0.7)'
+    }
+  });
+}
 
-    anotacoes.push({
-      type: 'line',
-      mode: 'vertical',
-      scaleID: 'x',
-      value: horaFormatada,
-      borderColor: 'red',
-      borderWidth: 2,
-      label: {
-        content: 'P < 20',
-        enabled: true,
-        position: 'top',
-        backgroundColor: 'rgba(255,0,0,0.7)'
-      }
-    });
     break; // PARA no primeiro valor < 20
   }
 }
