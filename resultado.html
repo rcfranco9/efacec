@@ -93,7 +93,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadores</h1>
+<h1>Consulta de Transformadoresaaaa</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -419,7 +419,8 @@ function buscarPorNome() {
   const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
   if (!serie.length) return;
   const massaiTon = Number(meta.massai) / 1000; // calcular aqui!
-  criarGraficoTaxaHoraAHora("canvasId", dadosLC, massaTon, dadosPressao);
+ criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon, dadosPressao);
+});
 
 });
 
