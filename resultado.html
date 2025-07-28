@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Consulta Transformador por Nome</title>
-   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1/dist/chartjs-plugin-annotation.min.js"></script>
-
-   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
@@ -115,12 +113,6 @@
 <button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
 
 <script>
-  
-  Chart.register(window['chartjsPluginAnnotation']);
-
-
-console.log(window.chartjsPluginAnnotation);
-
 let dadosCSV1 = [], dadosCSV2 = [], dadosCSV3 = [];
 
 function formatNum(v, dec = 3) {
@@ -335,6 +327,31 @@ function buscarPorNome() {
       </div>
       <hr>
     `;
+    // Encontrar a primeira hora em que pressão PE_5_5_1 foi abaixo de 20
+let primeiraHoraPressaoBaixa = null;
+const serieOrdenada = serie.slice().sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+for (const linha of serieOrdenada) {
+  const pressao = Number(linha.PE_5_5_1);
+  if (!isNaN(pressao) && pressao < 20) {
+    primeiraHoraPressaoBaixa = linha.DataHora;
+    break;
+  }
+}
+
+if (primeiraHoraPressaoBaixa) {
+  // Formatar data/hora para algo legível
+  const d = new Date(primeiraHoraPressaoBaixa);
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth()+1).padStart(2, '0');
+  const ano = d.getFullYear();
+  const hora = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+
+  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
+} else {
+  html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
+}
+
 
     // PFxTAquec e RFxTAquec
     html += `<div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
@@ -426,18 +443,16 @@ function buscarPorNome() {
   const serie = dadosCSV2.filter(l => (l.id_secagenscore || '').trim() === id);
   if (!serie.length) return;
   const massaiTon = Number(meta.massai) / 1000; // calcular aqui!
- criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon, serie);
+  criarGraficoTaxaHoraAHora('graficoTaxa' + index, serie, massaiTon);
 });
-
-}
 
 
   // Mostrar botão exportar PDF
   document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
-
+}
 
 // Função para criar gráfico taxa hora a hora
-function criarGraficoTaxaHoraAHora (idCanvas, dadosSerie, massaTon, dadosPressao) {
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   if (!massaTon || massaTon <= 0) {
     console.warn('massaTon inválido:', massaTon);
     return;
@@ -472,40 +487,10 @@ function criarGraficoTaxaHoraAHora (idCanvas, dadosSerie, massaTon, dadosPressao
 
     return difLC / (1 * massaTon); // duração é 1 hora
   });
-  // === ETAPA NOVA: detectar PRIMEIRA hora com pressão < 20
-let anotacoes = [];
-
-for (const linha of dadosPressao) {
-  const valorPressao = parseFloat(linha.PE_5_5_1);
-  if (!isNaN(valorPressao) && valorPressao < 20) {
-    const hora = new Date(linha.DataHora);
-    hora.setMinutes(0, 0, 0);
-    const horaFormatada = `${hora.getHours() + 1}h`; // soma 1 como no labelsHoras
-const indiceLinha = labelsHoras.indexOf(horaFormatada);
-if (indiceLinha >= 0) {
-  anotacoes.push({
-    type: 'line',
-    xMin: indiceLinha,
-    xMax: indiceLinha,
-    borderColor: 'red',
-    borderWidth: 2,
-    label: {
-      content: 'P < 20',
-      enabled: true,
-      position: 'start',
-      backgroundColor: 'rgba(255,0,0,0.7)'
-    }
-  });
-}
-
-    break; // PARA no primeiro valor < 20
-  }
-}
 
   // DEBUG
   console.log(`Criando gráfico em ${idCanvas} com labels:`, labelsHoras);
   console.log(`Taxas:`, taxasHoraAHora);
-  console.log(Chart.version);
 
   const canvasEl = document.getElementById(idCanvas);
   if (!canvasEl) {
@@ -517,57 +502,45 @@ if (indiceLinha >= 0) {
     window[idCanvas + '_chart'].destroy();
   }
 
-
   const ctx = canvasEl.getContext('2d');
 
-
-  
-window[idCanvas + '_chart'] = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labelsHoras,
-    datasets: [{
-      label: 'Taxa LC por hora (L/(h*t))',
-      data: taxasHoraAHora,
-      backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      borderColor: 'rgba(75, 192, 192, 1)',
-      pointRadius: 5,
-      fill: false,
-      tension: 0.2
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { display: true },
-      tooltip: {
-        callbacks: {
-          label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
+  window[idCanvas + '_chart'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labelsHoras,
+      datasets: [{
+        label: 'Taxa LC por hora (L/(h*t))',
+        data: taxasHoraAHora,
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        pointRadius: 5,
+        fill: false,
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            label: ctx => `Taxa: ${ctx.parsed.y.toFixed(3)} L/(h*t)`
+          }
         }
       },
-      annotation: {  // <-- adiciona aqui
-        annotations: anotacoes
-      }
-    },
-    scales: {
-      x: {
-        title: { display: true, text: 'Hora (real)' },
-        ticks: { stepSize: 1, precision: 0 }
-      },
-      y: {
-        title: { display: true, text: 'Taxa LC (L/(h*t))' },
-        beginAtZero: true
+      scales: {
+        x: {
+          title: { display: true, text: 'Hora (real)' },
+          ticks: { stepSize: 1, precision: 0 }
+        },
+        y: {
+          title: { display: true, text: 'Taxa LC (L/(h*t))' },
+          beginAtZero: true
+        }
       }
     }
-  },
-  plugins: {
-      annotation: {
-        annotations: anotacoes
-  }
+  });
 }
-
-});
-
 
 // Exportar resultado para PDF
 document.getElementById('btnExportarPDF').addEventListener('click', () => {
@@ -586,8 +559,6 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
     pdf.save('resultado_transformadores.pdf');
   });
 });
-}
-  
 </script>
 
 </body>
