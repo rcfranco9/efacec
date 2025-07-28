@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadores</h1>
+<h1>Comparação de Transformadoresaaaaa</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -204,7 +204,8 @@ function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
     const anterior = serie.findLast(r => r.ts <= tIni);
     const atual = serie.findLast(r => r.ts <= tFim);
 
-    const horaLabel = new Date(tFim).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+     const horaLabel = new Date(tFim).getHours().toString().padStart(2, '0');
+
 
     if (anterior && atual && atual.ts > anterior.ts) {
       const delta = +(atual.lc - anterior.lc).toFixed(3);
