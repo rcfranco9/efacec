@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <title>Consulta Transformador por Nome</title>
    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1/dist/chartjs-plugin-annotation.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -511,9 +512,8 @@ if (indiceLinha >= 0) {
 
   const ctx = canvasEl.getContext('2d');
 
-Chart.register(chartjsPluginAnnotation);
-Chart.register(window['chartjs-plugin-annotation']);
-console.log(window.chartjsPluginAnnotation, window.ChartjsPluginAnnotation);
+Chart.register(window.chartjsPluginAnnotation);
+
 
   
 window[idCanvas + '_chart'] = new Chart(ctx, {
