@@ -94,7 +94,7 @@
 </head>
 <body>
 
-<h1>Consulta de Transformadoresaaaa</h1>
+<h1>Consulta de Transformadores</h1>
 
 <label for="csvFile1">CSV1:</label>
 <input type="file" id="csvFile1" accept=".csv" />
@@ -499,6 +499,7 @@ if (indiceLinha >= 0) {
   // DEBUG
   console.log(`Criando gráfico em ${idCanvas} com labels:`, labelsHoras);
   console.log(`Taxas:`, taxasHoraAHora);
+  console.log(Chart.version);
 
   const canvasEl = document.getElementById(idCanvas);
   if (!canvasEl) {
