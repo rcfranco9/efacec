@@ -346,13 +346,26 @@ const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
 
 const labels = blocos1.map(b => {
   const data = new Date(b.intervalo);
+  if (isNaN(data)) {
+    console.warn('Data inválida em intervalo:', b.intervalo);
+    return 'inválido';
+  }
   const hora = String(data.getHours()).padStart(2, '0');
   const minutos = String(data.getMinutes()).padStart(2, '0');
   return `${hora}`;
 }).reverse();
 
-const data1 = blocos1.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
-const data2 = blocos2.map(b => isNaN(b.taxa) ? null : b.taxa).reverse();
+
+const data1 = blocos1.map(b => {
+  const val = Number(b.taxa);
+  return isNaN(val) ? null : val;
+}).reverse();
+
+  const data2 = blocos2.map(b => {
+  const val = Number(b.taxa);
+  return isNaN(val) ? null : val;
+}).reverse();
+
 
 const ctx = document.getElementById("graficoTaxas").getContext("2d");
 
@@ -360,6 +373,10 @@ const ctx = document.getElementById("graficoTaxas").getContext("2d");
 if (window.chartTaxas) {
   window.chartTaxas.destroy();
 }
+
+console.log('blocos1:', blocos1);
+console.log('labels:', labels);
+console.log('data1:', data1);
 
 // Criar novo gráfico
 window.chartTaxas = new Chart(ctx, {
