@@ -347,11 +347,31 @@ if (primeiraHoraPressaoBaixa) {
   const hora = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
 
-  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
+html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
+
+  // Somar 10 horas
+  const dFimAquecimento = new Date(d.getTime() + 10 * 3600000);
+  const diaF = String(dFimAquecimento.getDate()).padStart(2, '0');
+  const mesF = String(dFimAquecimento.getMonth()+1).padStart(2, '0');
+  const anoF = dFimAquecimento.getFullYear();
+  const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
+  const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
+
+html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+
+  // Somar 2 horas (total 12 horas após início): zona de remoção
+  const dZonaRemocao = new Date(d.getTime() + 12 * 3600000);
+  const diaZ = String(dZonaRemocao.getDate()).padStart(2, '0');
+  const mesZ = String(dZonaRemocao.getMonth()+1).padStart(2, '0');
+  const anoZ = dZonaRemocao.getFullYear();
+  const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
+  const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
+
+  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+
 } else {
   html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
 }
-
 
     // PFxTAquec e RFxTAquec
     html += `<div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
