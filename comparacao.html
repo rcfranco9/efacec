@@ -193,7 +193,6 @@ function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
   const ton = parseNum(massaKg) / 1000 || 1;
   const blocos = [];
 
-  // Descobrir o início e fim dos dados
   const tIniGlobal = serie[0].ts;
   const tFimGlobal = serie[serie.length - 1].ts;
   const horas = Math.floor((tFimGlobal - tIniGlobal) / (3600 * 1000));
@@ -205,17 +204,20 @@ function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
     const anterior = serie.findLast(r => r.ts <= tIni);
     const atual = serie.findLast(r => r.ts <= tFim);
 
+    const horaLabel = new Date(tFim).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
     if (anterior && atual && atual.ts > anterior.ts) {
       const delta = +(atual.lc - anterior.lc).toFixed(3);
       const taxa = +(delta / ton).toFixed(4);
-      blocos.push({ intervalo: `${i-1}-${i}h`, delta, taxa });
+      blocos.push({ intervalo: horaLabel, delta, taxa });
     } else {
-      blocos.push({ intervalo: `${i-1}-${i}h`, delta: 'N/A', taxa: 'N/A' });
+      blocos.push({ intervalo: horaLabel, delta: 'N/A', taxa: 'N/A' });
     }
   }
 
   return blocos;
 }
+
 
 function diffClass(v) {
   if (v > 0) return 'diff-positive';
