@@ -339,7 +339,6 @@ for (const linha of serieOrdenada) {
 }
 
 if (primeiraHoraPressaoBaixa) {
-  // Formatar data/hora para algo legível
   const d = new Date(primeiraHoraPressaoBaixa);
   const dia = String(d.getDate()).padStart(2, '0');
   const mes = String(d.getMonth()+1).padStart(2, '0');
@@ -347,31 +346,40 @@ if (primeiraHoraPressaoBaixa) {
   const hora = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
 
-html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
+  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
 
-  // Somar 10 horas
-  const dFimAquecimento = new Date(d.getTime() + 10 * 3600000);
+  // Pega o valor RF1DAquec (em horas) do primeiro registo da série de referência
+  const rf1dAquecStr = serieRef[0]?.RF1DAquec;
+  const rf1dAquec = parseFloat(rf1dAquecStr);
+  const horasAquecimento = (!isNaN(rf1dAquec) && rf1dAquec > 0) ? rf1dAquec : 10; // fallback para 10h
+
+  const dFimAquecimento = new Date(d.getTime() + horasAquecimento * 3600000);
   const diaF = String(dFimAquecimento.getDate()).padStart(2, '0');
   const mesF = String(dFimAquecimento.getMonth()+1).padStart(2, '0');
   const anoF = dFimAquecimento.getFullYear();
   const horaF = String(dFimAquecimento.getHours()).padStart(2, '0');
   const minF = String(dFimAquecimento.getMinutes()).padStart(2, '0');
 
-html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+  html += `<p><strong>Acabou o aquecimento às:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
 
-  // Somar 2 horas (total 12 horas após início): zona de remoção
-  const dZonaRemocao = new Date(d.getTime() + 12 * 3600000);
+  // Pega o valor RF1DRem (em horas) para zona de remoção
+  const rf1dRemStr = serieRef[0]?.RF1DRem;
+  const horasRemocao = (!isNaN(parseFloat(rf1dRemStr)) && parseFloat(rf1dRemStr) > 0) ? parseFloat(rf1dRemStr) : 2; // fallback para 2h
+
+  // Somar RF1DRem ao fim do aquecimento
+  const dZonaRemocao = new Date(dFimAquecimento.getTime() + horasRemocao * 3600000);
   const diaZ = String(dZonaRemocao.getDate()).padStart(2, '0');
   const mesZ = String(dZonaRemocao.getMonth()+1).padStart(2, '0');
   const anoZ = dZonaRemocao.getFullYear();
   const horaZ = String(dZonaRemocao.getHours()).padStart(2, '0');
   const minZ = String(dZonaRemocao.getMinutes()).padStart(2, '0');
 
-  html += `<p><strong>Fim da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
+  html += `<p><strong>Início da zona de remoção às:</strong> ${diaZ}/${mesZ}/${anoZ} ${horaZ}:${minZ}</p>`;
 
 } else {
   html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
 }
+
 
     // PFxTAquec e RFxTAquec
     html += `<div class="coluna-dados"><div><h4>Valores PFxTAquec</h4>`;
