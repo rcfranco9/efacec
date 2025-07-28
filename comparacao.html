@@ -186,47 +186,50 @@ function calcTaxa(id, massaKg) {
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
-  if (!massaTon || massaTon <= 0) {
-    console.warn('massaTon inválido:', massaTon);
+
+ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaKg) {
+  if (!massaKg || massaKg <= 0) {
+    console.warn('massaKg inválido:', massaKg);
     return;
   }
 
-  const dadosPorHora = {};
+  const massaTon = massaKg / 1000;
 
-  // Agrupar valores LC por hora (timestamp arredondado à hora)
-  dadosSerie.forEach(linha => {
-    const dataHora = new Date(linha.DataHora);
-    if (isNaN(dataHora)) return;
-    dataHora.setMinutes(0, 0, 0); // arredonda para a hora
-    const chaveHora = dataHora.getTime();
-    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
-    const valorLC = parseFloat(linha.LC_3_8);
-    if (!isNaN(valorLC)) dadosPorHora[chaveHora].push(valorLC);
-  });
+  const linhas = dadosSerie.filter(r =>
+    (r.id_secagenscore || '').trim() === idCanvas &&
+    r.LC_3_8 &&
+    r.DataHora
+  );
 
-  // Ordenar as horas cronologicamente
-  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+  if (linhas.length < 2) {
+    console.warn("Dados insuficientes para calcular taxas.");
+    return;
+  }
 
-  // Criar labels de horas para o eixo X
-  const labelsHoras = chavesOrdenadas.map(timestamp => {
-    const hora = new Date(Number(timestamp)).getHours();
-    return `${hora}h`; // hora real, sem adicionar +1
-  });
+  // Ordenar por DataHora
+  linhas.sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 
-  // Calcular taxas para cada hora (diferença entre último e primeiro valor LC da hora) dividida pela massa em toneladas
-  const taxasHoraAHora = chavesOrdenadas.map(chave => {
-    const valores = dadosPorHora[chave];
-    if (!valores || valores.length < 2) return 0;
+  const taxasHoraAHora = [];
+  const labelsHoras = [];
 
-    const valorInicial = valores[0];
-    const valorFinal = valores[valores.length - 1];
-    const difLC = valorFinal - valorInicial;
- 
-    return difLC / (1 * massaTon); // duração = 1 hora
- });
-    return { labelsHoras, taxasHoraAHora };
-}
+  for (let i = 1; i < linhas.length; i++) {
+    const anterior = linhas[i - 1];
+    const atual = linhas[i];
+
+    const lcAnterior = parseFloat(anterior.LC_3_8);
+    const lcAtual = parseFloat(atual.LC_3_8);
+    const tAnterior = new Date(anterior.DataHora);
+    const tAtual = new Date(atual.DataHora);
+
+    const deltaHoras = (tAtual - tAnterior) / 3600000; // ms → horas
+    const difLC = lcAnterior - lcAtual;
+
+    if (deltaHoras > 0 && !isNaN(difLC)) {
+      const taxa = difLC / (deltaHoras * massaTon);
+      taxasHoraAHora.push(taxa);
+      labelsHoras.push(atual.DataHora.substring(11, 16)); // Hora:minuto
+    }
+  }
 
 function diffClass(v) {
   if (v > 0) return 'diff-positive';
@@ -353,17 +356,20 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
 
-function gerarGrafico(idSecagem, massaKg, idCanvas) {
-  const massaTon = massaKg / 1000;
-  const { labelsHoras, taxasHoraAHora } = criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon);
-const ctx = document.getElementById(idCanvas).getContext('2d');
+const canvas = document.getElementById(idCanvas);
+  if (!canvas) {
+    console.error(`Canvas com id '${idCanvas}' não encontrado.`);
+    return;
+  }
 
-  // Se já existir gráfico, destruir para não sobrepor
+  const ctx = canvas.getContext('2d');
+
+  // Destruir gráfico antigo se já existir
   if (window[idCanvas]) {
     window[idCanvas].destroy();
   }
 
-  // Criar o gráfico com Chart.js
+  // Criar novo gráfico
   window[idCanvas] = new Chart(ctx, {
     type: 'line',
     data: {
@@ -396,8 +402,9 @@ const ctx = document.getElementById(idCanvas).getContext('2d');
         }
       }
     }
-});
+  });
 }
+✅ Como chama
   let html = '';
 
   [m1, m2].forEach((m) => {
