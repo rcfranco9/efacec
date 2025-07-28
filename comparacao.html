@@ -353,7 +353,9 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
 
-const { labelsHoras, taxasHoraAHora } = criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon);
+function gerarGrafico(idSecagem, massaKg, idCanvas) {
+  const massaTon = massaKg / 1000;
+  const { labelsHoras, taxasHoraAHora } = criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon);
 const ctx = document.getElementById(idCanvas).getContext('2d');
 
   // Se já existir gráfico, destruir para não sobrepor
@@ -395,7 +397,7 @@ const ctx = document.getElementById(idCanvas).getContext('2d');
       }
     }
 });
-
+}
   let html = '';
 
   [m1, m2].forEach((m) => {
