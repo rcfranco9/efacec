@@ -349,35 +349,41 @@ if (primeiraHoraPressaoBaixa) {
 
   html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
 
-  // Começa cálculo das fases de remoção
+  // Começa cálculo das fases de remoção com base no 3º CSV (serieRef)
   const fasesRemocao = ['RF1DRem', 'RF2DRem', 'RF3DRem', 'RF4DRem', 'RF5DRem', 'RF6DRem'];
-  const serieRef = serieOrdenada; // presumivelmente a mesma série
-  let dataAnterior = d; // começa na hora da primeira pressão baixa
+  const ref = serieRef[0]; // Usamos só a primeira linha do 3º CSV
 
-  for (let i = 0; i < fasesRemocao.length; i++) {
-    const fase = fasesRemocao[i];
-    const valorStr = serieRef[0]?.[fase];
-    const horas = (!isNaN(parseFloat(valorStr)) && parseFloat(valorStr) > 0) ? parseFloat(valorStr) : 0;
+  if (!ref) {
+    html += `<p><strong>Erro: série de referência com tempos de remoção não disponível.</strong></p>`;
+  } else {
+    let dataAnterior = d;
 
-    if (horas > 0) {
-      const dataFase = new Date(dataAnterior.getTime() + horas * 3600000);
-      const diaF = String(dataFase.getDate()).padStart(2, '0');
-      const mesF = String(dataFase.getMonth() + 1).padStart(2, '0');
-      const anoF = dataFase.getFullYear();
-      const horaF = String(dataFase.getHours()).padStart(2, '0');
-      const minF = String(dataFase.getMinutes()).padStart(2, '0');
+    for (let i = 0; i < fasesRemocao.length; i++) {
+      const fase = fasesRemocao[i];
+      const valorStr = ref[fase];
+      const horas = (!isNaN(parseFloat(valorStr)) && parseFloat(valorStr) > 0) ? parseFloat(valorStr) : 0;
 
-      html += `<p><strong>Fim da zona de remoção ${fase}:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
-      dataAnterior = dataFase; // avança base para próxima fase
-    } else {
-      html += `<p><strong>A secagem não chegou à fase ${fase}.</strong></p>`;
-      break; // termina o ciclo se não chegou a esta fase
+      if (horas > 0) {
+        const dataFase = new Date(dataAnterior.getTime() + horas * 3600000);
+        const diaF = String(dataFase.getDate()).padStart(2, '0');
+        const mesF = String(dataFase.getMonth() + 1).padStart(2, '0');
+        const anoF = dataFase.getFullYear();
+        const horaF = String(dataFase.getHours()).padStart(2, '0');
+        const minF = String(dataFase.getMinutes()).padStart(2, '0');
+
+        html += `<p><strong>Fim da zona de remoção ${fase}:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+        dataAnterior = dataFase;
+      } else {
+        html += `<p><strong>A secagem não chegou à fase ${fase}.</strong></p>`;
+        break;
+      }
     }
   }
-  
+
 } else {
   html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
 }
+
 
 
     // PFxTAquec e RFxTAquec
@@ -590,4 +596,5 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
 
 </body>
 </html>
+
 
