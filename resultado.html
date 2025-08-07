@@ -349,32 +349,40 @@ if (primeiraHoraPressaoBaixa) {
 
   html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${dia}/${mes}/${ano} ${hora}:${min}</p>`;
 
-  // Começa cálculo das fases de remoção com base no 3º CSV (serieRef)
-  const fasesRemocao = ['RF1DRem', 'RF2DRem', 'RF3DRem', 'RF4DRem', 'RF5DRem', 'RF6DRem'];
-  const ref = serieRef[0]; // Usamos só a primeira linha do 3º CSV
+  const ref = serieRef[0];
+  const fases = [1, 2, 3, 4, 5, 6];
+  let dataAnterior = d;
 
   if (!ref) {
-    html += `<p><strong>Erro: série de referência com tempos de remoção não disponível.</strong></p>`;
+    html += `<p><strong>Erro: série de referência com tempos não disponível.</strong></p>`;
   } else {
-    let dataAnterior = d;
+    for (const faseNum of fases) {
+      const aquecKey = `RF${faseNum}DAquec`;
+      const remKey = `RF${faseNum}DRem`;
 
-    for (let i = 0; i < fasesRemocao.length; i++) {
-      const fase = fasesRemocao[i];
-      const valorStr = ref[fase];
-      const horas = (!isNaN(parseFloat(valorStr)) && parseFloat(valorStr) > 0) ? parseFloat(valorStr) : 0;
+      const tempoAquec = parseFloat(ref[aquecKey]);
+      const tempoRemocao = parseFloat(ref[remKey]);
 
-      if (horas > 0) {
-        const dataFase = new Date(dataAnterior.getTime() + horas * 3600000);
-        const diaF = String(dataFase.getDate()).padStart(2, '0');
-        const mesF = String(dataFase.getMonth() + 1).padStart(2, '0');
-        const anoF = dataFase.getFullYear();
-        const horaF = String(dataFase.getHours()).padStart(2, '0');
-        const minF = String(dataFase.getMinutes()).padStart(2, '0');
+      const aquecValido = !isNaN(tempoAquec) && tempoAquec > 0;
+      const remValido = !isNaN(tempoRemocao) && tempoRemocao > 0;
 
-        html += `<p><strong>Fim da zona de remoção ${fase}:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
-        dataAnterior = dataFase;
+      if (aquecValido && remValido) {
+        // Soma aquecimento
+        const fimAquec = new Date(dataAnterior.getTime() + tempoAquec * 3600000);
+        // Soma remoção
+        const fimRemocao = new Date(fimAquec.getTime() + tempoRemocao * 3600000);
+
+        const diaF = String(fimRemocao.getDate()).padStart(2, '0');
+        const mesF = String(fimRemocao.getMonth() + 1).padStart(2, '0');
+        const anoF = fimRemocao.getFullYear();
+        const horaF = String(fimRemocao.getHours()).padStart(2, '0');
+        const minF = String(fimRemocao.getMinutes()).padStart(2, '0');
+
+        html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+
+        dataAnterior = fimRemocao; // próxima fase começa daqui
       } else {
-        html += `<p><strong>A secagem não chegou à fase ${fase}.</strong></p>`;
+        html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
         break;
       }
     }
@@ -596,5 +604,6 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
 
 </body>
 </html>
+
 
 
