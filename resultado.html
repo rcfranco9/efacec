@@ -329,6 +329,7 @@ function buscarPorNome() {
       <hr>
     `;
     // Encontrar a primeira hora em que pressão PE_5_5_1 foi abaixo de 20
+
 let primeiraHoraPressaoBaixa = null;
 const serieOrdenada = serie.slice().sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
 for (const linha of serieOrdenada) {
@@ -369,18 +370,24 @@ if (primeiraHoraPressaoBaixa) {
       if (aquecValido && remValido) {
         // Soma aquecimento
         const fimAquec = new Date(dataAnterior.getTime() + tempoAquec * 3600000);
-        // Soma remoção
-        const fimRemocao = new Date(fimAquec.getTime() + tempoRemocao * 3600000);
+        // Início da remoção é fim do aquecimento
+        const inicioRemocao = fimAquec;
+        // Fim da remoção
+        const fimRemocao = new Date(inicioRemocao.getTime() + tempoRemocao * 3600000);
 
-        const diaF = String(fimRemocao.getDate()).padStart(2, '0');
-        const mesF = String(fimRemocao.getMonth() + 1).padStart(2, '0');
-        const anoF = fimRemocao.getFullYear();
-        const horaF = String(fimRemocao.getHours()).padStart(2, '0');
-        const minF = String(fimRemocao.getMinutes()).padStart(2, '0');
+        const formatarData = (data) => {
+          const dia = String(data.getDate()).padStart(2, '0');
+          const mes = String(data.getMonth() + 1).padStart(2, '0');
+          const ano = data.getFullYear();
+          const hora = String(data.getHours()).padStart(2, '0');
+          const min = String(data.getMinutes()).padStart(2, '0');
+          return `${dia}/${mes}/${ano} ${hora}:${min}`;
+        };
 
-        html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${diaF}/${mesF}/${anoF} ${horaF}:${minF}</p>`;
+        html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRemocao)}</p>`;
+        html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRemocao)}</p>`;
 
-        dataAnterior = fimRemocao; // próxima fase começa daqui
+        dataAnterior = fimRemocao; // próxima fase começa depois do fim desta
       } else {
         html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
         break;
@@ -604,6 +611,7 @@ document.getElementById('btnExportarPDF').addEventListener('click', () => {
 
 </body>
 </html>
+
 
 
 
