@@ -342,7 +342,75 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  
+  function gerarInfoSecagem(serie, serieRef, nomeTransformador) {
+  let html = `<div style="margin-top: 20px;"><h4>${nomeTransformador}</h4>`;
+  let primeiraHoraPressaoBaixa = null;
+
+  const serieFiltrada = serie
+    .filter(linha => linha.Transformador === nomeTransformador)
+    .sort((a, b) => new Date(a.DataHora) - new Date(b.DataHora));
+
+  for (const linha of serieFiltrada) {
+    const pressao = Number(linha.PE_5_5_1);
+    if (!isNaN(pressao) && pressao < 20) {
+      primeiraHoraPressaoBaixa = linha.DataHora;
+      break;
+    }
+  }
+
+  if (primeiraHoraPressaoBaixa) {
+    const d = new Date(primeiraHoraPressaoBaixa);
+    const formatarData = (data) => {
+      const dia = String(data.getDate()).padStart(2, '0');
+      const mes = String(data.getMonth() + 1).padStart(2, '0');
+      const ano = data.getFullYear();
+      const hora = String(data.getHours()).padStart(2, '0');
+      const min = String(data.getMinutes()).padStart(2, '0');
+      return `${dia}/${mes}/${ano} ${hora}:${min}`;
+    };
+
+    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(d)}</p>`;
+
+    const ref = serieRef[0];
+    const fases = [1, 2, 3, 4, 5, 6];
+    let dataAnterior = d;
+
+    if (!ref) {
+      html += `<p><strong>Erro: dados de referência não disponíveis.</strong></p>`;
+    } else {
+      for (const faseNum of fases) {
+        const aquecKey = `RF${faseNum}DAquec`;
+        const remKey = `RF${faseNum}DRem`;
+
+        const tempoAquec = parseFloat(ref[aquecKey]);
+        const tempoRemocao = parseFloat(ref[remKey]);
+
+        const aquecValido = !isNaN(tempoAquec) && tempoAquec > 0;
+        const remValido = !isNaN(tempoRemocao) && tempoRemocao > 0;
+
+        if (aquecValido && remValido) {
+          const fimAquec = new Date(dataAnterior.getTime() + tempoAquec * 3600000);
+          const inicioRemocao = fimAquec;
+          const fimRemocao = new Date(inicioRemocao.getTime() + tempoRemocao * 3600000);
+
+          html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRemocao)}</p>`;
+          html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRemocao)}</p>`;
+
+          dataAnterior = fimRemocao;
+        } else {
+          html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
+          break;
+        }
+      }
+    }
+  } else {
+    html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
 // Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
 // --- Dados para o transformador 1
 const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
@@ -396,7 +464,10 @@ window.chartTaxas1 = new Chart(ctx1, {
     }
   }
 });
+const infoTrafo1 = gerarInfoSecagem(serie, serieRef1, id1);
+document.getElementById("graficoTaxas1").insertAdjacentHTML("afterend", infoTrafo1);
 
+  
 // --- Criar gráfico do transformador 2
 const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
 if (window.chartTaxas2) {
@@ -427,7 +498,8 @@ window.chartTaxas2 = new Chart(ctx2, {
     }
   }
 });
-
+const infoTrafo2 = gerarInfoSecagem(serie, serieRef2, id2);
+document.getElementById("graficoTaxas2").insertAdjacentHTML("afterend", infoTrafo2);
   
   let html = '';
 
@@ -589,3 +661,4 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
