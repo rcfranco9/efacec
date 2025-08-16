@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadores</h1>
+<h1>Comparação de Transformadoresaaaa</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -598,7 +598,20 @@ html += `</tbody></table>`;
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
+      ${getResumoFases(id1)}
+    </div>
+  `;
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
+      ${getResumoFases(id2)}
+    </div>
+  `;
 });
+
 
 document.getElementById("btnExportarPDF").addEventListener("click", () => {
   const resultado = document.getElementById("resultado");
@@ -613,22 +626,11 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.save("comparacao_transformadores.pdf");
   });
 });
-  document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
-      ${getResumoFases(id1)}
-    </div>
-  `;
-  document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
-      ${getResumoFases(id2)}
-    </div>
-  `;
-});
+
 </script>
 
 </body>
 </html>
+
 
 
