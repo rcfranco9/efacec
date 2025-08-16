@@ -133,6 +133,48 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
+  function formatarDataDH(str) {
+  if (!str) return null;
+  // tenta dd/mm/yyyy hh:mm
+  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[ T](\d{1,2}):(\d{2})/);
+  if (m) {
+    const dd = m[1].padStart(2,'0'), mm = m[2].padStart(2,'0');
+    const yyyy = m[3].length === 2 ? ('20' + m[3]) : m[3];
+    const hh = m[4].padStart(2,'0'), min = m[5];
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  }
+  // tenta ISO
+  const d = new Date(str.replace(' ', 'T'));
+  if (isNaN(d.getTime())) return str; // devolve como está
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = String(d.getFullYear());
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+  function primeiraHoraPE551Abaixo20_doSerie(id) {
+  // procura no csvSerie o primeiro registo com PE_5_5_1 <= 20
+  const linhas = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
+    .map(r => ({ ts: new Date((r.DataHora || '').replace(' ', 'T')).getTime(), dh: r.DataHora, pe: parseNum(r.PE_5_5_1) }))
+    .filter(r => !isNaN(r.ts) && !isNaN(r.pe))
+    .sort((a,b) => a.ts - b.ts);
+
+  const hit = linhas.find(r => r.pe <= 20);
+  return hit ? formatarDataDH(hit.dh) : null;
+}
+
+function pick(obj, ...keys) {
+  // devolve o primeiro campo existente (case insensitive) entre as alternativas
+  if (!obj) return null;
+  const lower = Object.fromEntries(Object.keys(obj).map(k => [k.toLowerCase(), k]));
+  for (const k of keys) {
+    const real = lower[k.toLowerCase()];
+    if (real && obj[real]) return obj[real];
+  }
+  return null;
+}
 function getResumoFases(id) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
   if (!reg) return "<p>Sem dados de fases.</p>";
@@ -291,6 +333,45 @@ document.getElementById('csvTerceiro').addEventListener('change', e => {
     document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
   }
 }
+  
+  function getResumoFases(id) {
+  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id) || {};
+
+  // 1) Primeira hora com PE_5_5_1 < 20 mbar (preferir CSV3; se faltar, calcula do CSV2)
+  const primeiraHoraCSV3 = pick(reg, 'PrimeiraHora_PE551', 'PrimeiraHora_PE_5_5_1', 'PrimeiraHora_PE5_5_1');
+  const primeiraHora = formatarDataDH(primeiraHoraCSV3) || primeiraHoraPE551Abaixo20_doSerie(id);
+
+  // 2) Fases RFxDRem (início e fim) lidas do CSV3
+  const fases = [];
+  for (let n = 1; n <= 4; n++) {
+    const ini = formatarDataDH(pick(reg, `RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `RF${n}DRem_ini`));
+    const fim = formatarDataDH(pick(reg, `RF${n}DRem_fim`, `RF${n}DRem_Fim`, `RF${n}DRem_fi`));
+    fases.push({ n, ini, fim });
+  }
+
+  // 3) Gera HTML exatamente no formato do exemplo
+  let html = '';
+  if (primeiraHora) {
+    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHora}</p>`;
+  }
+
+  fases.slice(0,3).forEach(f => {
+    if (f.ini) html += `<p><strong>Início da zona de remoção RF${f.n}DRem:</strong> ${f.ini}</p>`;
+    if (f.fim) html += `<p><strong>Fim da zona de remoção RF${f.n}DRem:</strong> ${f.fim}</p>`;
+  });
+
+  // RF4: se não houver dados, escrever a frase da imagem
+  const rf4 = fases[3];
+  if (rf4.ini && rf4.fim) {
+    html += `<p><strong>Início da zona de remoção RF4DRem:</strong> ${rf4.ini}</p>`;
+    html += `<p><strong>Fim da zona de remoção RF4DRem:</strong> ${rf4.fim}</p>`;
+  } else {
+    html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+  }
+
+  return html || "<p>Sem dados de fases.</p>";
+}
+  
 
 // Agora a função getValorCampo vai buscar no dadosTerceiro
 function getValorCampo(id, campo) {
@@ -631,6 +712,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
