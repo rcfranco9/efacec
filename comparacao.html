@@ -133,7 +133,28 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
+function getResumoFases(id) {
+  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
+  if (!reg) return "<p>Sem dados de fases.</p>";
 
+  let texto = "";
+  if (reg["PrimeiraHora_PE551"]) {
+    texto += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${reg["PrimeiraHora_PE551"]}</p>`;
+  }
+
+  for (let n = 1; n <= 4; n++) {
+    const ini = reg[`RF${n}DRem_inicio`];
+    const fim = reg[`RF${n}DRem_fim`];
+    if (ini && fim) {
+      texto += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${ini}</p>`;
+      texto += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${fim}</p>`;
+    } else if (n === 4) {
+      texto += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+    }
+  }
+
+  return texto;
+}
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
   const valores = [];
@@ -235,7 +256,6 @@ function checkReady() {
     document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
   }
 }
-
 document.getElementById('csvMeta').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -262,6 +282,15 @@ document.getElementById('csvTerceiro').addEventListener('change', e => {
     complete: res => { dadosTerceiro = res.data; checkReady(); }
   });
 });
+  function checkReady() {
+  const ready = dadosMeta.length && dadosSerie.length && dadosTerceiro.length;
+  document.getElementById('nome1').disabled = !ready;
+  document.getElementById('nome2').disabled = !ready;
+  document.getElementById('btnComparar').disabled = !ready;
+  if (ready) {
+    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
+  }
+}
 
 // Agora a função getValorCampo vai buscar no dadosTerceiro
 function getValorCampo(id, campo) {
@@ -584,9 +613,22 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.save("comparacao_transformadores.pdf");
   });
 });
-
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
+      ${getResumoFases(id1)}
+    </div>
+  `;
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
+      ${getResumoFases(id2)}
+    </div>
+  `;
+});
 </script>
 
 </body>
 </html>
+
 
