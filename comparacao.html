@@ -239,52 +239,49 @@ function getResumoFases(id) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
   if (!reg) return "<p>Sem dados de fases.</p>";
 
-  function pickCampo(...alts) {
-    for (const a of alts) {
-      if (reg[a]) return reg[a];
-    }
-    return null;
+  function formatarData(date) {
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mi = String(date.getMinutes()).padStart(2, "0");
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
   }
 
-  function formatarData(str) {
-    if (!str) return null;
-    const ts = new Date(str.replace(" ", "T"));
-    if (isNaN(ts)) return str;
-    const dd = String(ts.getDate()).padStart(2,"0");
-    const mm = String(ts.getMonth()+1).padStart(2,"0");
-    const yyyy = ts.getFullYear();
-    const hh = String(ts.getHours()).padStart(2,"0");
-    const mi = String(ts.getMinutes()).padStart(2,"0");
-    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+  function addHoras(baseDate, horas) {
+    const nova = new Date(baseDate);
+    nova.setHours(nova.getHours() + parseFloat(horas || 0));
+    return nova;
   }
 
   let html = "";
 
-  // Primeira hora PE551
-  const primeiraHora = pickCampo("PrimeiraHora_PE551", "PrimeiraHora_PE_5_5_1");
-  if (primeiraHora) {
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHora)}</p>`;
-  }
+  // Hora inicial
+  let base = new Date(reg["PrimeiraHora_PE551"].replace(" ", "T"));
+  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(base)}</p>`;
 
-  // RF1 até RF4
+  // Calcular fases
   for (let n = 1; n <= 4; n++) {
-    const ini = pickCampo(`RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `Inicio_RF${n}DRem`, `Início_RF${n}DRem`);
-    const fim = pickCampo(`RF${n}DRem_fim`, `RF${n}DRem_Fim`, `Fim_RF${n}DRem`);
+    const aque = parseFloat(reg[`RF${n}DAquec`] || 0);
+    const dur = parseFloat(reg[`RF${n}DRem`] || 0);
 
-    if (ini) {
-      html += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${formatarData(ini)}</p>`;
-    }
-    if (fim) {
+    if (aque > 0 || dur > 0) {
+      const inicio = addHoras(base, aque);
+      html += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${formatarData(inicio)}</p>`;
+
+      const fim = addHoras(inicio, dur);
       html += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${formatarData(fim)}</p>`;
-    }
 
-    if (n === 4 && !ini && !fim) {
+      // atualizar base para a próxima fase
+      base = fim;
+    } else if (n === 4) {
       html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
     }
   }
 
   return html;
 }
+
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -801,6 +798,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
