@@ -133,26 +133,7 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
-  function formatarDataDH(str) {
-  if (!str) return null;
-  // tenta dd/mm/yyyy hh:mm
-  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[ T](\d{1,2}):(\d{2})/);
-  if (m) {
-    const dd = m[1].padStart(2,'0'), mm = m[2].padStart(2,'0');
-    const yyyy = m[3].length === 2 ? ('20' + m[3]) : m[3];
-    const hh = m[4].padStart(2,'0'), min = m[5];
-    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-  }
-  // tenta ISO
-  const d = new Date(str.replace(' ', 'T'));
-  if (isNaN(d.getTime())) return str; // devolve como está
-  const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const yyyy = String(d.getFullYear());
-  const hh = String(d.getHours()).padStart(2,'0');
-  const min = String(d.getMinutes()).padStart(2,'0');
-  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
-}
+
   function primeiraHoraPE551Abaixo20_doSerie(id) {
   // procura no csvSerie o primeiro registo com PE_5_5_1 <= 20
   const linhas = dadosSerie
@@ -175,14 +156,93 @@ function pick(obj, ...keys) {
   }
   return null;
 }
+  function toTS(str) {
+  if (!str) return NaN;
+  // dd/mm/yyyy hh:mm
+  const m = String(str).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[ T](\d{1,2}):(\d{2})/);
+  if (m) {
+    const dd = m[1].padStart(2,'0');
+    const mm = m[2].padStart(2,'0');
+    const yyyy = (m[3].length === 2 ? '20' + m[3] : m[3]);
+    const hh = m[4].padStart(2,'0');
+    const mi = m[5].padStart(2,'0');
+    return new Date(`${yyyy}-${mm}-${dd}T${hh}:${mi}:00`).getTime();
+  }
+  // tenta ISO
+  return new Date(String(str).replace(' ', 'T')).getTime();
+}
+
+function tsToDDMMYYYYhhmm(ts) {
+  if (!ts || isNaN(ts)) return null;
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+// devolve true se algum campo da linha contiver o texto pedido (case-insensitive)
+function linhaContemTextoRF(linha, textoRF) {
+  const alvo = String(textoRF).toLowerCase();
+  for (const [k,v] of Object.entries(linha)) {
+    if (k === 'DataHora' || k === 'id_secagenscore') continue;
+    const s = String(v ?? '').toLowerCase();
+    if (s.includes(alvo)) return true;
+  }
+  return false;
+}
+
+// varre o csvSerie para detectar início/fim de RFxDRem por qualquer coluna com esse texto
+function detectarInicioFimRF_noSeriePorTexto(id, n) {
+  const linhas = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
+    .map(r => ({ raw: r, ts: toTS(r.DataHora) }))
+    .filter(o => !isNaN(o.ts))
+    .sort((a,b) => a.ts - b.ts);
+
+  if (!linhas.length) return { ini: null, fim: null };
+
+  const etiqueta = `rf${n}drem`;
+  let ini = null, fim = null, prevOn = false, prevTS = null;
+
+  for (const o of linhas) {
+    const on = linhaContemTextoRF(o.raw, etiqueta);
+    if (!ini && on) ini = o.ts;
+    if (ini && !on && prevOn) { fim = prevTS; break; }
+    prevOn = on;
+    prevTS = o.ts;
+  }
+  if (ini && !fim) fim = prevTS; // se nunca voltou a false, assume que terminou no último registo
+
+  return { ini: ini ? tsToDDMMYYYYhhmm(ini) : null, fim: fim ? tsToDDMMYYYYhhmm(fim) : null };
+}
+
+// devolve o primeiro campo existente (case-insensitive)
+function pick(obj, ...alts) {
+  if (!obj) return null;
+  const keys = Object.keys(obj);
+  for (const a of alts) {
+    const real = keys.find(k => k.toLowerCase() === a.toLowerCase());
+    if (real && obj[real]) return obj[real];
+  }
+  return null;
+}
+
+function formatarDataDH(str) {
+  if (!str) return null;
+  const ts = toTS(str);
+  return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
+}
 function getResumoFases(id) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id) || {};
 
-  // Primeira hora com PE_5_5_1 < 20 mbar (CSV3 -> fallback CSV2)
+  // Primeira hora PE_5_5_1 < 20 mbar
   const primeiraHoraCSV3 = pick(reg, 'PrimeiraHora_PE551', 'PrimeiraHora_PE_5_5_1', 'PrimeiraHora_PE5_5_1');
   const primeiraHora = formatarDataDH(primeiraHoraCSV3) || primeiraHoraPE551Abaixo20_doSerie(id);
 
-  // Para cada RFx, tenta CSV3; se não houver, calcula do csvSerie
+  // Fases RF1..RF4 -> tenta CSV3; se faltar, detecta no csvSerie por texto
   const fases = [];
   for (let n = 1; n <= 4; n++) {
     let ini = formatarDataDH(pick(
@@ -197,26 +257,26 @@ function getResumoFases(id) {
     ));
 
     if (!ini || !fim) {
-      const det = detectarInicioFimRFSerie(id, n);
+      const det = detectarInicioFimRF_noSeriePorTexto(id, n);
       ini = ini || det.ini;
       fim = fim || det.fim;
     }
     fases.push({ n, ini, fim });
   }
 
-  // Construir HTML igual à imagem
+  // Monta HTML EXACTO como na imagem
   let html = '';
   if (primeiraHora) {
     html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHora}</p>`;
   }
 
-  // RF1..RF3 (listar sempre que haja hora)
+  // RF1..RF3
   fases.slice(0,3).forEach(f => {
     if (f.ini) html += `<p><strong>Início da zona de remoção RF${f.n}DRem:</strong> ${f.ini}</p>`;
     if (f.fim) html += `<p><strong>Fim da zona de remoção RF${f.n}DRem:</strong> ${f.fim}</p>`;
   });
 
-  // RF4 — se não houver, escreve a frase da imagem
+  // RF4
   const rf4 = fases[3];
   if (rf4 && (rf4.ini || rf4.fim)) {
     if (rf4.ini) html += `<p><strong>Início da zona de remoção RF4DRem:</strong> ${rf4.ini}</p>`;
@@ -227,6 +287,7 @@ function getResumoFases(id) {
 
   return html || "<p>Sem dados de fases.</p>";
 }
+
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
   const valores = [];
@@ -742,6 +803,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
