@@ -236,56 +236,54 @@ function formatarDataDH(str) {
   return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
 }
 function getResumoFases(id) {
-  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id) || {};
+  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
+  if (!reg) return "<p>Sem dados de fases.</p>";
 
-  // Primeira hora PE_5_5_1 < 20 mbar
-  const primeiraHoraCSV3 = pick(reg, 'PrimeiraHora_PE551', 'PrimeiraHora_PE_5_5_1', 'PrimeiraHora_PE5_5_1');
-  const primeiraHora = formatarDataDH(primeiraHoraCSV3) || primeiraHoraPE551Abaixo20_doSerie(id);
-
-  // Fases RF1..RF4 -> tenta CSV3; se faltar, detecta no csvSerie por texto
-  const fases = [];
-  for (let n = 1; n <= 4; n++) {
-    let ini = formatarDataDH(pick(
-      reg,
-      `RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `Inicio_RF${n}DRem`, `Início_RF${n}DRem`,
-      `RF${n}_inicio`, `RF${n}Inicio`, `RF${n}Start`
-    ));
-    let fim = formatarDataDH(pick(
-      reg,
-      `RF${n}DRem_fim`, `RF${n}DRem_Fim`, `Fim_RF${n}DRem`,
-      `RF${n}_fim`, `RF${n}Fim`, `RF${n}End`
-    ));
-
-    if (!ini || !fim) {
-      const det = detectarInicioFimRF_noSeriePorTexto(id, n);
-      ini = ini || det.ini;
-      fim = fim || det.fim;
+  function pickCampo(...alts) {
+    for (const a of alts) {
+      if (reg[a]) return reg[a];
     }
-    fases.push({ n, ini, fim });
+    return null;
   }
 
-  // Monta HTML EXACTO como na imagem
-  let html = '';
+  function formatarData(str) {
+    if (!str) return null;
+    const ts = new Date(str.replace(" ", "T"));
+    if (isNaN(ts)) return str;
+    const dd = String(ts.getDate()).padStart(2,"0");
+    const mm = String(ts.getMonth()+1).padStart(2,"0");
+    const yyyy = ts.getFullYear();
+    const hh = String(ts.getHours()).padStart(2,"0");
+    const mi = String(ts.getMinutes()).padStart(2,"0");
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+  }
+
+  let html = "";
+
+  // Primeira hora PE551
+  const primeiraHora = pickCampo("PrimeiraHora_PE551", "PrimeiraHora_PE_5_5_1");
   if (primeiraHora) {
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHora}</p>`;
+    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHora)}</p>`;
   }
 
-  // RF1..RF3
-  fases.slice(0,3).forEach(f => {
-    if (f.ini) html += `<p><strong>Início da zona de remoção RF${f.n}DRem:</strong> ${f.ini}</p>`;
-    if (f.fim) html += `<p><strong>Fim da zona de remoção RF${f.n}DRem:</strong> ${f.fim}</p>`;
-  });
+  // RF1 até RF4
+  for (let n = 1; n <= 4; n++) {
+    const ini = pickCampo(`RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `Inicio_RF${n}DRem`, `Início_RF${n}DRem`);
+    const fim = pickCampo(`RF${n}DRem_fim`, `RF${n}DRem_Fim`, `Fim_RF${n}DRem`);
 
-  // RF4
-  const rf4 = fases[3];
-  if (rf4 && (rf4.ini || rf4.fim)) {
-    if (rf4.ini) html += `<p><strong>Início da zona de remoção RF4DRem:</strong> ${rf4.ini}</p>`;
-    if (rf4.fim) html += `<p><strong>Fim da zona de remoção RF4DRem:</strong> ${rf4.fim}</p>`;
-  } else {
-    html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+    if (ini) {
+      html += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${formatarData(ini)}</p>`;
+    }
+    if (fim) {
+      html += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${formatarData(fim)}</p>`;
+    }
+
+    if (n === 4 && !ini && !fim) {
+      html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+    }
   }
 
-  return html || "<p>Sem dados de fases.</p>";
+  return html;
 }
 
 function maxTEfromSerie(id) {
@@ -803,6 +801,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
