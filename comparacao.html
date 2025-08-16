@@ -176,26 +176,56 @@ function pick(obj, ...keys) {
   return null;
 }
 function getResumoFases(id) {
-  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
-  if (!reg) return "<p>Sem dados de fases.</p>";
+  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id) || {};
 
-  let texto = "";
-  if (reg["PrimeiraHora_PE551"]) {
-    texto += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${reg["PrimeiraHora_PE551"]}</p>`;
-  }
+  // Primeira hora com PE_5_5_1 < 20 mbar (CSV3 -> fallback CSV2)
+  const primeiraHoraCSV3 = pick(reg, 'PrimeiraHora_PE551', 'PrimeiraHora_PE_5_5_1', 'PrimeiraHora_PE5_5_1');
+  const primeiraHora = formatarDataDH(primeiraHoraCSV3) || primeiraHoraPE551Abaixo20_doSerie(id);
 
+  // Para cada RFx, tenta CSV3; se não houver, calcula do csvSerie
+  const fases = [];
   for (let n = 1; n <= 4; n++) {
-    const ini = reg[`RF${n}DRem_inicio`];
-    const fim = reg[`RF${n}DRem_fim`];
-    if (ini && fim) {
-      texto += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${ini}</p>`;
-      texto += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${fim}</p>`;
-    } else if (n === 4) {
-      texto += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+    let ini = formatarDataDH(pick(
+      reg,
+      `RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `Inicio_RF${n}DRem`, `Início_RF${n}DRem`,
+      `RF${n}_inicio`, `RF${n}Inicio`, `RF${n}Start`
+    ));
+    let fim = formatarDataDH(pick(
+      reg,
+      `RF${n}DRem_fim`, `RF${n}DRem_Fim`, `Fim_RF${n}DRem`,
+      `RF${n}_fim`, `RF${n}Fim`, `RF${n}End`
+    ));
+
+    if (!ini || !fim) {
+      const det = detectarInicioFimRFSerie(id, n);
+      ini = ini || det.ini;
+      fim = fim || det.fim;
     }
+    fases.push({ n, ini, fim });
   }
 
-  return texto;
+  // Construir HTML igual à imagem
+  let html = '';
+  if (primeiraHora) {
+    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHora}</p>`;
+  }
+
+  // RF1..RF3 (listar sempre que haja hora)
+  fases.slice(0,3).forEach(f => {
+    if (f.ini) html += `<p><strong>Início da zona de remoção RF${f.n}DRem:</strong> ${f.ini}</p>`;
+    if (f.fim) html += `<p><strong>Fim da zona de remoção RF${f.n}DRem:</strong> ${f.fim}</p>`;
+  });
+
+  // RF4 — se não houver, escreve a frase da imagem
+  const rf4 = fases[3];
+  if (rf4 && (rf4.ini || rf4.fim)) {
+    if (rf4.ini) html += `<p><strong>Início da zona de remoção RF4DRem:</strong> ${rf4.ini}</p>`;
+    if (rf4.fim) html += `<p><strong>Fim da zona de remoção RF4DRem:</strong> ${rf4.fim}</p>`;
+  } else {
+    html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+  }
+
+  return html || "<p>Sem dados de fases.</p>";
 }
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -712,6 +742,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
