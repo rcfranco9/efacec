@@ -131,28 +131,6 @@
       const f = n.toFixed(dec);
       return parseFloat(f).toString();
     }
-    function getResumoFases(id) {
-  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
-  if (!reg) return "<p>Sem dados de fases.</p>";
-
-  let texto = "";
-  if (reg["PrimeiraHora_PE551"]) {
-    texto += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${reg["PrimeiraHora_PE551"]}</p>`;
-  }
-
-  for (let n = 1; n <= 4; n++) {
-    const ini = reg[`RF${n}DRem_inicio`];
-    const fim = reg[`RF${n}DRem_fim`];
-    if (ini && fim) {
-      texto += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${ini}</p>`;
-      texto += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${fim}</p>`;
-    } else if (n === 4) {
-      texto += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
-    }
-  }
-
-  return texto;
-}
 
     function parseNum(v) {
       const n = parseFloat((v||'').toString().replace(',', '.').trim());
@@ -245,42 +223,38 @@ function calculaIndicePressao(pf, rf) {
       return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
     }
 
-  document.getElementById('csvMeta').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosMeta = res.data; checkReady(); }
-  });
-});
+    document.getElementById('csvMeta').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosMeta = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
 
-document.getElementById('csvSerie').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosSerie = res.data; checkReady(); }
-  });
-});
+    document.getElementById('csvSerie').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosSerie = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
 
-document.getElementById('csv3').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: res => { dadosPF = res.data; checkReady(); }
-  });
-});
-
-function checkReady() {
-  const ready = dadosMeta.length && dadosSerie.length && dadosTerceiro.length;
-  document.getElementById('nome1').disabled = !ready;
-  document.getElementById('nome2').disabled = !ready;
-  document.getElementById('btnComparar').disabled = !ready;
-  if (ready) {
-    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
-  }
-}
+    document.getElementById('csv3').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => Papa.parse(ev.target.result, {
+        header:true, skipEmptyLines:true,
+        complete: res => { dadosPF = res.data; checkReady(); }
+      });
+      r.readAsText(f);
+    });
 function calcularTaxasHoraAHora(id, massaKg, canvasId) {
   const linhas = dadosSerie.filter(r => (r.id_secagenscore || '').trim() === id && r.LC_3_8 && r.DataHora);
   const registos = linhas.map(r => ({
@@ -484,21 +458,7 @@ setTimeout(() => calcularTaxasHoraAHora(id, m.massai, canvasId), 0);
       const ten = document.getElementById("tensaoInput").value.trim().replace(/\s+/g, "_");
       doc.save(`Transformadores_${pot || 'X'}kVA_${ten || 'Y'}kV.pdf`);
     });
-    document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
-      ${getResumoFases(id1)}
-    </div>
-  `;
-  document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
-      ${getResumoFases(id2)}
-    </div>
-  `;
-});
   </script>
-  
 
 </body>
 </html>
