@@ -780,7 +780,19 @@ html += `</tbody></table>`;
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
- 
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
+      ${getResumoFases(id1)}
+    </div>
+  `;
+  document.getElementById("resultado").innerHTML += `
+    <div class="resumo-fases">
+      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
+      ${getResumoFases(id2)}
+    </div>
+  `;
+});
 
 
 document.getElementById("btnExportarPDF").addEventListener("click", () => {
@@ -801,8 +813,6 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
-
-
 
 
 
