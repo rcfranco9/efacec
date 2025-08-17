@@ -235,75 +235,31 @@ function formatarDataDH(str) {
   const ts = toTS(str);
   return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
 }
-
 function getResumoFases(id) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
-  if (!reg) return "<p>Sem dados de fases.</p>";
+  if (!reg) return "<p>Sem dados de fases para " + id + "</p>";
 
-  function formatarData(date) {
-    const dd = String(date.getDate()).padStart(2, "0");
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const yyyy = date.getFullYear();
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mi = String(date.getMinutes()).padStart(2, "0");
-    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
-  }
+  let html = "<table border='1'><thead><tr><th>Fase</th><th>Data/Hora</th></tr></thead><tbody>";
 
-  function addHoras(baseDate, horas) {
-    const nova = new Date(baseDate);
-    nova.setHours(nova.getHours() + parseFloat(horas || 0));
-    return nova;
-  }
-
-  let html = `
-    <table border="1" cellspacing="0" cellpadding="4">
-      <thead>
-        <tr>
-          <th>Fase</th>
-          <th>Início</th>
-          <th>Fim</th>
-          <th>Duração (h)</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  // Hora em que a pressão < 20 mbar
-  let base = new Date(reg["PrimeiraHora_PE551"].replace(" ", "T"));
-  html += `<tr>
-             <td>Primeira hora &lt; 20 mbar</td>
-             <td colspan="3">${formatarData(base)}</td>
-           </tr>`;
-
-  // Fases RF1 a RF4
+  // Vamos assumir que existe sempre RF1DAquec e RF1DRem etc
   for (let n = 1; n <= 4; n++) {
-    const aque = parseFloat((reg[`RF${n}DAquec`] || "0").replace(",", "."));
-    const dur  = parseFloat((reg[`RF${n}DRem`]   || "0").replace(",", "."));
+    const daq = parseFloat(reg[`RF${n}DAquec`] || 0);
+    const drem = parseFloat(reg[`RF${n}DRem`] || 0);
 
-    if ((aque + dur) === 0) {
-      html += `<tr>
-                 <td>RF${n}</td>
-                 <td colspan="3">A secagem não chegou a esta fase.</td>
-               </tr>`;
+    if ((daq + drem) === 0) {
+      html += `<tr><td>RF${n}</td><td>A secagem não chegou a esta fase.</td></tr>`;
       continue;
     }
 
-    const inicio = addHoras(base, aque);
-    const fim    = addHoras(inicio, dur);
-
-    html += `<tr>
-               <td>RF${n}</td>
-               <td>${formatarData(inicio)}</td>
-               <td>${formatarData(fim)}</td>
-               <td>${dur.toFixed(2)}</td>
-             </tr>`;
-
-    base = fim; // para a fase seguinte
+    // Simples: só mostrar que existe valor
+    html += `<tr><td>RF${n}</td><td>DAquec: ${daq}, DRem: ${drem}</td></tr>`;
   }
 
   html += "</tbody></table>";
   return html;
 }
+document.getElementById("resultado").innerHTML = getResumoFases("E1111475A");
+
 
 
 function maxTEfromSerie(id) {
@@ -821,6 +777,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
