@@ -235,30 +235,49 @@ function formatarDataDH(str) {
   const ts = toTS(str);
   return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
 }
+
 function getResumoFases(id) {
   const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
-  if (!reg) return "<p>Sem dados de fases para " + id + "</p>";
+  if (!reg) return "<p>Sem dados de fases.</p>";
 
-  let html = "<table border='1'><thead><tr><th>Fase</th><th>Data/Hora</th></tr></thead><tbody>";
-
-  // Vamos assumir que existe sempre RF1DAquec e RF1DRem etc
-  for (let n = 1; n <= 4; n++) {
-    const daq = parseFloat(reg[`RF${n}DAquec`] || 0);
-    const drem = parseFloat(reg[`RF${n}DRem`] || 0);
-
-    if ((daq + drem) === 0) {
-      html += `<tr><td>RF${n}</td><td>A secagem não chegou a esta fase.</td></tr>`;
-      continue;
-    }
-
-    // Simples: só mostrar que existe valor
-    html += `<tr><td>RF${n}</td><td>DAquec: ${daq}, DRem: ${drem}</td></tr>`;
+  function formatarData(date) {
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mi = String(date.getMinutes()).padStart(2, "0");
+    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
   }
 
-  html += "</tbody></table>";
+  function addHoras(baseDate, horas) {
+    const nova = new Date(baseDate);
+    nova.setHours(nova.getHours() + parseFloat(horas || 0));
+    return nova;
+  }
+
+  let html = "";
+
+  {
+      const inicio = addHoras(base, aque);
+      const fim = addHoras(inicio, dur);
+
+      html += `<p><strong>Fase RF${n}:</strong></p>`;
+      html += `<ul>`;
+      html += `<li><strong>Início:</strong> ${formatarData(inicio)}</li>`;
+      html += `<li><strong>Fim:</strong> ${formatarData(fim)}</li>`;
+      html += `<li><strong>Duração:</strong> ${dur.toFixed(2)} horas</li>`;
+      html += `</ul>`;
+
+      // atualizar base para a próxima fase
+      base = fim;
+    } else if (n === 4) {
+      html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
+    }
+  }
+
   return html;
 }
-document.getElementById("resultado").innerHTML = getResumoFases("E1111475A");
+
 
 
 
@@ -777,6 +796,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
