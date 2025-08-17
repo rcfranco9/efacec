@@ -236,7 +236,7 @@ function formatarDataDH(str) {
   return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
 }
 function getResumoFases(id) {
-  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id);
+  const reg = csvterceiro.find(r => (r.id_secagenscore || '').trim() === id);
   if (!reg) return "<p>Sem dados de fases.</p>";
 
   function formatarData(date) {
@@ -260,6 +260,8 @@ function getResumoFases(id) {
   let base = new Date(reg["PrimeiraHora_PE551"].replace(" ", "T"));
   html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(base)}</p>`;
 
+  let totalHoras = 0;
+
   // Calcular fases
   for (let n = 1; n <= 4; n++) {
     const aque = parseFloat(reg[`RF${n}DAquec`] || 0);
@@ -267,10 +269,14 @@ function getResumoFases(id) {
 
     if (aque > 0 || dur > 0) {
       const inicio = addHoras(base, aque);
-      html += `<p><strong>Início da zona de remoção RF${n}DRem:</strong> ${formatarData(inicio)}</p>`;
-
       const fim = addHoras(inicio, dur);
-      html += `<p><strong>Fim da zona de remoção RF${n}DRem:</strong> ${formatarData(fim)}</p>`;
+
+      totalHoras += dur;
+
+      html += `<p><strong>Fase RF${n}:</strong><br>
+                 - Início: ${formatarData(inicio)}<br>
+                 - Fim: ${formatarData(fim)}<br>
+                 - Duração: ${dur.toFixed(2)} h (${Math.round(dur * 60)} min)</p>`;
 
       // atualizar base para a próxima fase
       base = fim;
@@ -279,8 +285,11 @@ function getResumoFases(id) {
     }
   }
 
+  html += `<p><strong>Duração total (todas as fases somadas):</strong> ${totalHoras.toFixed(2)} h (${Math.round(totalHoras * 60)} min)</p>`;
+
   return html;
 }
+
 
 
 function maxTEfromSerie(id) {
@@ -798,6 +807,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
