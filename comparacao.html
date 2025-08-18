@@ -134,6 +134,44 @@ function parseNum(v) {
   return isNaN(n) ? NaN : n;
 }
 
+/** Devolve a PRIMEIRA hora (cronológica) em que a pressão < 20 na coluna dada */
+function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
+  const regsOrdenados = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
+    .map(r => {
+      const t = new Date(String(r.DataHora).replace(' ', 'T')).getTime();
+      const v = parseNum(r[coluna]);
+      return { t, v };
+    })
+    .filter(o => !isNaN(o.t) && !isNaN(o.v))
+    .sort((a, b) => a.t - b.t);
+
+  const hit = regsOrdenados.find(o => o.v < 20);
+  if (!hit) return null;
+
+  const d = new Date(hit.t);
+  return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+/** Garante um contêiner de info por baixo do canvas do gráfico */
+function setInfoPressao(elemId, canvasId, label, valorStr) {
+  let el = document.getElementById(elemId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = elemId;
+    el.style.marginBottom = '30px';
+    el.style.color = '#2c3e50';
+    el.style.fontWeight = '600';
+    const canvas = document.getElementById(canvasId);
+    if (canvas && canvas.parentNode) {
+      canvas.parentNode.insertBefore(el, canvas.nextSibling);
+    } else {
+      document.body.appendChild(el);
+    }
+  }
+  el.innerHTML = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
+}
+
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
   const valores = [];
@@ -187,6 +225,7 @@ function calcTaxa(id, massaKg) {
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
+
 function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
   const serie = getSerie(id);
   if (serie.length < 2) return null;
@@ -218,7 +257,6 @@ function calcTaxaPorHoraTodoPeriodo(id, massaKg) {
 
   return blocos;
 }
-
 
 function diffClass(v) {
   if (v > 0) return 'diff-positive';
@@ -278,28 +316,26 @@ function classeIndice(indiceStr) {
 // Funções de cálculo de índice temperatura e pressão
 function calculaIndiceTemperatura(pf, rf) {
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  if (pf === 0 && rf === 0) return 'N/A'; // se ambos zero, N/A
+  if (pf === 0 && rf === 0) return 'N/A';
   const diff = rf - pf;
   if (diff >= 5) return '100%';
   if (diff <= -5) return '0%';
-  const proporcao = (diff + 5) / 10; // linear entre -5 e 5
+  const proporcao = (diff + 5) / 10;
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
 }
 
 function calculaIndicePressao(pf, rf) {
   if (isNaN(pf) || isNaN(rf)) return 'N/A';
-  if (pf === 0 && rf === 0) return 'N/A'; // se ambos zero, N/A
+  if (pf === 0 && rf === 0) return 'N/A';
   const diff = rf - pf;
   if (diff >= 5) return '0%';
   if (diff <= -5) return '100%';
   if (diff === 0) return '50%';
-  // interpolação linear entre -5 e 5, invertida
   const proporcao = (5 - diff) / 10;
   const indice = Math.round(proporcao * 100);
   return `${indice}%`;
 }
-
 
 document.getElementById('btnComparar').addEventListener('click', () => {
   const nome1 = document.getElementById('nome1').value.trim().toLowerCase();
@@ -326,8 +362,6 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const id2 = (m2.id_secagenscore || '').trim();
   const t1 = calcTaxa(id1, m1.massai);
   const t2 = calcTaxa(id2, m2.massai);
- 
-
 
   if (!t1 || !t2) {
     out.innerHTML = '<p>Erro ao calcular as taxas. Verifica se existem dados suficientes para ambos os transformadores.</p>';
@@ -342,93 +376,103 @@ document.getElementById('btnComparar').addEventListener('click', () => {
   const pe1_551 = minPE(id1, 'PE_5_5_1');
   const pe2_551 = minPE(id2, 'PE_5_5_1');
 
-  
-// Preparar dados para o gráfico (invertendo a ordem para eixo X 0-3h estar na direita)
-// --- Dados para o transformador 1
-const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
-const labels1 = blocos1.map(b => {
-  const horaInicio = b.intervalo.split('-')[0];
-  return String(horaInicio).padStart(2, '0');
-}).reverse();
-const data1 = blocos1.map(b => {
-  const val = Number(b.taxa);
-  return isNaN(val) ? null : val;
-}).reverse();
+  // --- Dados para os gráficos (eixo X invertido)
+  const blocos1 = calcTaxaPorHoraTodoPeriodo(id1, m1.massai);
+  const labels1 = blocos1.map(b => {
+    const horaInicio = b.intervalo.split('-')[0];
+    return String(horaInicio).padStart(2, '0');
+  }).reverse();
+  const data1 = blocos1.map(b => {
+    const val = Number(b.taxa);
+    return isNaN(val) ? null : val;
+  }).reverse();
 
-// --- Dados para o transformador 2
-const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
-const labels2 = blocos2.map(b => {
-  const horaInicio = b.intervalo.split('-')[0];
-  return String(horaInicio).padStart(2, '0');
-}).reverse();
-const data2 = blocos2.map(b => {
-  const val = Number(b.taxa);
-  return isNaN(val) ? null : val;
-}).reverse();
+  const blocos2 = calcTaxaPorHoraTodoPeriodo(id2, m2.massai);
+  const labels2 = blocos2.map(b => {
+    const horaInicio = b.intervalo.split('-')[0];
+    return String(horaInicio).padStart(2, '0');
+  }).reverse();
+  const data2 = blocos2.map(b => {
+    const val = Number(b.taxa);
+    return isNaN(val) ? null : val;
+  }).reverse();
 
-// --- Criar gráfico do transformador 1
-const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
-if (window.chartTaxas1) {
-  window.chartTaxas1.destroy();
-}
-window.chartTaxas1 = new Chart(ctx1, {
-  type: 'line',
-  data: {
-    labels: labels1,
-    datasets: [{
-      label: m1.subprojecto || id1,
-      data: data1,
-      borderColor: 'rgba(41, 128, 185, 1)',
-      backgroundColor: 'rgba(41, 128, 185, 0.1)',
-      tension: 0.3
-    }]
-  },
-  options: {
-    responsive: true,
-    layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: 'Taxa de Remoção de Água - Transformador 1' }
+  // --- Gráfico 1
+  const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+  if (window.chartTaxas1) window.chartTaxas1.destroy();
+  window.chartTaxas1 = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: labels1,
+      datasets: [{
+        label: m1.subprojecto || id1,
+        data: data1,
+        borderColor: 'rgba(41, 128, 185, 1)',
+        backgroundColor: 'rgba(41, 128, 185, 0.1)',
+        tension: 0.3
+      }]
     },
-    scales: {
-      x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
-      y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
+    options: {
+      responsive: true,
+      layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Taxa de Remoção de Água - Transformador 1' }
+      },
+      scales: {
+        x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
+        y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
+      }
     }
-  }
-});
+  });
 
-// --- Criar gráfico do transformador 2
-const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-if (window.chartTaxas2) {
-  window.chartTaxas2.destroy();
-}
-window.chartTaxas2 = new Chart(ctx2, {
-  type: 'line',
-  data: {
-    labels: labels2,
-    datasets: [{
-      label: m2.subprojecto || id2,
-      data: data2,
-      borderColor: 'rgba(231, 76, 60, 1)',
-      backgroundColor: 'rgba(231, 76, 60, 0.1)',
-      tension: 0.3
-    }]
-  },
-  options: {
-    responsive: true,
-    layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: 'Taxa de Remoção de Água - Transformador 2' }
+  // --- Gráfico 2
+  const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+  if (window.chartTaxas2) window.chartTaxas2.destroy();
+  window.chartTaxas2 = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: labels2,
+      datasets: [{
+        label: m2.subprojecto || id2,
+        data: data2,
+        borderColor: 'rgba(231, 76, 60, 1)',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        tension: 0.3
+      }]
     },
-    scales: {
-      x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
-      y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
+    options: {
+      responsive: true,
+      layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Taxa de Remoção de Água - Transformador 2' }
+      },
+      scales: {
+        x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
+        y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
+      }
     }
-  }
-});
+  });
 
-  
+  // --- Primeira hora de pressão < 20 mbar (mostrada por baixo de cada gráfico)
+  const hora1 = primeiraHoraPressaoBaixa(id1);
+  const hora2 = primeiraHoraPressaoBaixa(id2);
+
+  setInfoPressao(
+    'infoPressao1',
+    'graficoTaxas1',
+    'Primeira hora com PE_5_5_1 < 20 (Transformador 1)',
+    hora1
+  );
+  setInfoPressao(
+    'infoPressao2',
+    'graficoTaxas2',
+    'Primeira hora com PE_5_5_1 < 20 (Transformador 2)',
+    hora2
+  );
+
+  // ----------------- Construção do HTML comparativo (tal como tinhas) -----------------
   let html = '';
 
   [m1, m2].forEach((m) => {
@@ -478,18 +522,17 @@ window.chartTaxas2 = new Chart(ctx2, {
   </thead>
   <tbody>`;
 
-for (let i = 0; i < 6; i++) {
-  const b1 = blocos1[i] || {};
-  const b2 = blocos2[i] || {};
-  html += `<tr>
-    <td>${b1.intervalo || 'N/A'}</td>
-    <td>${formatNum(b1.taxa)}</td>
-    <td>${formatNum(b2.taxa)}</td>
-  </tr>`;
-}
+  for (let i = 0; i < 6; i++) {
+    const b1 = blocos1[i] || {};
+    const b2 = blocos2[i] || {};
+    html += `<tr>
+      <td>${b1.intervalo || 'N/A'}</td>
+      <td>${formatNum(b1.taxa)}</td>
+      <td>${formatNum(b2.taxa)}</td>
+    </tr>`;
+  }
 
-html += `</tbody></table>`;
-
+  html += `</tbody></table>`;
 
   // Bloco PFxTAquec, RFxTAquec e Índices (temperatura)
   html += `<hr><h3>Comparação PFxTAquec e RFxTAquec</h3>`;
@@ -584,11 +627,12 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
     pdf.save("comparacao_transformadores.pdf");
   });
 });
-
 </script>
+
 
 </body>
 </html>
+
 
 
 
