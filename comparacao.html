@@ -100,7 +100,7 @@
 </head>
 <body>
 
-<h1>Comparação de Transformadoresaaaa</h1>
+<h1>Comparação de Transformadores</h1>
 
 <label>CSV1 (Meta):</label>
 <input type="file" id="csvMeta" accept=".csv">
@@ -133,170 +133,16 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
+  function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
+  const reg = dadosSerie
+    .filter(r => (r.id_secagenscore || '').trim() === id)
+    .find(r => parseNum(r[coluna]) < 20);
 
-  function primeiraHoraPE551Abaixo20_doSerie(id) {
-  // procura no csvSerie o primeiro registo com PE_5_5_1 <= 20
-  const linhas = dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
-    .map(r => ({ ts: new Date((r.DataHora || '').replace(' ', 'T')).getTime(), dh: r.DataHora, pe: parseNum(r.PE_5_5_1) }))
-    .filter(r => !isNaN(r.ts) && !isNaN(r.pe))
-    .sort((a,b) => a.ts - b.ts);
+  if (!reg || !reg.DataHora) return null;
 
-  const hit = linhas.find(r => r.pe <= 20);
-  return hit ? formatarDataDH(hit.dh) : null;
+  const d = new Date(reg.DataHora.replace(' ', 'T'));
+  return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
-
-function pick(obj, ...keys) {
-  // devolve o primeiro campo existente (case insensitive) entre as alternativas
-  if (!obj) return null;
-  const lower = Object.fromEntries(Object.keys(obj).map(k => [k.toLowerCase(), k]));
-  for (const k of keys) {
-    const real = lower[k.toLowerCase()];
-    if (real && obj[real]) return obj[real];
-  }
-  return null;
-}
-  function toTS(str) {
-  if (!str) return NaN;
-  // dd/mm/yyyy hh:mm
-  const m = String(str).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[ T](\d{1,2}):(\d{2})/);
-  if (m) {
-    const dd = m[1].padStart(2,'0');
-    const mm = m[2].padStart(2,'0');
-    const yyyy = (m[3].length === 2 ? '20' + m[3] : m[3]);
-    const hh = m[4].padStart(2,'0');
-    const mi = m[5].padStart(2,'0');
-    return new Date(`${yyyy}-${mm}-${dd}T${hh}:${mi}:00`).getTime();
-  }
-  // tenta ISO
-  return new Date(String(str).replace(' ', 'T')).getTime();
-}
-
-function tsToDDMMYYYYhhmm(ts) {
-  if (!ts || isNaN(ts)) return null;
-  const d = new Date(ts);
-  const dd = String(d.getDate()).padStart(2,'0');
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const yyyy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mi = String(d.getMinutes()).padStart(2,'0');
-  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
-}
-
-// devolve true se algum campo da linha contiver o texto pedido (case-insensitive)
-function linhaContemTextoRF(linha, textoRF) {
-  const alvo = String(textoRF).toLowerCase();
-  for (const [k,v] of Object.entries(linha)) {
-    if (k === 'DataHora' || k === 'id_secagenscore') continue;
-    const s = String(v ?? '').toLowerCase();
-    if (s.includes(alvo)) return true;
-  }
-  return false;
-}
-
-// varre o csvSerie para detectar início/fim de RFxDRem por qualquer coluna com esse texto
-function detectarInicioFimRF_noSeriePorTexto(id, n) {
-  const linhas = dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
-    .map(r => ({ raw: r, ts: toTS(r.DataHora) }))
-    .filter(o => !isNaN(o.ts))
-    .sort((a,b) => a.ts - b.ts);
-
-  if (!linhas.length) return { ini: null, fim: null };
-
-  const etiqueta = `rf${n}drem`;
-  let ini = null, fim = null, prevOn = false, prevTS = null;
-
-  for (const o of linhas) {
-    const on = linhaContemTextoRF(o.raw, etiqueta);
-    if (!ini && on) ini = o.ts;
-    if (ini && !on && prevOn) { fim = prevTS; break; }
-    prevOn = on;
-    prevTS = o.ts;
-  }
-  if (ini && !fim) fim = prevTS; // se nunca voltou a false, assume que terminou no último registo
-
-  return { ini: ini ? tsToDDMMYYYYhhmm(ini) : null, fim: fim ? tsToDDMMYYYYhhmm(fim) : null };
-}
-
-// devolve o primeiro campo existente (case-insensitive)
-function pick(obj, ...alts) {
-  if (!obj) return null;
-  const keys = Object.keys(obj);
-  for (const a of alts) {
-    const real = keys.find(k => k.toLowerCase() === a.toLowerCase());
-    if (real && obj[real]) return obj[real];
-  }
-  return null;
-}
-
-function formatarDataDH(str) {
-  if (!str) return null;
-  const ts = toTS(str);
-  return isNaN(ts) ? null : tsToDDMMYYYYhhmm(ts);
-}
-
-function getResumoFases(id) {
-  const reg = csvterceiro.find(r => (r.id_secagenscore || '').trim() === id);
-  if (!reg) return "<p>Sem dados de fases.</p>";
-
-  function formatarData(date) {
-    const dd = String(date.getDate()).padStart(2, "0");
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const yyyy = date.getFullYear();
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mi = String(date.getMinutes()).padStart(2, "0");
-    return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
-  }
-
-  function addHoras(baseDate, horas) {
-    const nova = new Date(baseDate);
-    nova.setHours(nova.getHours() + parseFloat(horas || 0));
-    return nova;
-  }
-
-  let html = "";
-
-  // Hora inicial
-  let base = new Date(reg["PrimeiraHora_PE551"].replace(" ", "T"));
-  html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(base)}</p>`;
-
-  let totalHoras = 0;
-  let fimGlobal = null;
-
-  // Calcular fases
-  for (let n = 1; n <= 4; n++) {
-    const aque = parseFloat(reg[`RF${n}DAquec`] || 0);
-    const dur = parseFloat(reg[`RF${n}DRem`] || 0);
-
-    if (aque > 0 || dur > 0) {
-      const inicio = addHoras(base, aque);
-      const fim = addHoras(inicio, dur);
-
-      totalHoras += dur;
-      fimGlobal = fim; // vai sendo atualizado, fica o último fim
-
-      html += `<p><strong>Fase RF${n}:</strong><br>
-                 - Início: ${formatarData(inicio)}<br>
-                 - Fim: ${formatarData(fim)}<br>
-                 - Duração: ${dur.toFixed(2)} h (${Math.round(dur * 60)} min)</p>`;
-
-      // atualizar base para a próxima fase
-      base = fim;
-    } else if (n === 4) {
-      html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
-    }
-  }
-
-  html += `<p><strong>Duração total (todas as fases somadas):</strong> ${totalHoras.toFixed(2)} h (${Math.round(totalHoras * 60)} min)</p>`;
-
-  if (fimGlobal) {
-    html += `<p><strong>Hora final global da secagem:</strong> ${formatarData(fimGlobal)}</p>`;
-  }
-
-  return html;
-}
-
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -399,6 +245,7 @@ function checkReady() {
     document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
   }
 }
+
 document.getElementById('csvMeta').addEventListener('change', e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -425,54 +272,6 @@ document.getElementById('csvTerceiro').addEventListener('change', e => {
     complete: res => { dadosTerceiro = res.data; checkReady(); }
   });
 });
-  function checkReady() {
-  const ready = dadosMeta.length && dadosSerie.length && dadosTerceiro.length;
-  document.getElementById('nome1').disabled = !ready;
-  document.getElementById('nome2').disabled = !ready;
-  document.getElementById('btnComparar').disabled = !ready;
-  if (ready) {
-    document.getElementById('resultado').textContent = 'CSV carregados. Introduz os dois nomes dos transformadores.';
-  }
-}
-  
-  function getResumoFases(id) {
-  const reg = dadosTerceiro.find(r => (r.id_secagenscore || '').trim() === id) || {};
-
-  // 1) Primeira hora com PE_5_5_1 < 20 mbar (preferir CSV3; se faltar, calcula do CSV2)
-  const primeiraHoraCSV3 = pick(reg, 'PrimeiraHora_PE551', 'PrimeiraHora_PE_5_5_1', 'PrimeiraHora_PE5_5_1');
-  const primeiraHora = formatarDataDH(primeiraHoraCSV3) || primeiraHoraPE551Abaixo20_doSerie(id);
-
-  // 2) Fases RFxDRem (início e fim) lidas do CSV3
-  const fases = [];
-  for (let n = 1; n <= 4; n++) {
-    const ini = formatarDataDH(pick(reg, `RF${n}DRem_inicio`, `RF${n}DRem_Inicio`, `RF${n}DRem_ini`));
-    const fim = formatarDataDH(pick(reg, `RF${n}DRem_fim`, `RF${n}DRem_Fim`, `RF${n}DRem_fi`));
-    fases.push({ n, ini, fim });
-  }
-
-  // 3) Gera HTML exatamente no formato do exemplo
-  let html = '';
-  if (primeiraHora) {
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHora}</p>`;
-  }
-
-  fases.slice(0,3).forEach(f => {
-    if (f.ini) html += `<p><strong>Início da zona de remoção RF${f.n}DRem:</strong> ${f.ini}</p>`;
-    if (f.fim) html += `<p><strong>Fim da zona de remoção RF${f.n}DRem:</strong> ${f.fim}</p>`;
-  });
-
-  // RF4: se não houver dados, escrever a frase da imagem
-  const rf4 = fases[3];
-  if (rf4.ini && rf4.fim) {
-    html += `<p><strong>Início da zona de remoção RF4DRem:</strong> ${rf4.ini}</p>`;
-    html += `<p><strong>Fim da zona de remoção RF4DRem:</strong> ${rf4.fim}</p>`;
-  } else {
-    html += `<p><em>A secagem não chegou à fase RF4DRem.</em></p>`;
-  }
-
-  return html || "<p>Sem dados de fases.</p>";
-}
-  
 
 // Agora a função getValorCampo vai buscar no dadosTerceiro
 function getValorCampo(id, campo) {
@@ -638,7 +437,14 @@ window.chartTaxas2 = new Chart(ctx2, {
     }
   }
 });
+const hora1 = primeiraHoraPressaoBaixa(id1);
+  const hora2 = primeiraHoraPressaoBaixa(id2);
 
+  document.getElementById("infoPressao1").innerHTML = 
+    `<p><strong>Primeira hora com PE_5_5_1 &lt; 20 (Transformador 1):</strong> ${hora1 || "Nenhuma"}</p>`;
+
+  document.getElementById("infoPressao2").innerHTML = 
+    `<p><strong>Primeira hora com PE_5_5_1 &lt; 20 (Transformador 2):</strong> ${hora2 || "Nenhuma"}</p>`;
   
   let html = '';
 
@@ -780,20 +586,7 @@ html += `</tbody></table>`;
 
   out.innerHTML = html;
   document.getElementById("btnExportarPDF").style.display = 'inline-block';
-  document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m1.subprojecto || id1}</h3>
-      ${getResumoFases(id1)}
-    </div>
-  `;
-  document.getElementById("resultado").innerHTML += `
-    <div class="resumo-fases">
-      <h3>Resumo das Fases - ${m2.subprojecto || id2}</h3>
-      ${getResumoFases(id2)}
-    </div>
-  `;
 });
-
 
 document.getElementById("btnExportarPDF").addEventListener("click", () => {
   const resultado = document.getElementById("resultado");
@@ -813,7 +606,6 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
-
 
 
 
