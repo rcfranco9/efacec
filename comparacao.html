@@ -133,16 +133,6 @@ function parseNum(v) {
   const n = parseFloat((v || '').toString().replace(',', '.').trim());
   return isNaN(n) ? NaN : n;
 }
-  function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
-  const reg = dadosSerie
-    .filter(r => (r.id_secagenscore || '').trim() === id)
-    .find(r => parseNum(r[coluna]) < 20);
-
-  if (!reg || !reg.DataHora) return null;
-
-  const d = new Date(reg.DataHora.replace(' ', 'T'));
-  return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -437,14 +427,7 @@ window.chartTaxas2 = new Chart(ctx2, {
     }
   }
 });
-const hora1 = primeiraHoraPressaoBaixa(id1);
-  const hora2 = primeiraHoraPressaoBaixa(id2);
 
-  document.getElementById("infoPressao1").innerHTML = 
-    `<p><strong>Primeira hora com PE_5_5_1 &lt; 20 (Transformador 1):</strong> ${hora1 || "Nenhuma"}</p>`;
-
-  document.getElementById("infoPressao2").innerHTML = 
-    `<p><strong>Primeira hora com PE_5_5_1 &lt; 20 (Transformador 2):</strong> ${hora2 || "Nenhuma"}</p>`;
   
   let html = '';
 
@@ -606,8 +589,6 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
-
-
 
 
 
