@@ -152,39 +152,42 @@ function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
   const d = new Date(hit.t);
   return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
+function setInfoPressao(divId, canvasId, titulo, valor) {
+  let div = document.getElementById(divId);
+  if (!div) {
+    div = document.createElement("div");
+    div.id = divId;
+    const canvas = document.getElementById(canvasId);
+    canvas.insertAdjacentElement("afterend", div);
+  }
+  div.innerHTML = `<p><strong>${titulo}:</strong> ${valor || "—"}</p>`;
+}
+
+function setInfoRemocao(divId, canvasId, titulo, id) {
+  let div = document.getElementById(divId);
+  if (!div) {
+    div = document.createElement("div");
+    div.id = divId;
+    const canvas = document.getElementById(canvasId);
+    canvas.insertAdjacentElement("afterend", div);
+  }
+
+  // aqui vais buscar os dados do csvTerceiro
+  const linha = csvTerceiro.find(row => row.ID === id);
+  if (linha) {
+    const hora = primeiraHoraPressaoBaixa(id);
+    const valorFinal = hora + linha.RF1DAquec;
+    div.innerHTML = `
+      <p><strong>Início fase de remoção (${titulo}):</strong> ${valorFinal}</p>
+    `;
+  } else {
+    div.innerHTML = `<p><strong>${titulo}:</strong> sem dados</p>`;
+  }
+}
+setInfoRemocao("infoRemocao1", "graficoTaxas1", "Transformador 1", id1);
+setInfoRemocao("infoRemocao2", "graficoTaxas2", "Transformador 2", id2);
 
 /** Garante um contêiner de info por baixo do canvas do gráfico */
-function setInfoRemocao(elemId, canvasId, label, hora, id, coluna = 'RF1DAquec') {
-  let el = document.getElementById(elemId);
-  if (!el) {
-    el = document.createElement('div');
-    el.id = elemId;
-    el.style.marginBottom = '30px';
-    el.style.color = '#2c3e50';
-    el.style.fontWeight = '600';
-    const canvas = document.getElementById(canvasId);
-    if (canvas && canvas.parentNode) {
-      canvas.parentNode.insertBefore(el, canvas.nextSibling);
-    } else {
-      document.body.appendChild(el);
-    }
-  }
-
-  // procurar o registo no csvTerceiro correspondente à hora encontrada
-  const reg = dadosTerceiro.find(r => {
-    const t = new Date(String(r.DataHora).replace(' ', 'T'));
-    return t.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) === hora;
-  });
-
-  const rf = reg ? parseNum(reg[coluna]) : NaN;
-
-  let html = `<p><strong>${label}:</strong> ${hora || "Nenhuma"}</p>`;
-  if (hora && !isNaN(rf)) {
-    html += `<p><strong>Fase de remoção começou:</strong> ${rf}</p>`;
-  }
-
-  el.innerHTML = html;
-}
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -661,6 +664,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
