@@ -122,12 +122,7 @@
 <div id="resultado">Carrega os três ficheiros CSV.</div>
   
 <canvas id="graficoTaxas1" style="max-width: 100%; margin-top: 40px;"></canvas>
-<div id="infoPressao1"></div>
-<div id="infoRemocao1"></div>
-
 <canvas id="graficoTaxas2" width="600" height="400"></canvas>
-<div id="infoPressao2"></div>
-<div id="infoRemocao2"></div>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 
 
@@ -157,41 +152,25 @@ function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
   const d = new Date(hit.t);
   return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
-function setInfoPressao(divId, canvasId, titulo, valor) {
-  let div = document.getElementById(divId);
-  if (!div) {
-    div = document.createElement("div");
-    div.id = divId;
-    const canvas = document.getElementById(canvasId);
-    canvas.insertAdjacentElement("afterend", div);
-  }
-  div.innerHTML = `<p><strong>${titulo}:</strong> ${valor || "—"}</p>`;
-}
-
-function setInfoRemocao(divId, canvasId, titulo, id) {
-  let div = document.getElementById(divId);
-  if (!div) {
-    div = document.createElement("div");
-    div.id = divId;
-    const canvas = document.getElementById(canvasId);
-    canvas.insertAdjacentElement("afterend", div);
-  }
-
-  // aqui vais buscar os dados do csvTerceiro
-  const linha = csvTerceiro.find(row => row.ID === id);
-  if (linha) {
-    const hora = primeiraHoraPressaoBaixa(id);
-    const valorFinal = hora + linha.RF1DAquec;
-    div.innerHTML = `
-      <p><strong>Início fase de remoção (${titulo}):</strong> ${valorFinal}</p>
-    `;
-  } else {
-    div.innerHTML = `<p><strong>${titulo}:</strong> sem dados</p>`;
-  }
-}
-
 
 /** Garante um contêiner de info por baixo do canvas do gráfico */
+function setInfoPressao(elemId, canvasId, label, valorStr) {
+  let el = document.getElementById(elemId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = elemId;
+    el.style.marginBottom = '30px';
+    el.style.color = '#2c3e50';
+    el.style.fontWeight = '600';
+    const canvas = document.getElementById(canvasId);
+    if (canvas && canvas.parentNode) {
+      canvas.parentNode.insertBefore(el, canvas.nextSibling);
+    } else {
+      document.body.appendChild(el);
+    }
+  }
+  el.innerHTML = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
+}
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -492,23 +471,7 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     'Primeira hora com PE_5_5_1 < 20 (Transformador 2)',
     hora2
   );
-setInfoRemocao(
-  'infoRemocao1',
-  'graficoTaxas1',
-  'Transformador 1',
-  hora1,
-  id1
-);
 
-setInfoRemocao(
-  'infoRemocao2',
-  'graficoTaxas2',
-  'Transformador 2',
-  hora2,
-  id2
-);
- setInfoRemocao("infoRemocao1", "graficoTaxas1", "Transformador 1", id1);
-  setInfoRemocao("infoRemocao2", "graficoTaxas2", "Transformador 2", id2);
   // ----------------- Construção do HTML comparativo (tal como tinhas) -----------------
   let html = '';
 
@@ -669,6 +632,9 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
+
+
 
 
 
