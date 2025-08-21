@@ -120,9 +120,14 @@
 <button id="btnComparar" disabled>Comparar</button>
 
 <div id="resultado">Carrega os três ficheiros CSV.</div>
-  
+
 <canvas id="graficoTaxas1" style="max-width: 100%; margin-top: 40px;"></canvas>
+<div id="info-remocao1" style="margin-bottom: 30px;"></div>
+
 <canvas id="graficoTaxas2" width="600" height="400"></canvas>
+<div id="info-remocao2" style="margin-bottom: 30px;"></div>
+
+
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 
 
@@ -135,12 +140,12 @@ function parseNum(v) {
 }
 
 /** Devolve a PRIMEIRA hora (cronológica) em que a pressão < 20 na coluna dada */
-function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
+function primeiraHoraPressaoBaixaSimples(id, colunaPressao = 'PE_5_5_1') {
   const regsOrdenados = dadosSerie
     .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
     .map(r => {
       const t = new Date(String(r.DataHora).replace(' ', 'T')).getTime();
-      const v = parseNum(r[coluna]);
+      const v = parseNum(r[colunaPressao]);
       return { t, v };
     })
     .filter(o => !isNaN(o.t) && !isNaN(o.v))
@@ -150,11 +155,13 @@ function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
   if (!hit) return null;
 
   const d = new Date(hit.t);
-  return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const hora = d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  return { hora };
 }
 
-/** Garante um contêiner de info por baixo do canvas do gráfico */
-function setInfoPressao(elemId, canvasId, label, valorStr) {
+/** Cria ou atualiza um container por baixo do canvas e mete HTML */
+function setInfoPressao(elemId, canvasId, label, valorStr, idSecagem = null) {
   let el = document.getElementById(elemId);
   if (!el) {
     el = document.createElement('div');
@@ -169,8 +176,37 @@ function setInfoPressao(elemId, canvasId, label, valorStr) {
       document.body.appendChild(el);
     }
   }
-  el.innerHTML = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
+
+  // Parte original que já tinhas
+  let html = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
+
+  // Parte nova: se passares o idSecagem, calcula a hora < 20 e mete mais linhas
+  if (idSecagem) {
+    const info = primeiraHoraPressaoBaixa(idSecagem);
+    if (info) {
+      html += `<p><strong>Hora pressão &lt; 20:</strong> ${info}</p>`;
+      html += `<p><strong>Fase de remoção:</strong> começou às ${info}</p>`;
+    }
+  }
+
+  el.innerHTML = html;
 }
+
+
+/** Monta as duas linhas: hora pressão < 20 + início fase remoção */
+function setInfoPrimeiraFase(elemId, canvasId, id) {
+  const info = primeiraHoraPressaoBaixaSimples(id);
+  let html = "";
+  if (info) {
+    html += `<p><strong>Hora pressão &lt; 20:</strong> ${info.hora}</p>`;
+    html += `<p><strong>Fase de remoção:</strong> começou às ${info.hora}</p>`;
+  } else {
+    html = `<p><strong>Hora pressão &lt; 20:</strong> Nenhuma</p>`;
+  }
+  setInfoPressaoHtml(elemId, canvasId, html);
+}
+
+
 
 function maxTEfromSerie(id) {
   const colunas = ['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
@@ -397,80 +433,75 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     return isNaN(val) ? null : val;
   }).reverse();
 
-  // --- Gráfico 1
-  const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
-  if (window.chartTaxas1) window.chartTaxas1.destroy();
-  window.chartTaxas1 = new Chart(ctx1, {
-    type: 'line',
-    data: {
-      labels: labels1,
-      datasets: [{
-        label: m1.subprojecto || id1,
-        data: data1,
-        borderColor: 'rgba(41, 128, 185, 1)',
-        backgroundColor: 'rgba(41, 128, 185, 0.1)',
-        tension: 0.3
-      }]
+// --- Gráfico 1
+const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+if (window.chartTaxas1) window.chartTaxas1.destroy();
+window.chartTaxas1 = new Chart(ctx1, {
+  type: 'line',
+  data: {
+    labels: labels1,
+    datasets: [{
+      label: m1.subprojecto || id1,
+      data: data1,
+      borderColor: 'rgba(41, 128, 185, 1)',
+      backgroundColor: 'rgba(41, 128, 185, 0.1)',
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'Taxa de Remoção de Água - Transformador 1' }
     },
-    options: {
-      responsive: true,
-      layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Taxa de Remoção de Água - Transformador 1' }
-      },
-      scales: {
-        x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
-        y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
-      }
+    scales: {
+      x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
+      y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
     }
-  });
+  }
+});
 
-  // --- Gráfico 2
-  const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-  if (window.chartTaxas2) window.chartTaxas2.destroy();
-  window.chartTaxas2 = new Chart(ctx2, {
-    type: 'line',
-    data: {
-      labels: labels2,
-      datasets: [{
-        label: m2.subprojecto || id2,
-        data: data2,
-        borderColor: 'rgba(231, 76, 60, 1)',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        tension: 0.3
-      }]
+// --- Gráfico 2
+const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+if (window.chartTaxas2) window.chartTaxas2.destroy();
+window.chartTaxas2 = new Chart(ctx2, {
+  type: 'line',
+  data: {
+    labels: labels2,
+    datasets: [{
+      label: m2.subprojecto || id2,
+      data: data2,
+      borderColor: 'rgba(231, 76, 60, 1)',
+      backgroundColor: 'rgba(231, 76, 60, 0.1)',
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'Taxa de Remoção de Água - Transformador 2' }
     },
-    options: {
-      responsive: true,
-      layout: { padding: { left: 10, right: 20, top: 10, bottom: 10 } },
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Taxa de Remoção de Água - Transformador 2' }
-      },
-      scales: {
-        x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
-        y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
-      }
+    scales: {
+      x: { type: 'category', title: { display: true, text: 'Horas' }, reverse: true },
+      y: { title: { display: true, text: 'Taxa (L/h*t)' }, beginAtZero: true }
     }
-  });
+  }
+});
 
-  // --- Primeira hora de pressão < 20 mbar (mostrada por baixo de cada gráfico)
-  const hora1 = primeiraHoraPressaoBaixa(id1);
-  const hora2 = primeiraHoraPressaoBaixa(id2);
+// --- Primeira hora de pressão < 20 mbar (se ainda quiseres, senão ignora)
+const hora1 = primeiraHoraPressaoBaixa(id1);
+const hora2 = primeiraHoraPressaoBaixa(id2);
 
-  setInfoPressao(
-    'infoPressao1',
-    'graficoTaxas1',
-    'Primeira hora com PE_5_5_1 < 20 (Transformador 1)',
-    hora1
-  );
-  setInfoPressao(
-    'infoPressao2',
-    'graficoTaxas2',
-    'Primeira hora com PE_5_5_1 < 20 (Transformador 2)',
-    hora2
-  );
+setInfoPressao('infoPressao1', 'graficoTaxas1', 'Primeira hora com PE_5_5_1 < 20 (Transformador 1)', hora1);
+setInfoPressao('infoPressao2', 'graficoTaxas2', 'Primeira hora com PE_5_5_1 < 20 (Transformador 2)', hora2);
+
+// --- Info de remoção
+setInfoRemocao('info-remocao1', 'graficoTaxas1', '123');
+setInfoRemocao('info-remocao2', 'graficoTaxas2', '456');
+
 
   // ----------------- Construção do HTML comparativo (tal como tinhas) -----------------
   let html = '';
@@ -632,6 +663,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
