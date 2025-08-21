@@ -155,7 +155,26 @@ function primeiraHoraPressaoBaixaSimples(id, colunaPressao = 'PE_5_5_1') {
   return { hora };
 }
 
-/** Cria duas linhas de info por baixo do gráfico */
+/** Cria ou atualiza um container por baixo do canvas e mete HTML */
+function setInfoPressaoHtml(elemId, canvasId, html) {
+  let el = document.getElementById(elemId);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = elemId;
+    el.style.marginBottom = '30px';
+    el.style.color = '#2c3e50';
+    el.style.fontWeight = '600';
+    const canvas = document.getElementById(canvasId);
+    if (canvas && canvas.parentNode) {
+      canvas.parentNode.insertBefore(el, canvas.nextSibling);
+    } else {
+      document.body.appendChild(el);
+    }
+  }
+  el.innerHTML = html;
+}
+
+/** Monta as duas linhas: hora pressão < 20 + início fase remoção */
 function setInfoPrimeiraFase(elemId, canvasId, id) {
   const info = primeiraHoraPressaoBaixaSimples(id);
   let html = "";
@@ -165,7 +184,7 @@ function setInfoPrimeiraFase(elemId, canvasId, id) {
   } else {
     html = `<p><strong>Hora pressão &lt; 20:</strong> Nenhuma</p>`;
   }
-  setInfoPressao(elemId, canvasId, "", html);
+  setInfoPressaoHtml(elemId, canvasId, html);
 }
 
 function maxTEfromSerie(id) {
@@ -628,6 +647,14 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
 
 
 
