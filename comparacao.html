@@ -127,6 +127,14 @@
 
 
 <script>
+let dadosMeta = [], dadosSerie = [], dadosTerceiro = [];
+
+function parseNum(v) {
+  const n = parseFloat((v || '').toString().replace(',', '.').trim());
+  return isNaN(n) ? NaN : n;
+}
+
+/** Devolve a PRIMEIRA hora (cronológica) em que a pressão < 20 na coluna dada */
 function primeiraHoraPressaoBaixaSimples(id, colunaPressao = 'PE_5_5_1') {
   const regsOrdenados = dadosSerie
     .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
@@ -620,6 +628,11 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
+
+
+
+
 
 
 
