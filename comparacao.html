@@ -122,7 +122,12 @@
 <div id="resultado">Carrega os três ficheiros CSV.</div>
   
 <canvas id="graficoTaxas1" style="max-width: 100%; margin-top: 40px;"></canvas>
+<div id="infoPressao1"></div>
+<div id="infoRemocao1"></div>
+
 <canvas id="graficoTaxas2" width="600" height="400"></canvas>
+<div id="infoPressao2"></div>
+<div id="infoRemocao2"></div>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 
 
@@ -184,8 +189,7 @@ function setInfoRemocao(divId, canvasId, titulo, id) {
     div.innerHTML = `<p><strong>${titulo}:</strong> sem dados</p>`;
   }
 }
-setInfoRemocao("infoRemocao1", "graficoTaxas1", "Transformador 1", id1);
-setInfoRemocao("infoRemocao2", "graficoTaxas2", "Transformador 2", id2);
+
 
 /** Garante um contêiner de info por baixo do canvas do gráfico */
 
@@ -503,7 +507,8 @@ setInfoRemocao(
   hora2,
   id2
 );
-
+ setInfoRemocao("infoRemocao1", "graficoTaxas1", "Transformador 1", id1);
+  setInfoRemocao("infoRemocao2", "graficoTaxas2", "Transformador 2", id2);
   // ----------------- Construção do HTML comparativo (tal como tinhas) -----------------
   let html = '';
 
@@ -664,6 +669,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
