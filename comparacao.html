@@ -154,7 +154,7 @@ function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
 }
 
 /** Garante um contêiner de info por baixo do canvas do gráfico */
-function setInfoPressao(elemId, canvasId, label, valorStr) {
+function setInfoRemocao(elemId, canvasId, label, hora, id, coluna = 'RF1DAquec') {
   let el = document.getElementById(elemId);
   if (!el) {
     el = document.createElement('div');
@@ -169,7 +169,21 @@ function setInfoPressao(elemId, canvasId, label, valorStr) {
       document.body.appendChild(el);
     }
   }
-  el.innerHTML = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
+
+  // procurar o registo no csvTerceiro correspondente à hora encontrada
+  const reg = dadosTerceiro.find(r => {
+    const t = new Date(String(r.DataHora).replace(' ', 'T'));
+    return t.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) === hora;
+  });
+
+  const rf = reg ? parseNum(reg[coluna]) : NaN;
+
+  let html = `<p><strong>${label}:</strong> ${hora || "Nenhuma"}</p>`;
+  if (hora && !isNaN(rf)) {
+    html += `<p><strong>Fase de remoção começou:</strong> ${rf}</p>`;
+  }
+
+  el.innerHTML = html;
 }
 
 function maxTEfromSerie(id) {
@@ -471,6 +485,21 @@ document.getElementById('btnComparar').addEventListener('click', () => {
     'Primeira hora com PE_5_5_1 < 20 (Transformador 2)',
     hora2
   );
+setInfoRemocao(
+  'infoRemocao1',
+  'graficoTaxas1',
+  'Transformador 1',
+  hora1,
+  id1
+);
+
+setInfoRemocao(
+  'infoRemocao2',
+  'graficoTaxas2',
+  'Transformador 2',
+  hora2,
+  id2
+);
 
   // ----------------- Construção do HTML comparativo (tal como tinhas) -----------------
   let html = '';
@@ -632,6 +661,7 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
+
 
 
 
