@@ -135,12 +135,12 @@ function parseNum(v) {
 }
 
 /** Devolve a PRIMEIRA hora (cronológica) em que a pressão < 20 na coluna dada */
-function primeiraHoraPressaoBaixaSimples(id, colunaPressao = 'PE_5_5_1') {
+function primeiraHoraPressaoBaixa(id, coluna = 'PE_5_5_1') {
   const regsOrdenados = dadosSerie
     .filter(r => (r.id_secagenscore || '').trim() === id && r.DataHora)
     .map(r => {
       const t = new Date(String(r.DataHora).replace(' ', 'T')).getTime();
-      const v = parseNum(r[colunaPressao]);
+      const v = parseNum(r[coluna]);
       return { t, v };
     })
     .filter(o => !isNaN(o.t) && !isNaN(o.v))
@@ -150,13 +150,11 @@ function primeiraHoraPressaoBaixaSimples(id, colunaPressao = 'PE_5_5_1') {
   if (!hit) return null;
 
   const d = new Date(hit.t);
-  const hora = d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  return { hora };
+  return d.toLocaleString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-/** Cria ou atualiza um container por baixo do canvas e mete HTML */
-function setInfoPressaoHtml(elemId, canvasId, html) {
+/** Garante um contêiner de info por baixo do canvas do gráfico */
+function setInfoPressao(elemId, canvasId, label, valorStr) {
   let el = document.getElementById(elemId);
   if (!el) {
     el = document.createElement('div');
@@ -171,20 +169,7 @@ function setInfoPressaoHtml(elemId, canvasId, html) {
       document.body.appendChild(el);
     }
   }
-  el.innerHTML = html;
-}
-
-/** Monta as duas linhas: hora pressão < 20 + início fase remoção */
-function setInfoPrimeiraFase(elemId, canvasId, id) {
-  const info = primeiraHoraPressaoBaixaSimples(id);
-  let html = "";
-  if (info) {
-    html += `<p><strong>Hora pressão &lt; 20:</strong> ${info.hora}</p>`;
-    html += `<p><strong>Fase de remoção:</strong> começou às ${info.hora}</p>`;
-  } else {
-    html = `<p><strong>Hora pressão &lt; 20:</strong> Nenhuma</p>`;
-  }
-  setInfoPressaoHtml(elemId, canvasId, html);
+  el.innerHTML = `<p><strong>${label}:</strong> ${valorStr || "Nenhuma"}</p>`;
 }
 
 function maxTEfromSerie(id) {
@@ -647,21 +632,6 @@ document.getElementById("btnExportarPDF").addEventListener("click", () => {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
