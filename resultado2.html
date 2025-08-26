@@ -82,12 +82,38 @@ function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
   const out = document.getElementById('resultado');
 
-  if (!nome) { out.textContent = 'Por favor, insere o nome do transformador.'; return; }
+  if (!nome) { 
+    out.textContent = 'Por favor, insere o nome do transformador.'; 
+    return; 
+  }
 
-  fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`)
-    .then(res => res.json())
+const url = `/api/transformador?nome=${encodeURIComponent(nome)}`;
+
+  fetch(url)
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Erro HTTP ${res.status}: ${res.statusText}`);
+      }
+       return res.text().then(text => {
+        try {
+          return JSON.parse(text);
+        } catch(e) {
+          throw new Error(`Resposta não é JSON válido:\n${text}`);
+        }
+      });
+    })
     .then(data => {
-      if (data.erro) { out.textContent = data.erro; return; }
+      if (!data || data.length === 0) {
+        out.textContent = 'Nenhum transformador encontrado.';
+        document.getElementById('btnExportarPDF').style.display = 'none';
+        return;
+      }
+
+      if (data.erro) { 
+        out.textContent = data.erro; 
+        document.getElementById('btnExportarPDF').style.display = 'none';
+        return; 
+      }
 
       let html = `<h2>Resultados para: <strong>${data[0].meta.subprojecto}</strong></h2>`;
 
