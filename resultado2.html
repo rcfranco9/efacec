@@ -202,64 +202,83 @@ async function buscarPorNome(){
       const serieData = item.serie || [];
 
       // Máximos e mínimos
-      const maxTE=Math.max(...serie.map(l=>parseFloat(l.TE_5_4_1)||0));
-      const minPE_5_5_1=Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
-      const minPE_4_17=Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
+ // --- Valores de Pressão, Vácuo e Primeira hora com PE_5_5_1 < 20 ---
+try {
+  const maxTE = Math.max(...serie.map(l => parseFloat(l.TE_5_4_1 || 0)));
+  const minPE_5_5_1 = Math.min(...serie.map(l => parseFloat(l.PE_5_5_1 || Infinity)));
+  const minPE_4_17 = Math.min(...serie.map(l => parseFloat(l.PE_4_17 || Infinity)));
 
-      let primeiraHoraPressaoBaixa=null;
-      const serieOrdenada=serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-      for(const l of serieOrdenada){
-        const p=Number(l.PE_5_5_1);
-        if(!isNaN(p)&&p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
-      }
-      
-html += `<div class="bloco-transformador">`;
+  html += `<hr>
+    <div class="coluna-dados">
+      <div><p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p></div>
+      <div>
+        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
+        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
+      </div>
+    </div>`;
 
-if(primeiraHoraPressaoBaixa){
-    const d = primeiraHoraPressaoBaixa;
+  // Primeira hora com pressão abaixo de 20
+  let primeiraHoraPressaoBaixa = null;
+  const serieOrdenada = serie.slice().sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
+  for (const linha of serieOrdenada) {
+    const pressao = Number(linha.PE_5_5_1);
+    if (!isNaN(pressao) && pressao < 20) {
+      primeiraHoraPressaoBaixa = linha.DataHora;
+      break;
+    }
+  }
+
+  if(primeiraHoraPressaoBaixa){
+    const d = new Date(primeiraHoraPressaoBaixa);
     const formatarData = data => {
-        const dia = String(data.getDate()).padStart(2,'0');
-        const mes = String(data.getMonth()+1).padStart(2,'0');
-        const ano = data.getFullYear();
-        const hora = String(data.getHours()).padStart(2,'0');
-        const min = String(data.getMinutes()).padStart(2,'0');
-        return `${dia}/${mes}/${ano} ${hora}:${min}`;
+      const dia = String(data.getDate()).padStart(2,'0');
+      const mes = String(data.getMonth()+1).padStart(2,'0');
+      const ano = data.getFullYear();
+      const hora = String(data.getHours()).padStart(2,'0');
+      const min = String(data.getMinutes()).padStart(2,'0');
+      return `${dia}/${mes}/${ano} ${hora}:${min}`;
     };
+
     html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(d)}</p>`;
 
     let dataAnterior = d;
     const fases = [1,2,3,4,5,6];
-
-    if(!serieRef[0]){
-        html += `<p><strong>Erro: série de referência não disponível.</strong></p>`;
+    if(!referencia.length){
+      html += `<p><strong>Erro: série de referência não disponível.</strong></p>`;
     } else {
-        for(const faseNum of fases){
-            const aquecKey = `RF${faseNum}DAquec`;
-            const remKey = `RF${faseNum}DRem`;
-            const tempoAquec = parseFloat(serieRef[0][aquecKey]);
-            const tempoRemocao = parseFloat(serieRef[0][remKey]);
-            const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
-            const remValido = !isNaN(tempoRemocao) && tempoRemocao>0;
+      for(const faseNum of fases){
+        const aquecKey = `RF${faseNum}DAquec`;
+        const remKey = `RF${faseNum}DRem`;
+        const tempoAquec = parseFloat(referencia[0][aquecKey]);
+        const tempoRem = parseFloat(referencia[0][remKey]);
 
-            if(aquecValido && remValido){
-                const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
-                const inicioRemocao = fimAquec;
-                const fimRemocao = new Date(inicioRemocao.getTime() + tempoRemocao*3600000);
+        const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
+        const remValido = !isNaN(tempoRem) && tempoRem>0;
 
-                html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRemocao)}</p>`;
-                html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRemocao)}</p>`;
+        if(aquecValido && remValido){
+          const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
+          const inicioRem = fimAquec;
+          const fimRem = new Date(inicioRem.getTime() + tempoRem*3600000);
 
-                dataAnterior = fimRemocao;
-            } else {
-                html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
-                break;
-            }
+          html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRem)}</p>`;
+          html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRem)}</p>`;
+
+          dataAnterior = fimRem;
+        } else {
+          html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
+          break;
         }
+      }
     }
-
-} else {
+  } else {
     html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
+  }
+
+} catch(e){
+  console.error(e);
+  html += `<p><strong>Erro ao calcular pressões e zonas de remoção.</strong></p>`;
 }
+
 
 html += `</div>`;
 
