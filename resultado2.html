@@ -13,100 +13,16 @@ body {
   background: #f0f2f5;
   color: #333;
 }
-
-h2 {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 20px;
-}
-
-input, button {
-  padding: 8px 12px;
-  margin: 5px 5px 20px 0;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-button {
-  background-color: #3498db;
-  color: #fff;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-button:hover {
-  background-color: #2980b9;
-}
-
-.bloco-transformador {
-  background: #fff;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 25px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  transition: 0.3s;
-}
-
-.bloco-transformador:hover {
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-
-h3 {
-  margin-bottom: 10px;
-  color: #2c3e50;
-}
-
-h4 {
-  margin-top: 15px;
-  color: #34495e;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 4px;
-}
-
-p, li {
-  margin: 3px 0;
-  font-size: 14px;
-}
-
-ul {
-  padding-left: 20px;
-}
-
-table {
-  width: 100%;
-  margin-top: 10px;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center;
-}
-
-th {
-  background-color: #3498db;
-  color: white;
-}
-
-canvas {
-  margin-top: 15px;
-  border-radius: 8px;
-  background: #f7f9fc;
-  padding: 10px;
-}
-
-#btnExportarPDF {
-  display: block;
-  background-color: #27ae60;
-  margin: 0 auto 30px auto;
-}
-
-#btnExportarPDF:hover {
-  background-color: #1e8449;
-}
+h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+input, button { padding: 8px 12px; margin: 5px 5px 20px 0; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+button { background-color: #3498db; color: #fff; cursor: pointer; transition: 0.3s; }
+button:hover { background-color: #2980b9; }
+.bloco-transformador { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
+.bloco-transformador:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+p, li { margin: 3px 0; font-size: 14px; }
+canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10px; }
+#btnExportarPDF { display: block; background-color: #27ae60; margin: 0 auto 30px auto; }
+#btnExportarPDF:hover { background-color: #1e8449; }
 </style>
 </head>
 <body>
@@ -116,7 +32,8 @@ canvas {
 <input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
 <button id="btnBuscar">Buscar</button>
 <div id="resultado"></div>
-  <h3>Gráfico Taxa L/(h*t) por hora</h3>
+
+<h3>Gráfico Taxa L/(h*t) por hora</h3>
 <canvas id="graficoTaxa" width="600" height="300"></canvas>
   
 <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
@@ -153,6 +70,7 @@ function calculaIndicePressao(pf, rf){
 }
 
 function formatarData(d){
+  if(!d) return 'N/A';
   const dia = String(d.getDate()).padStart(2,'0');
   const mes = String(d.getMonth()+1).padStart(2,'0');
   const ano = d.getFullYear();
@@ -160,8 +78,6 @@ function formatarData(d){
   const min = String(d.getMinutes()).padStart(2,'0');
   return `${dia}/${mes}/${ano} ${hora}:${min}`;
 }
-
-let encontradosGlobais=[];
 
 document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 
@@ -182,13 +98,6 @@ async function buscarPorNome() {
     const meta = t.meta || {};
     const serie = t.serie || [];
 
-    const formatarData = d => {
-      if (!d) return 'N/A';
-      const dt = new Date(d);
-      return dt.toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-    };
-
-    // Extrair informações gerais
     const potencia = meta.potencia || 0;
     const tensao = meta.tensao || 0;
     const massaTotal = meta.massaTotal || 0;
@@ -198,16 +107,12 @@ async function buscarPorNome() {
     const taxaTotal = meta.taxaTotal || 0;
     const taxaUltimas10h = meta.taxaUltimas10h || 0;
 
-    // Extrair PFx/RFx
     const PF_TAquec = serieRef.map(r => [r.PF1TAquec,r.PF2TAquec,r.PF3TAquec,r.PF4TAquec,r.PF5TAquec,r.PF6TAquec])[0];
     const RF_TAquec = serieRef.map(r => [r.RF1TAquec,r.RF2TAquec,r.RF3TAquec,r.RF4TAquec,r.RF5TAquec,r.RF6TAquec])[0];
     const PF_PRem = serieRef.map(r => [r.PF1PRem,r.PF2PRem,r.PF3PRem,r.PF4PRem,r.PF5PRem,r.PF6PRem])[0];
     const RF_PRem = serieRef.map(r => [r.RF1PRem,r.RF2PRem,r.RF3PRem,r.RF4PRem,r.RF5PRem,r.RF6PRem])[0];
 
-    function calcularIndice(pf, rf){ if(!pf && !rf) return 'N/A'; if(rf>=pf+5) return '100%'; if(rf<=pf-5) return '0%'; if(rf===pf) return '50%'; return `${Math.round(50+(rf-pf)*10)}%`; }
-    function calcularIndicePressao(pf, rf){ if(!pf && !rf) return 'N/A'; const diff=rf-pf; if(diff>=5) return '0%'; if(diff<=-5) return '100%'; if(diff===0) return '50%'; return `${Math.round((5-diff)/10*100)}%`; }
-
-    let html = `<div class="bloco">`;
+    let html = `<div class="bloco-transformador">`;
     html += `<p><strong>Potência:</strong> ${potencia} kVA</p>`;
     html += `<p><strong>Tensão:</strong> ${tensao} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${massaTotal} kg</p>`;
@@ -218,24 +123,21 @@ async function buscarPorNome() {
     html += `<p><strong>Taxa últimas 10h:</strong> ${taxaUltimas10h} L/(h*t)</p>`;
     html += `<hr>`;
 
-    html += `<h3>Valores PFxTAquec</h3>`; PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v}</p>`);
-    html += `<h3>Valores RFxTAquec</h3>`; RF_TAquec.forEach((v,i)=> html+=`<p>RF${i+1}TAquec: ${v}</p>`);
-    html += `<h3>Índices PFxTAquec vs RFxTAquec</h3>`; PF_TAquec.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1}: ${calcularIndice(v, RF_TAquec[i])}</p>`);
+    PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v}</p>`);
+    RF_TAquec.forEach((v,i)=> html+=`<p>RF${i+1}TAquec: ${v}</p>`);
+    PF_TAquec.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1}: ${calcularIndice(v, RF_TAquec[i])}</p>`);
+    PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v}</p>`);
+    RF_PRem.forEach((v,i)=> html+=`<p>RF${i+1}PRem: ${v}</p>`);
+    PF_PRem.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1} (pressão): ${calculaIndicePressao(v, RF_PRem[i])}</p>`);
 
-    html += `<h3>Valores PFxPRem</h3>`; PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v}</p>`);
-    html += `<h3>Valores RFxPRem</h3>`; RF_PRem.forEach((v,i)=> html+=`<p>RF${i+1}PRem: ${v}</p>`);
-    html += `<h3>Índices PFxPRem vs RFxPRem</h3>`; PF_PRem.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1} (pressão): ${calcularIndicePressao(v, RF_PRem[i])}</p>`);
-
-    // Primeira hora PE_5_5_1 < 20
     const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-    let primeiraHoraPressaoBaixa=null;
+    let primeiraHoraPressaoBaixa = null;
     for(const l of serieOrdenada){
       const p = parseFloat(l.PE_5_5_1);
       if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
     }
     html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
 
-    // Zonas de remoção RFxDRem
     let dataAnterior = primeiraHoraPressaoBaixa || new Date();
     for(let fase=1; fase<=6; fase++){
       const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
@@ -255,25 +157,23 @@ async function buscarPorNome() {
     html += `</div>`;
     out.innerHTML = html;
 
-    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTotal/1000); // massaTon = kg -> t
- 
+    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTotal/1000);
+
   } catch(err) {
     console.error(err);
     out.textContent = 'Erro ao buscar os dados.';
   }
 }
 
-
-// --- Gráficos ---
+// --- Apenas gráfico de taxa ---
 function criarGraficoTaxaHoraAHora(idCanvas, serie, massaTon) {
   const ctx = document.getElementById(idCanvas);
   if (!ctx || !serie.length) return;
 
-  // Agrupa por hora
   const dadosPorHora = {};
   serie.forEach(l => {
     const d = new Date(l.DataHora);
-    d.setMinutes(0,0,0); // arredonda para hora
+    d.setMinutes(0,0,0);
     const chave = d.getTime();
     if (!dadosPorHora[chave]) dadosPorHora[chave] = [];
     dadosPorHora[chave].push(parseFloat(l.LC_3_8) || 0);
@@ -288,53 +188,24 @@ function criarGraficoTaxaHoraAHora(idCanvas, serie, massaTon) {
 
   new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Taxa LC L/(h*t)',
-        data: taxas,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(52,152,219,0.2)',
-        fill: true,
-        tension: 0.2,
-        pointRadius: 4
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+    data: { labels, datasets:[{ label:'Taxa LC L/(h*t)', data:taxas, borderColor:'blue', backgroundColor:'rgba(52,152,219,0.2)', fill:true, tension:0.2, pointRadius:4 }]},
+    options: { responsive:true, plugins:{ legend:{ position:'top' } } }
   });
 }
 
-function criarGraficoPF_RF(idCanvas, referencia){
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx||!referencia.length) return;
-  const labels=['PF1','PF2','PF3','PF4','PF5','PF6'];
-  const pf=labels.map(l=>referencia[0][l+'TAquec']||0);
-  const rf=labels.map(l=>referencia[0][l.replace('PF','RF')+'TAquec']||0);
-  new Chart(ctx,{type:'bar',data:{labels, datasets:[{label:'PF', data:pf, backgroundColor:'rgba(52,152,219,0.7)'},{label:'RF', data:rf, backgroundColor:'rgba(231,76,60,0.7)'}]}});
-}
-
-function criarGraficoLC(idCanvas, serie){
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx||!serie.length) return;
-  const labels=serie.map(l=>l.DataHora);
-  const valores=serie.map(l=>l.LC_3_8||0);
-  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'LC_3_8', data:valores, borderColor:'green', fill:false}]}, options:{responsive:true}});
-}
-
-// --- PDF Export ---
+// --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
   html2canvas(document.body).then(canvas=>{
-    const imgData=canvas.toDataURL('image/png');
+    const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-    const pdf=new jsPDF('p','mm','a4');
-    const imgProps=pdf.getImageProperties(imgData);
-    const pdfWidth=210;
-    const pdfHeight=(imgProps.height * pdfWidth)/imgProps.width;
+    const pdf = new jsPDF('p','mm','a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = 210;
+    const pdfHeight = (imgProps.height * pdfWidth)/imgProps.width;
     pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
     pdf.save('transformador.pdf');
   });
 });
 </script>
-
 </body>
 </html>
