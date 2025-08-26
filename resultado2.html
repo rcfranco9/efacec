@@ -1,1 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Consulta Transformador por Nome</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      background: #f5f5f5;
+      padding: 20px 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    h1 { text-align: center; color: #2c3e50; }
+    label { font-weight: bold; display: block; margin-top: 20px; color: #34495e; }
+    input, button { padding: 10px; width: 100%; margin-top: 5px; border-radius: 5px; border: 1px solid #bbb; font-size: 15px; box-sizing: border-box; }
+    button { margin-top: 15px; background-color: #2980b9; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:hover:not(:disabled) { background-color: #3498db; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
+    #resultado { margin-top: 30px; padding: 20px; border: 2px solid #ccc; background: #fff; border-radius: 8px; line-height: 1.6; }
+    .bloco-transformador { margin-top: 25px; padding: 15px 20px; background: #ecf0f1; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    .bloco-transformador h3 { margin-top: 0; background: #d6eaf8; padding: 10px; border-radius: 5px; font-size: 18px; }
+    .coluna-dados { display: flex; flex-wrap: wrap; gap: 20px; }
+    .coluna-dados > div { flex: 1 1 45%; }
+    strong { color: #2c3e50; }
+    hr { margin: 20px 0; border-top: 1px dashed #aaa; }
+  </style>
+</head>
+<body>
+
+<h1>Consulta de Transformadores</h1>
+
+<label for="nomeInput">Nome do transformador:</label>
+<input type="text" id="nomeInput" placeholder="Insere o nome do transformador" />
+<button onclick="buscarPorNome()" id="btnBuscar">Procurar</button>
+
+<div id="resultado">A carregar dados da base de dados...</div>
+<button id="btnExportarPDF" style="display: none; margin-top: 20px;">Exportar para PDF</button>
+
+<script>
+let dadosCSV1 = [], dadosCSV2 = [], dadosCSV3 = [];
+let encontradosGlobais = [];
+
+function formatNum(v, dec = 3) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return 'N/A';
+  if (n === 0) return '0 (ZERO)';
+  return parseFloat(n.toFixed(dec)).toString();
+}
+
+async function carregarDadosAPI() {
+  try {
+    const res1 = await fetch("/api/dados/secagens_core");
+    const res2 = await fetch("/api/dados/hits_secagem_core");
+    const res3 = await fetch("/api/dados/t_parcial_core");
+
+    dadosCSV1 = await res1.json();
+    dadosCSV2 = await res2.json();
+    dadosCSV3 = await res3.json();
+
+    document.getElementById('resultado').textContent = 'Dados carregados da base de dados. Insere o nome do transformador.';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('resultado').textContent = 'Erro ao carregar dados da base de dados.';
+  }
+}
+
+carregarDadosAPI();
+
+// Funções de cálculo de índices
+function calcularIndice(pf, rf) {
+  const p = parseFloat(pf), r = parseFloat(rf);
+  if (isNaN(p) || isNaN(r)) return 'N/A';
+  if (r >= p + 5) return '100%';
+  if (r <= p - 5) return '0%';
+  if (r === p) return '50%';
+  let indice = 50 + ((r - p) * 10);
+  return `${Math.min(100, Math.max(0, Math.round(indice)))}%`;
+}
+function calculaIndicePressao(pf, rf) {
+  const p = parseFloat(pf), r = parseFloat(rf);
+  if (isNaN(p) || isNaN(r)) return 'N/A';
+  const diff = r - p;
+  if (diff >= 5) return '0%';
+  if (diff <= -5) return '100%';
+  if (diff === 0) return '50%';
+  const proporcao = (5 - diff) / 10;
+  return `${Math.round(proporcao * 100)}%`;
+}
+
+// Buscar transformador
+function buscarPorNome() {
+  const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
+  const out = document.getElementById('resultado');
+  if (!nome) { out.textContent = 'Insere o nome do transformador.'; return; }
+
+  encontradosGlobais = dadosCSV1.filter(l => (l.subprojecto||'').trim().toLowerCase() === nome);
+  if (!encontradosGlobais.length) { out.textContent = 'Transformador não encontrado.'; return; }
+
+  let html = `<h2>Resultados para: <strong>${encontradosGlobais[0].subprojecto}</strong></h2>`;
+
+  encontradosGlobais.forEach((meta, index) => {
+    const id = meta.id_secagenscore?.trim();
+    if (!id) return;
+    const serie = dadosCSV2.filter(l => (l.id_secagenscore||'').trim() === id);
+    if (!serie.length) return;
+    const serieRef = dadosCSV3.filter(l => (l.id_secagenscore||'').trim() === id);
+
+    // Aqui podes manter todo o teu código de cálculo LC, TE, PE, gráficos, etc.
+    // Exemplo simplificado de exibição:
+    html += `<div class="bloco-transformador">
+      <h3>ID: ${id}</h3>
+      <p>Potência: ${meta.potencia || 'N/A'} kVA</p>
+      <p>Tensão: ${meta.tensao || 'N/A'} kV</p>
+      <p>Massa isolantes: ${formatNum(Number(meta.massai)/1000,3)} t</p>
+    </div>`;
+  });
+
+  out.innerHTML = html;
+  document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
+}
+
+// Exportar para PDF
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+  const elemento = document.getElementById('resultado');
+  html2canvas(elemento).then(canvas => {
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF('p', 'pt', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+    const imgX = (pdfWidth - imgWidth * ratio) / 2;
+    const imgY = 20;
+    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+    pdf.save('resultado_transformadores.pdf');
+  });
+});
+</script>
+
+</body>
+</html>
 
