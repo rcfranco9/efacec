@@ -170,28 +170,54 @@ function criarGraficoTaxaHoraAHora(idCanvas, serie, massaTon) {
   const ctx = document.getElementById(idCanvas);
   if (!ctx || !serie.length) return;
 
-  const dadosPorHora = {};
-  serie.forEach(l => {
-    const d = new Date(l.DataHora);
-    d.setMinutes(0,0,0);
-    const chave = d.getTime();
-    if (!dadosPorHora[chave]) dadosPorHora[chave] = [];
-    dadosPorHora[chave].push(parseFloat(l.LC_3_8) || 0);
-  });
+  // Ordenar a série por DataHora
+  const serieOrdenada = serie.slice().sort((a,b)=> new Date(a.DataHora) - new Date(b.DataHora));
 
-  const chaves = Object.keys(dadosPorHora).sort((a,b)=>a-b);
-  const labels = chaves.map(t => new Date(+t).toLocaleString('pt-PT', {hour:'2-digit', minute:'2-digit'}));
-  const taxas = chaves.map(c => {
-    const arr = dadosPorHora[c];
-    return arr.length >= 2 ? (arr[arr.length-1] - arr[0]) / massaTon : 0;
+  const labels = [];
+  const taxas = [];
+
+  let valorAnterior = null;
+
+  serieOrdenada.forEach(l => {
+    const d = new Date(l.DataHora);
+    const valor = parseFloat(l.LC_3_8);
+    if (isNaN(valor)) return;
+
+    const horaLabel = d.toLocaleString('pt-PT', { hour:'2-digit', minute:'2-digit' });
+
+    if (!labels.includes(horaLabel)) {
+      labels.push(horaLabel);
+      // taxa = diferença com o valor anterior
+      if (valorAnterior !== null) {
+        taxas.push((valor - valorAnterior) / massaTon);
+      } else {
+        taxas.push(0);
+      }
+      valorAnterior = valor;
+    } else {
+      // Atualiza o valorAnterior para a última leitura dentro da hora
+      valorAnterior = valor;
+    }
   });
 
   new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets:[{ label:'Taxa LC L/(h*t)', data:taxas, borderColor:'blue', backgroundColor:'rgba(52,152,219,0.2)', fill:true, tension:0.2, pointRadius:4 }]},
+    data: {
+      labels,
+      datasets:[{
+        label:'Taxa LC L/(h*t)',
+        data: taxas,
+        borderColor:'blue',
+        backgroundColor:'rgba(52,152,219,0.2)',
+        fill:true,
+        tension:0.2,
+        pointRadius:4
+      }]
+    },
     options: { responsive:true, plugins:{ legend:{ position:'top' } } }
   });
 }
+
 
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
