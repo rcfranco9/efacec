@@ -22,7 +22,7 @@ th { background:#eee; }
 <h2>Consulta Transformador (Base: meubanco)</h2>
 
 <input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
-<button id="btnBuscar" onclick="buscarPorNome()">Buscar</button>
+<button id="btnBuscar">Buscar</button>
 <div id="resultado"></div>
 <button id="btnExportarPDF" style="display:none; margin-top:20px;">Exportar PDF</button>
 
@@ -62,6 +62,8 @@ function calculaIndicePressao(pf, rf) {
 
 let encontradosGlobais = [];
 
+document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
+
 async function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim();
   const out = document.getElementById('resultado');
@@ -86,70 +88,83 @@ async function buscarPorNome() {
 
     data.forEach((item, index) => {
       const meta = item.meta;
-      const serie = item.serie;
-      const referencia = item.referencia || []; // <<< CORRIGIDO
-      const massaiTon = Number(meta.massai) / 1000;
+      const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
+      const referencia = item.referencia || [];
+      const massaiTon = Number(meta.massai) / 1000 || 0;
 
-      // Calcular dif, taxa total, últimas 10h
-      const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
-      const difLC = valoresLC.length ? valoresLC[valoresLC.length-1] : 0;
-      const datas = serie.map(l=>new Date(l.DataHora)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
-      const duracao = datas.length>1 ? (datas[datas.length-1]-datas[0])/36e5 : 0;
-      let taxaLC = duracao && massaiTon ? difLC/(duracao*massaiTon) : 0;
+      // Calcular dif, taxa total
+      const valoresLC = serie.map(l => parseFloat(l.LC_3_8)).filter(v => !isNaN(v));
+      const difLC = valoresLC.length ? valoresLC[valoresLC.length-1] - valoresLC[0] : 0;
+      const datas = serie.map(l => new Date(l.DataHora)).filter(d => !isNaN(d)).sort((a,b) => a-b);
+      const duracao = datas.length > 1 ? (datas[datas.length-1]-datas[0])/36e5 : 0;
+      const taxaLC = duracao && massaiTon ? difLC/(duracao*massaiTon) : 0;
 
-      // Taxa últimas 10h
-      const final = datas[datas.length-1];
-      const inicial = new Date(final.getTime() - 10*3600000);
-      const ultimos = serie.filter(l=>{const d=new Date(l.DataHora);return d>=inicial && d<=final;}).sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-      let difLC10h=0, taxa10h=0;
-      if (ultimos.length>=2){
-        difLC10h = ultimos[ultimos.length-1].LC_3_8 - ultimos[0].LC_3_8;
-        taxa10h = difLC10h/(10*massaiTon);
+      // Últimas 10h
+      let taxa10h = 0;
+      if (datas.length > 0) {
+        const final = datas[datas.length-1];
+        const inicial = new Date(final.getTime() - 10*3600000);
+        const ultimos = serie.filter(l => {
+          const d = new Date(l.DataHora);
+          return d >= inicial && d <= final;
+        }).sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+
+        if (ultimos.length>=2){
+          const difLC10h = parseFloat(ultimos[ultimos.length-1].LC_3_8) - parseFloat(ultimos[0].LC_3_8);
+          taxa10h = difLC10h/(10*massaiTon);
+        }
       }
 
       html += `<div class="bloco-transformador">
-      <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
-      <div class="coluna-dados">
-        <div>
-          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-          <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-          <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-          <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon)} t</p>
+        <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
+        <div class="coluna-dados">
+          <div>
+            <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+            <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+            <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+            <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon)} t</p>
+          </div>
+          <div>
+            <p><strong>Duração total:</strong> ${formatNum(duracao,2)} h</p>
+            <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+            <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
+            <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
+          </div>
         </div>
-        <div>
-          <p><strong>Duração total:</strong> ${formatNum(duracao,2)} h</p>
-          <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
-          <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-          <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-        </div>
-      </div>
 
-      <h4>Índices PF vs RF</h4>
-      <table>
-        <tr><th>Etapa</th><th>PF</th><th>RF</th><th>Índice Temp</th><th>Índice Pressão</th></tr>
-        ${referencia.map(r => `
-          <tr>
-            <td>${r.Etapa || 'Secagem'}</td>
-            <td>${r.PF1 || 'N/A'}</td>
-            <td>${r.RF1 || 'N/A'}</td>
-            <td>${calcularIndice(r.PF1, r.RF1)}</td>
-            <td>${calculaIndicePressao(r.PF1, r.RF1)}</td>
-          </tr>
-        `).join('')}
-      </table>
+        <h4>Índices PF vs RF</h4>
+        <table>
+          <tr><th>Etapa</th><th>PF</th><th>RF</th><th>Índice Temp</th><th>Índice Pressão</th></tr>
+          ${referencia.map(r => `
+            <tr>
+              <td>${r.Etapa || 'Secagem'}</td>
+              <td>${r.PF1 || 'N/A'}</td>
+              <td>${r.RF1 || 'N/A'}</td>
+              <td>${calcularIndice(r.PF1, r.RF1)}</td>
+              <td>${calculaIndicePressao(r.PF1, r.RF1)}</td>
+            </tr>
+          `).join('')}
+        </table>
 
-      <canvas id="graficoTaxa${index}" width="600" height="300" style="margin-top:15px;"></canvas>
-      <canvas id="graficoPF_RF${index}" width="600" height="300" style="margin-top:15px;"></canvas>
-      <canvas id="graficoLC${index}" width="600" height="300" style="margin-top:15px;"></canvas>
+        <canvas id="graficoTaxa${index}" width="600" height="300" style="margin-top:15px;"></canvas>
+        <canvas id="graficoPF_RF${index}" width="600" height="300" style="margin-top:15px;"></canvas>
+        <canvas id="graficoLC${index}" width="600" height="300" style="margin-top:15px;"></canvas>
       </div>`;
+    });
+
+    out.innerHTML = html;
+    document.getElementById('btnExportarPDF').style.display = 'block';
+
+    // Criar gráficos após HTML estar no DOM
+    data.forEach((item, index) => {
+      const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
+      const referencia = item.referencia || [];
+      const massaiTon = Number(item.meta.massai)/1000 || 0;
 
       criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon, index);
       criarGraficoPF_RF('graficoPF_RF'+index, referencia, index);
       criarGraficoLC('graficoLC'+index, serie, index);
     });
-
-    out.innerHTML = html;
-    document.getElementById('btnExportarPDF').style.display = 'block';
 
   } catch(err){
     console.error(err);
@@ -157,33 +172,37 @@ async function buscarPorNome() {
   }
 }
 
-// Gráfico taxa LC
+// --- Funções de gráfico ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
-  if(!massaTon || massaTon<=0) return;
+  const ctx = document.getElementById(idCanvas);
+  if(!ctx || !massaTon) return;
+
   const dadosPorHora = {};
   dadosSerie.forEach(l=>{
-    const d=new Date(l.DataHora);
-    if(isNaN(d)) return;
-    d.setMinutes(0,0,0);
-    const chave=d.getTime();
-    if(!dadosPorHora[chave]) dadosPorHora[chave]=[];
+    const d = new Date(l.DataHora);
     const val = parseFloat(l.LC_3_8);
-    if(!isNaN(val)) dadosPorHora[chave].push(val);
+    if(isNaN(d) || isNaN(val)) return;
+    d.setMinutes(0,0,0);
+    const chave = d.getTime();
+    if(!dadosPorHora[chave]) dadosPorHora[chave] = [];
+    dadosPorHora[chave].push(val);
   });
-  const chaves=Object.keys(dadosPorHora).sort((a,b)=>a-b);
+
+  const chaves = Object.keys(dadosPorHora).sort((a,b)=>a-b);
   const labels = chaves.map(t=>new Date(Number(t)).toLocaleTimeString());
-  const taxas = chaves.map(chave=>{
+  const taxas = chaves.map(chave => {
     const v = dadosPorHora[chave];
-    if(!v || v.length<2) return 0;
-    return (v[v.length-1]-v[0])/massaTon;
+    return (v && v.length>=2) ? (v[v.length-1]-v[0])/massaTon : 0;
   });
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx) return;
+
   if(window['chartTaxa_'+idx]) window['chartTaxa_'+idx].destroy();
-  window['chartTaxa_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Taxa LC por hora (L/(h*t))',data:taxas,borderColor:'blue',pointRadius:3,fill:false,tension:0.2}]},options:{responsive:true}});
+  window['chartTaxa_'+idx] = new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets:[{label:'Taxa LC por hora (L/(h*t))', data:taxas, borderColor:'blue', fill:false, pointRadius:3, tension:0.2}] },
+    options:{ responsive:true }
+  });
 }
 
-// Gráfico PF/RF
 function criarGraficoPF_RF(idCanvas, referencia, idx){
   if(!referencia || !referencia.length) return;
   const labels = referencia.map((_,i)=>`Etapa ${i+1}`);
@@ -192,10 +211,13 @@ function criarGraficoPF_RF(idCanvas, referencia, idx){
   const ctx=document.getElementById(idCanvas);
   if(!ctx) return;
   if(window['chartPF_'+idx]) window['chartPF_'+idx].destroy();
-  window['chartPF_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'PF',data:pf,borderColor:'red',fill:false},{label:'RF',data:rf,borderColor:'green',fill:false}]},options:{responsive:true}});
+  window['chartPF_'+idx] = new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets:[{label:'PF', data:pf, borderColor:'red', fill:false},{label:'RF', data:rf, borderColor:'green', fill:false}] },
+    options:{ responsive:true }
+  });
 }
 
-// Gráfico LC acumulado
 function criarGraficoLC(idCanvas, serie, idx){
   if(!serie || !serie.length) return;
   const labels = serie.map(l=>new Date(l.DataHora).toLocaleString());
@@ -203,10 +225,14 @@ function criarGraficoLC(idCanvas, serie, idx){
   const ctx=document.getElementById(idCanvas);
   if(!ctx) return;
   if(window['chartLC_'+idx]) window['chartLC_'+idx].destroy();
-  window['chartLC_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'LC acumulado (L)',data:valores,borderColor:'purple',fill:false}]},options:{responsive:true}});
+  window['chartLC_'+idx] = new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets:[{label:'LC acumulado (L)', data:valores, borderColor:'purple', fill:false}] },
+    options:{ responsive:true }
+  });
 }
 
-// PDF export
+// --- Export PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click', ()=>{
   const el=document.getElementById('resultado');
   html2canvas(el).then(canvas=>{
