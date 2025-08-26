@@ -59,7 +59,7 @@ let encontradosGlobais = [];
 document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 
 function buscarPorNome() {
-  const nome = document.getElementById('nomeInput').value.trim().toLowerCase();
+  const nome = document.getElementById('nomeInput').value.trim(); // sem .toLowerCase()
   const out = document.getElementById('resultado');
   if(!nome) { out.textContent='Por favor, insere o nome do transformador.'; return; }
 
