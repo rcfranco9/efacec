@@ -67,10 +67,7 @@ document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 async function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim();
   const out = document.getElementById('resultado');
-  if (!nome) {
-    out.textContent = 'Por favor, insere o nome do transformador.';
-    return;
-  }
+  if (!nome) { out.textContent = 'Por favor, insere o nome do transformador.'; return; }
 
   out.textContent = 'Buscando dados...';
 
@@ -78,10 +75,7 @@ async function buscarPorNome() {
     const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
     if (!res.ok) throw new Error('Erro ao consultar a base de dados.');
     const data = await res.json();
-    if (!data.length) {
-      out.textContent = 'Transformador não encontrado.';
-      return;
-    }
+    if (!data.length) { out.textContent = 'Transformador não encontrado.'; return; }
 
     encontradosGlobais = data;
     let html = `<h2>Resultados para: <strong>${nome}</strong></h2>`;
@@ -115,6 +109,19 @@ async function buscarPorNome() {
         }
       }
 
+      // Primeira hora com PE_5_5_1 < 20 mbar
+      let primeiraHoraPressaoBaixa = 'N/A';
+      for (const l of serie) {
+        const pe = parseFloat(l.PE_5_5_1);
+        if (!isNaN(pe) && pe < 20) {
+          primeiraHoraPressaoBaixa = l.DataHora;
+          break;
+        }
+      }
+
+      // Fases RFxDRem
+      const fasesRem = referencia.map(r => r.RFxDRem || 'N/A').join(', ');
+
       html += `<div class="bloco-transformador">
         <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
         <div class="coluna-dados">
@@ -129,6 +136,8 @@ async function buscarPorNome() {
             <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
             <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
             <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
+            <p><strong>Primeira hora PE<20 mbar:</strong> ${primeiraHoraPressaoBaixa}</p>
+            <p><strong>Fases RFxDRem:</strong> ${fasesRem}</p>
           </div>
         </div>
 
@@ -146,9 +155,8 @@ async function buscarPorNome() {
           `).join('')}
         </table>
 
+        <!-- Apenas o gráfico da taxa LC por hora -->
         <canvas id="graficoTaxa${index}" width="600" height="300" style="margin-top:15px;"></canvas>
-        <canvas id="graficoPF_RF${index}" width="600" height="300" style="margin-top:15px;"></canvas>
-        <canvas id="graficoLC${index}" width="600" height="300" style="margin-top:15px;"></canvas>
       </div>`;
     });
 
@@ -158,12 +166,8 @@ async function buscarPorNome() {
     // Criar gráficos após HTML estar no DOM
     data.forEach((item, index) => {
       const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
-      const referencia = item.referencia || [];
       const massaiTon = Number(item.meta.massai)/1000 || 0;
-
       criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon, index);
-      criarGraficoPF_RF('graficoPF_RF'+index, referencia, index);
-      criarGraficoLC('graficoLC'+index, serie, index);
     });
 
   } catch(err){
@@ -172,7 +176,7 @@ async function buscarPorNome() {
   }
 }
 
-// --- Funções de gráfico ---
+// --- Função de gráfico de taxa LC por hora ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
   const ctx = document.getElementById(idCanvas);
   if(!ctx || !massaTon) return;
@@ -199,35 +203,6 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
   window['chartTaxa_'+idx] = new Chart(ctx,{
     type:'line',
     data:{ labels, datasets:[{label:'Taxa LC por hora (L/(h*t))', data:taxas, borderColor:'blue', fill:false, pointRadius:3, tension:0.2}] },
-    options:{ responsive:true }
-  });
-}
-
-function criarGraficoPF_RF(idCanvas, referencia, idx){
-  if(!referencia || !referencia.length) return;
-  const labels = referencia.map((_,i)=>`Etapa ${i+1}`);
-  const pf = referencia.map(r=>parseFloat(r.PF1)||0);
-  const rf = referencia.map(r=>parseFloat(r.RF1)||0);
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx) return;
-  if(window['chartPF_'+idx]) window['chartPF_'+idx].destroy();
-  window['chartPF_'+idx] = new Chart(ctx,{
-    type:'line',
-    data:{ labels, datasets:[{label:'PF', data:pf, borderColor:'red', fill:false},{label:'RF', data:rf, borderColor:'green', fill:false}] },
-    options:{ responsive:true }
-  });
-}
-
-function criarGraficoLC(idCanvas, serie, idx){
-  if(!serie || !serie.length) return;
-  const labels = serie.map(l=>new Date(l.DataHora).toLocaleString());
-  const valores = serie.map(l=>parseFloat(l.LC_3_8)||0);
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx) return;
-  if(window['chartLC_'+idx]) window['chartLC_'+idx].destroy();
-  window['chartLC_'+idx] = new Chart(ctx,{
-    type:'line',
-    data:{ labels, datasets:[{label:'LC acumulado (L)', data:valores, borderColor:'purple', fill:false}] },
     options:{ responsive:true }
   });
 }
