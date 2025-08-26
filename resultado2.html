@@ -166,55 +166,63 @@ async function buscarPorNome() {
 }
 
 // --- Apenas gráfico de taxa ---
-function criarGraficoTaxaHoraAHora(idCanvas, serie, massaTon) {
-  const ctx = document.getElementById(idCanvas);
-  if (!ctx || !serie.length) return;
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
+  if (!massaTon || massaTon <= 0) {
+    console.warn('massaTon inválido:', massaTon);
+    return;
+  }
 
-  // Ordenar a série por DataHora
-  const serieOrdenada = serie.slice().sort((a,b)=> new Date(a.DataHora) - new Date(b.DataHora));
+  const dadosPorHora = {};
 
-  const labels = [];
-  const taxas = [];
+  dadosSerie.forEach(linha => {
+    const dataHora = new Date(linha.DataHora);
+    if (isNaN(dataHora)) return;
+    dataHora.setMinutes(0, 0, 0);
+    const chaveHora = dataHora.getTime();
+    const valorLC = parseFloat(linha.LC_3_8);
+    if (isNaN(valorLC)) return;
+    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
+    dadosPorHora[chaveHora].push(valorLC);
+  });
 
+  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+
+  const labelsHoras = [];
+  const taxasHoraAHora = [];
   let valorAnterior = null;
 
-  serieOrdenada.forEach(l => {
-    const d = new Date(l.DataHora);
-    const valor = parseFloat(l.LC_3_8);
-    if (isNaN(valor)) return;
-
-    const horaLabel = d.toLocaleString('pt-PT', { hour:'2-digit', minute:'2-digit' });
-
-    if (!labels.includes(horaLabel)) {
-      labels.push(horaLabel);
-      // taxa = diferença com o valor anterior
-      if (valorAnterior !== null) {
-        taxas.push((valor - valorAnterior) / massaTon);
-      } else {
-        taxas.push(0);
-      }
-      valorAnterior = valor;
+  chavesOrdenadas.forEach(chave => {
+    const hora = new Date(Number(chave)).getHours();
+    labelsHoras.push(`${hora}h`);
+    const valores = dadosPorHora[chave];
+    // usa o último valor da hora como "valor atual"
+    const valorAtual = valores[valores.length - 1];
+    if (valorAnterior !== null) {
+      taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
     } else {
-      // Atualiza o valorAnterior para a última leitura dentro da hora
-      valorAnterior = valor;
+      taxasHoraAHora.push(0); // primeiro ponto
     }
+    valorAnterior = valorAtual;
   });
+
+  const ctx = document.getElementById(idCanvas);
+  if (!ctx) return;
 
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels,
-      datasets:[{
-        label:'Taxa LC L/(h*t)',
-        data: taxas,
-        borderColor:'blue',
-        backgroundColor:'rgba(52,152,219,0.2)',
-        fill:true,
-        tension:0.2,
-        pointRadius:4
+      labels: labelsHoras,
+      datasets: [{
+        label: 'Taxa LC L/(h*t)',
+        data: taxasHoraAHora,
+        borderColor: 'blue',
+        backgroundColor: 'rgba(52,152,219,0.2)',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 4
       }]
     },
-    options: { responsive:true, plugins:{ legend:{ position:'top' } } }
+    options: { responsive: true, plugins: { legend: { position: 'top' } } }
   });
 }
 
