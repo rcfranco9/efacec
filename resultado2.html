@@ -116,6 +116,9 @@ canvas {
 <input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
 <button id="btnBuscar">Buscar</button>
 <div id="resultado"></div>
+  <h3>Gráfico Taxa L/(h*t) por hora</h3>
+<canvas id="graficoTaxa" width="600" height="300"></canvas>
+  
 <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
 
 <script>
@@ -252,6 +255,8 @@ async function buscarPorNome() {
     html += `</div>`;
     out.innerHTML = html;
 
+    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTotal/1000); // massaTon = kg -> t
+ 
   } catch(err) {
     console.error(err);
     out.textContent = 'Erro ao buscar os dados.';
