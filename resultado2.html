@@ -107,23 +107,6 @@ canvas {
 #btnExportarPDF:hover {
   background-color: #1e8449;
 }
-
-.result-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 15px;
-  margin-bottom: 10px;
-}
-
-.result-col {
-  flex: 1 1 200px;
-  background: #f7f9fc;
-  padding: 10px;
-  border-radius: 6px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-}
-
 </style>
 </head>
 <body>
@@ -133,15 +116,7 @@ canvas {
 <input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
 <button id="btnBuscar">Buscar</button>
 <div id="resultado"></div>
-<button id="btnExportarPDF">Exportar PDF</button>
-
-<script>
-// Funções JavaScript permanecem iguais (formatNum, calcularIndice, busca, gráficos, export PDF)
-// Mantém todo o código JS que já construímos antes
-</script>
-
-</body>
-</html>
+<button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
 
 <script>
 function formatNum(v, dec = 3) {
@@ -174,6 +149,15 @@ function calculaIndicePressao(pf, rf){
   return `${Math.round(prop*100)}%`;
 }
 
+function formatarData(d){
+  const dia = String(d.getDate()).padStart(2,'0');
+  const mes = String(d.getMonth()+1).padStart(2,'0');
+  const ano = d.getFullYear();
+  const hora = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dia}/${mes}/${ano} ${hora}:${min}`;
+}
+
 let encontradosGlobais=[];
 
 document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
@@ -193,128 +177,60 @@ async function buscarPorNome(){
     encontradosGlobais=data;
     let html=`<h2>Resultados para: <strong>${nome}</strong></h2>`;
 
-  data.forEach((item, index) => {
-  const meta = item.meta;
-  const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
-  const referencia = item.referencia || [];
-  const massaiTon = Number(meta.massai) / 1000 || 0;
+    data.forEach((item, index) => {
+      const meta = item.meta;
+      const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
+      const referencia = item.referencia || [];
+      const massaiTon = Number(meta.massai)/1000 || 0;
 
-  // Máximos e mínimos
-  const maxTE = Math.max(...serie.map(l=>parseFloat(l.TE)||0));
-  const minPE_5_5_1 = Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
-  const minPE_4_17 = Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
+      const maxTE = Math.max(...serie.map(l=>parseFloat(l.TE)||0));
+      const minPE_5_5_1 = Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
+      const minPE_4_17 = Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
 
-  // Primeira hora com PE_5_5_1 < 20
-  let primeiraHoraPressaoBaixa = null;
-  const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-  for(const linha of serieOrdenada){
-    const pressao = parseFloat(linha.PE_5_5_1);
-    if(!isNaN(pressao) && pressao < 20){
-      primeiraHoraPressaoBaixa = new Date(linha.DataHora);
-      break;
-    }
-  }
-
-  html += `<div class="bloco-transformador">
-    <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
-    <div class="coluna-dados">
-      <div>
-        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
-      </div>
-      <div>
-        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
-        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
-      </div>
-    </div>
-  `;
-
-  if(primeiraHoraPressaoBaixa){
-    const formatarData = d=>{
-      const dia = String(d.getDate()).padStart(2,'0');
-      const mes = String(d.getMonth()+1).padStart(2,'0');
-      const ano = d.getFullYear();
-      const hora = String(d.getHours()).padStart(2,'0');
-      const min = String(d.getMinutes()).padStart(2,'0');
-      return `${dia}/${mes}/${ano} ${hora}:${min}`;
-    };
-
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
-
-    let dataAnterior = primeiraHoraPressaoBaixa;
-    const fases = [1,2,3,4,5,6];
-
-    for(const faseNum of fases){
-      const aquecKey = `RF${faseNum}DAquec`;
-      const remKey = `RF${faseNum}DRem`;
-
-      const tempoAquec = parseFloat(referencia[0]?.[aquecKey]);
-      const tempoRemocao = parseFloat(referencia[0]?.[remKey]);
-
-      const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
-      const remValido = !isNaN(tempoRemocao) && tempoRemocao>0;
-
-      if(aquecValido && remValido){
-        const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
-        const inicioRemocao = fimAquec;
-        const fimRemocao = new Date(inicioRemocao.getTime() + tempoRemocao*3600000);
-
-        html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRemocao)}</p>`;
-        html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRemocao)}</p>`;
-
-        dataAnterior = fimRemocao;
-      } else {
-        html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
-        break;
-      }
-    }
-  } else {
-    html += `<p><strong>Pressão PE_5_5_1 nunca ficou abaixo de 20 mbar.</strong></p>`;
-  }
-
-
-});
-
-
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(d)}</p>`;
-
-    let dataAnterior = d;
-    const fases = [1,2,3,4,5,6];
-    if(!referencia.length){
-      html += `<p><strong>Erro: série de referência não disponível.</strong></p>`;
-    } else {
-      for(const faseNum of fases){
-        const aquecKey = `RF${faseNum}DAquec`;
-        const remKey = `RF${faseNum}DRem`;
-        const tempoAquec = parseFloat(referencia[0][aquecKey]);
-        const tempoRem = parseFloat(referencia[0][remKey]);
-
-        const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
-        const remValido = !isNaN(tempoRem) && tempoRem>0;
-
-        if(aquecValido && remValido){
-          const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
-          const inicioRem = fimAquec;
-          const fimRem = new Date(inicioRem.getTime() + tempoRem*3600000);
-
-          html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRem)}</p>`;
-          html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRem)}</p>`;
-
-          dataAnterior = fimRem;
-        } else {
-          html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
+      let primeiraHoraPressaoBaixa = null;
+      const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+      for(const linha of serieOrdenada){
+        const pressao = parseFloat(linha.PE_5_5_1);
+        if(!isNaN(pressao) && pressao < 20){
+          primeiraHoraPressaoBaixa = new Date(linha.DataHora);
           break;
         }
       }
-    }
-    } catch(e){
-  console.error(e);
-  html += `<p><strong>Erro ao calcular pressões e zonas de remoção.</strong></p>`;
-}
 
+      html += `<div class="bloco-transformador">
+        <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
+        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
+        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
+        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
+        <p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHoraPressaoBaixa ? formatarData(primeiraHoraPressaoBaixa) : 'N/A'}</p>`;
 
-html += `</div>`;
+      if(primeiraHoraPressaoBaixa && referencia.length){
+        let dataAnterior = primeiraHoraPressaoBaixa;
+        for(let faseNum=1; faseNum<=6; faseNum++){
+          const aquecKey = `RF${faseNum}TAquec`;
+          const remKey = `RF${faseNum}DRem`;
+          const tempoAquec = parseFloat(referencia[0][aquecKey]);
+          const tempoRem = parseFloat(referencia[0][remKey]);
+          const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
+          const remValido = !isNaN(tempoRem) && tempoRem>0;
 
-      // Taxas últimas 18h em blocos de 3h
+          if(aquecValido && remValido){
+            const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
+            const inicioRem = fimAquec;
+            const fimRem = new Date(inicioRem.getTime() + tempoRem*3600000);
+            html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRem)}</p>`;
+            html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRem)}</p>`;
+            dataAnterior = fimRem;
+          } else {
+            html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
+            break;
+          }
+        }
+      } else {
+        html += `<p><strong>A série de referência não está disponível ou pressão nunca < 20 mbar.</strong></p>`;
+      }
+
+      // Taxas últimas 18h
       const taxas3h=[];
       if(serie.length>=2){
         const datas=serie.map(l=>new Date(l.DataHora)).sort((a,b)=>a-b);
@@ -330,110 +246,72 @@ html += `</div>`;
         }
       }
 
-      html+=`<div class="bloco-transformador">
-        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
-        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
-        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
-        <p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHoraPressaoBaixa?primeiraHoraPressaoBaixa.toLocaleString():'N/A'}</p>
-        <hr>`;
-
-      // PFx/RFx e índices
-      html+=`<h4>Valores PFxTAquec</h4>`;
-      for(let n=1;n<=6;n++) html+=`<p>PF${n}TAquec: ${serieRef[0]?.[`PF${n}TAquec`]||0}</p>`;
-      html+=`<h4>Valores RFxTAquec</h4>`;
-      for(let n=1;n<=6;n++) html+=`<p>RF${n}TAquec: ${serieRef[0]?.[`RF${n}TAquec`]||0}</p>`;
-      html+=`<h4>Índices PFxTAquec vs RFxTAquec</h4><ul>`;
-      for(let n=1;n<=6;n++) html+=`<li>Índice PF${n} vs RF${n}: ${calcularIndice(serieRef[0]?.[`PF${n}TAquec`],serieRef[0]?.[`RF${n}TAquec`])}</li>`;
-      html+=`</ul>`;
-
-      html+=`<h4>Valores PFxPRem</h4>`;
-      for(let n=1;n<=6;n++) html+=`<p>PF${n}PRem: ${serieRef[0]?.[`PF${n}PRem`]||0}</p>`;
-      html+=`<h4>Valores RFxPRem</h4>`;
-      for(let n=1;n<=6;n++) html+=`<p>RF${n}PRem: ${serieRef[0]?.[`RF${n}PRem`]||0}</p>`;
-      html+=`<h4>Índices PFxPRem vs RFxPRem</h4><ul>`;
-      for(let n=1;n<=6;n++) html+=`<li>Índice PF${n} vs RF${n} (pressão): ${calculaIndicePressao(serieRef[0]?.[`PF${n}PRem`],serieRef[0]?.[`RF${n}PRem`])}</li>`;
-      html+=`</ul>`;
-
-      html+=`<h4>Taxas de remoção a cada 3h nas últimas 18h:</h4><ul>`;
+      html += `<h4>Taxas de remoção (últimas 18h em blocos de 3h)</h4><ul>`;
       for(let i=0;i<6;i++){
-        const taxa=taxas3h[i]||0;
-        html+=`<li>${i*3}h - ${(i+1)*3}h atrás: ${formatNum(taxa)} L/(h*t)</li>`;
+        html += `<li>${i*3}h - ${(i+1)*3}h atrás: ${formatNum(taxas3h[i]||0)} L/(h*t)</li>`;
       }
-      html+=`</ul>`;
+      html += `</ul>`;
 
-      // Canvas gráficos
-      html+=`<canvas id="graficoTaxa${index}" width="600" height="300"></canvas>`;
-      html+=`<canvas id="graficoPF_RF${index}" width="600" height="300"></canvas>`;
-      html+=`<canvas id="graficoLC${index}" width="600" height="300"></canvas>`;
+      // Gráficos
+      html += `<canvas id="graficoTaxa${index}" width="600" height="300"></canvas>`;
+      html += `<canvas id="graficoPF_RF${index}" width="600" height="300"></canvas>`;
+      html += `<canvas id="graficoLC${index}" width="600" height="300"></canvas>`;
+      html += `</div>`;
 
-      html+=`</div>`;
-
-      // Criar gráficos
       setTimeout(()=>{
         criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon, index);
-        criarGraficoPF_RF('graficoPF_RF'+index, serieRef, index);
+        criarGraficoPF_RF('graficoPF_RF'+index, referencia, index);
         criarGraficoLC('graficoLC'+index, serie, index);
       },100);
 
-    }
+    });
 
     out.innerHTML=html;
     document.getElementById('btnExportarPDF').style.display='block';
+
+  }catch(e){
+    console.error(e);
+    out.innerHTML=`<p><strong>Erro ao buscar dados do transformador:</strong> ${e.message}</p>`;
+  }
+}
+
 // --- Gráficos ---
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
   const ctx=document.getElementById(idCanvas);
-  if(!ctx||!massaTon) return;
-  const dadosPorHora={};
-  dadosSerie.forEach(l=>{
-    const d=new Date(l.DataHora);
-    const val=parseFloat(l.LC_3_8);
-    if(isNaN(d)||isNaN(val)) return;
-    d.setMinutes(0,0,0);
-    const chave=d.getTime();
-    if(!dadosPorHora[chave]) dadosPorHora[chave]=[];
-    dadosPorHora[chave].push(val);
-  });
-  const chaves=Object.keys(dadosPorHora).sort((a,b)=>a-b);
-  const labels=chaves.map(t=>new Date(Number(t)).toLocaleTimeString());
-  const taxas=chaves.map(c=>{
-    const v=dadosPorHora[c];
-    return v.length>=2?(v[v.length-1]-v[0])/massaTon:0;
-  });
-  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Taxa LC (L/(h*t))',data:taxas,borderColor:'blue',fill:false,pointRadius:3,tension:0.2}]},options:{responsive:true}});
+  if(!ctx||!dadosSerie.length) return;
+  const labels=dadosSerie.map(l=>l.DataHora);
+  const valores=dadosSerie.map(l=>parseFloat(l.LC_3_8)/massaTon || 0);
+  new Chart(ctx,{type:'line',data:{labels, datasets:[{label:'Taxa LC L/(h*t)', data:valores, borderColor:'blue', fill:false}]}, options:{responsive:true}});
 }
 
-function criarGraficoPF_RF(idCanvas, referencia, idx){
-  if(!referencia||!referencia.length) return;
-  const labels=referencia.map((_,i)=>`Etapa ${i+1}`);
-  const pf=referencia.map(r=>parseFloat(r.PF1)||0);
-  const rf=referencia.map(r=>parseFloat(r.RF1)||0);
+function criarGraficoPF_RF(idCanvas, referencia){
   const ctx=document.getElementById(idCanvas);
-  if(!ctx) return;
-  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'PF',data:pf,borderColor:'red',fill:false},{label:'RF',data:rf,borderColor:'green',fill:false}]},options:{responsive:true}});
+  if(!ctx||!referencia.length) return;
+  const labels=['PF1','PF2','PF3','PF4','PF5','PF6'];
+  const pf=labels.map(l=>referencia[0][l+'TAquec']||0);
+  const rf=labels.map(l=>referencia[0][l.replace('PF','RF')+'TAquec']||0);
+  new Chart(ctx,{type:'bar',data:{labels, datasets:[{label:'PF', data:pf, backgroundColor:'rgba(52,152,219,0.7)'},{label:'RF', data:rf, backgroundColor:'rgba(231,76,60,0.7)'}]}});
 }
 
-function criarGraficoLC(idCanvas, serie, idx){
-  if(!serie||!serie.length) return;
-  const labels=serie.map(l=>new Date(l.DataHora).toLocaleString());
-  const valores=serie.map(l=>parseFloat(l.LC_3_8)||0);
+function criarGraficoLC(idCanvas, serie){
   const ctx=document.getElementById(idCanvas);
-  if(!ctx) return;
-  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'LC acumulado (L)',data:valores,borderColor:'purple',fill:false}]},options:{responsive:true}});
+  if(!ctx||!serie.length) return;
+  const labels=serie.map(l=>l.DataHora);
+  const valores=serie.map(l=>l.LC_3_8||0);
+  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'LC_3_8', data:valores, borderColor:'green', fill:false}]}, options:{responsive:true}});
 }
 
-// --- Export PDF ---
-document.getElementById('btnExportarPDF').addEventListener('click', ()=>{
-  const el=document.getElementById('resultado');
-  html2canvas(el).then(canvas=>{
-    const img=canvas.toDataURL('image/png');
-    const pdf=new jspdf.jsPDF('p','pt','a4');
-    const w=pdf.internal.pageSize.getWidth();
-    const h=pdf.internal.pageSize.getHeight();
-    const iw=canvas.width;
-    const ih=canvas.height;
-    const ratio=Math.min(w/iw,h/ih);
-    pdf.addImage(img,'PNG',(w-iw*ratio)/2,20,iw*ratio,ih*ratio);
-    pdf.save('resultado_transformadores.pdf');
+// --- PDF Export ---
+document.getElementById('btnExportarPDF').addEventListener('click',()=>{
+  html2canvas(document.body).then(canvas=>{
+    const imgData=canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const imgProps=pdf.getImageProperties(imgData);
+    const pdfWidth=210;
+    const pdfHeight=(imgProps.height * pdfWidth)/imgProps.width;
+    pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
+    pdf.save('transformador.pdf');
   });
 });
 </script>
