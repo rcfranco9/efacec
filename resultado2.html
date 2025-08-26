@@ -87,7 +87,7 @@ async function buscarPorNome() {
     data.forEach((item, index) => {
       const meta = item.meta;
       const serie = item.serie;
-      const referencia = item.serieRef || [];
+      const referencia = item.referencia || []; // <<< CORRIGIDO
       const massaiTon = Number(meta.massai) / 1000;
 
       // Calcular dif, taxa total, últimas 10h
@@ -143,9 +143,9 @@ async function buscarPorNome() {
       <canvas id="graficoLC${index}" width="600" height="300" style="margin-top:15px;"></canvas>
       </div>`;
 
-      criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon);
-      criarGraficoPF_RF('graficoPF_RF'+index, referencia);
-      criarGraficoLC('graficoLC'+index, serie);
+      criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon, index);
+      criarGraficoPF_RF('graficoPF_RF'+index, referencia, index);
+      criarGraficoLC('graficoLC'+index, serie, index);
     });
 
     out.innerHTML = html;
@@ -158,7 +158,7 @@ async function buscarPorNome() {
 }
 
 // Gráfico taxa LC
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
   if(!massaTon || massaTon<=0) return;
   const dadosPorHora = {};
   dadosSerie.forEach(l=>{
@@ -179,31 +179,31 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
   });
   const ctx=document.getElementById(idCanvas);
   if(!ctx) return;
-  if(window[idCanvas+'_chart']) window[idCanvas+'_chart'].destroy();
-  window[idCanvas+'_chart'] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Taxa LC por hora (L/(h*t))',data:taxas,borderColor:'blue',pointRadius:3,fill:false,tension:0.2}]},options:{responsive:true}});
+  if(window['chartTaxa_'+idx]) window['chartTaxa_'+idx].destroy();
+  window['chartTaxa_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Taxa LC por hora (L/(h*t))',data:taxas,borderColor:'blue',pointRadius:3,fill:false,tension:0.2}]},options:{responsive:true}});
 }
 
 // Gráfico PF/RF
-function criarGraficoPF_RF(idCanvas, referencia){
+function criarGraficoPF_RF(idCanvas, referencia, idx){
   if(!referencia || !referencia.length) return;
   const labels = referencia.map((_,i)=>`Etapa ${i+1}`);
   const pf = referencia.map(r=>parseFloat(r.PF1)||0);
   const rf = referencia.map(r=>parseFloat(r.RF1)||0);
   const ctx=document.getElementById(idCanvas);
   if(!ctx) return;
-  if(window[idCanvas+'_chart']) window[idCanvas+'_chart'].destroy();
-  window[idCanvas+'_chart'] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'PF',data:pf,borderColor:'red',fill:false},{label:'RF',data:rf,borderColor:'green',fill:false}]},options:{responsive:true}});
+  if(window['chartPF_'+idx]) window['chartPF_'+idx].destroy();
+  window['chartPF_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'PF',data:pf,borderColor:'red',fill:false},{label:'RF',data:rf,borderColor:'green',fill:false}]},options:{responsive:true}});
 }
 
 // Gráfico LC acumulado
-function criarGraficoLC(idCanvas, serie){
+function criarGraficoLC(idCanvas, serie, idx){
   if(!serie || !serie.length) return;
   const labels = serie.map(l=>new Date(l.DataHora).toLocaleString());
   const valores = serie.map(l=>parseFloat(l.LC_3_8)||0);
   const ctx=document.getElementById(idCanvas);
   if(!ctx) return;
-  if(window[idCanvas+'_chart']) window[idCanvas+'_chart'].destroy();
-  window[idCanvas+'_chart'] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'LC acumulado (L)',data:valores,borderColor:'purple',fill:false}]},options:{responsive:true}});
+  if(window['chartLC_'+idx]) window['chartLC_'+idx].destroy();
+  window['chartLC_'+idx] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'LC acumulado (L)',data:valores,borderColor:'purple',fill:false}]},options:{responsive:true}});
 }
 
 // PDF export
