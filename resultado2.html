@@ -379,13 +379,6 @@ html += `</div>`;
 
     out.innerHTML=html;
     document.getElementById('btnExportarPDF').style.display='block';
-
-  catch(err){
-    console.error(err);
-    out.textContent='Erro ao consultar a base de dados.';
-  }
-
-
 // --- Gráficos ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
   const ctx=document.getElementById(idCanvas);
