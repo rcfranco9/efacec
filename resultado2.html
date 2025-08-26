@@ -198,22 +198,21 @@ async function buscarPorNome(){
       const serie=item.serie.filter(l=>l.LC_3_8!==undefined && l.DataHora);
       const serieRef=item.referencia || [];
       const massaiTon=Number(meta.massai)/1000 || 0;
-      // Dentro do data.forEach((item, index) => { ... }) onde constróis html
+      const serieRef = item.referencia || [];
+      const serieData = item.serie || [];
 
-const serieRef = item.referencia || [];
-const serieData = item.serie || [];
+      // Máximos e mínimos
+      const maxTE=Math.max(...serie.map(l=>parseFloat(l.TE_5_4_1)||0));
+      const minPE_5_5_1=Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
+      const minPE_4_17=Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
 
-// Encontrar a primeira hora com pressão PE_5_5_1 < 20
-let primeiraHoraPressaoBaixa = null;
-const serieOrdenada = serieData.slice().sort((a,b) => new Date(a.DataHora) - new Date(b.DataHora));
-for(const linha of serieOrdenada){
-    const pressao = parseFloat(linha.PE_5_5_1);
-    if(!isNaN(pressao) && pressao < 20){
-        primeiraHoraPressaoBaixa = new Date(linha.DataHora);
-        break;
-    }
-}
-
+      let primeiraHoraPressaoBaixa=null;
+      const serieOrdenada=serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+      for(const l of serieOrdenada){
+        const p=Number(l.PE_5_5_1);
+        if(!isNaN(p)&&p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
+      }
+      
 html += `<div class="bloco-transformador">`;
 
 if(primeiraHoraPressaoBaixa){
@@ -263,19 +262,6 @@ if(primeiraHoraPressaoBaixa){
 }
 
 html += `</div>`;
-
-
-      // Máximos e mínimos
-      const maxTE=Math.max(...serie.map(l=>parseFloat(l.TE_5_4_1)||0));
-      const minPE_5_5_1=Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
-      const minPE_4_17=Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
-
-      let primeiraHoraPressaoBaixa=null;
-      const serieOrdenada=serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-      for(const l of serieOrdenada){
-        const p=Number(l.PE_5_5_1);
-        if(!isNaN(p)&&p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
-      }
 
       // Taxas últimas 18h em blocos de 3h
       const taxas3h=[];
