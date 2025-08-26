@@ -162,118 +162,102 @@ let encontradosGlobais=[];
 
 document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 
-async function buscarPorNome(){
-  const nome=document.getElementById('nomeInput').value.trim();
-  const out=document.getElementById('resultado');
-  if(!nome){ out.textContent='Por favor, insere o nome do transformador.'; return; }
-  out.textContent='Buscando dados...';
+async function buscarPorNome() {
+  const nome = document.getElementById('nomeInput').value.trim();
+  const out = document.getElementById('resultado');
+  if (!nome) { out.textContent = 'Por favor, insira o nome do transformador.'; return; }
+  out.textContent = 'Buscando dados...';
 
-  try{
-    const res=await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
-    if(!res.ok) throw new Error('Erro ao consultar a base de dados.');
-    const data=await res.json();
-    if(!data.length){ out.textContent='Transformador não encontrado.'; return; }
+  try {
+    const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
+    if (!res.ok) throw new Error('Erro ao consultar a base de dados.');
+    const data = await res.json();
+    if (!data.length) { out.textContent = 'Transformador não encontrado.'; return; }
 
-    encontradosGlobais=data;
-    let html=`<h2>Resultados para: <strong>${nome}</strong></h2>`;
+    const t = data[0]; // assume 1 resultado
+    const serieRef = t.referencia || [{}];
+    const meta = t.meta || {};
+    const serie = t.serie || [];
 
-    data.forEach((item, index) => {
-      const meta = item.meta;
-      const serie = item.serie.filter(l => l.LC_3_8 !== undefined && l.DataHora);
-      const referencia = item.referencia || [];
-      const massaiTon = Number(meta.massai)/1000 || 0;
+    const formatarData = d => {
+      if (!d) return 'N/A';
+      const dt = new Date(d);
+      return dt.toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    };
 
-      const maxTE = Math.max(...serie.map(l=>parseFloat(l.TE)||0));
-      const minPE_5_5_1 = Math.min(...serie.map(l=>parseFloat(l.PE_5_5_1)||Infinity));
-      const minPE_4_17 = Math.min(...serie.map(l=>parseFloat(l.PE_4_17)||Infinity));
+    // Extrair informações gerais
+    const potencia = meta.potencia || 0;
+    const tensao = meta.tensao || 0;
+    const massaTotal = meta.massaTotal || 0;
+    const massaIsolantes = meta.massaIsolantes || 0;
+    const duracao = meta.duracao || 0;
+    const aguaRemovida = meta.aguaRemovida || 0;
+    const taxaTotal = meta.taxaTotal || 0;
+    const taxaUltimas10h = meta.taxaUltimas10h || 0;
 
-      let primeiraHoraPressaoBaixa = null;
-      const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-      for(const linha of serieOrdenada){
-        const pressao = parseFloat(linha.PE_5_5_1);
-        if(!isNaN(pressao) && pressao < 20){
-          primeiraHoraPressaoBaixa = new Date(linha.DataHora);
-          break;
-        }
-      }
+    // Extrair PFx/RFx
+    const PF_TAquec = serieRef.map(r => [r.PF1TAquec,r.PF2TAquec,r.PF3TAquec,r.PF4TAquec,r.PF5TAquec,r.PF6TAquec])[0];
+    const RF_TAquec = serieRef.map(r => [r.RF1TAquec,r.RF2TAquec,r.RF3TAquec,r.RF4TAquec,r.RF5TAquec,r.RF6TAquec])[0];
+    const PF_PRem = serieRef.map(r => [r.PF1PRem,r.PF2PRem,r.PF3PRem,r.PF4PRem,r.PF5PRem,r.PF6PRem])[0];
+    const RF_PRem = serieRef.map(r => [r.RF1PRem,r.RF2PRem,r.RF3PRem,r.RF4PRem,r.RF5PRem,r.RF6PRem])[0];
 
-      html += `<div class="bloco-transformador">
-        <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
-        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
-        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
-        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
-        <p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHoraPressaoBaixa ? formatarData(primeiraHoraPressaoBaixa) : 'N/A'}</p>`;
+    function calcularIndice(pf, rf){ if(!pf && !rf) return 'N/A'; if(rf>=pf+5) return '100%'; if(rf<=pf-5) return '0%'; if(rf===pf) return '50%'; return `${Math.round(50+(rf-pf)*10)}%`; }
+    function calcularIndicePressao(pf, rf){ if(!pf && !rf) return 'N/A'; const diff=rf-pf; if(diff>=5) return '0%'; if(diff<=-5) return '100%'; if(diff===0) return '50%'; return `${Math.round((5-diff)/10*100)}%`; }
 
-      if(primeiraHoraPressaoBaixa && referencia.length){
-        let dataAnterior = primeiraHoraPressaoBaixa;
-        for(let faseNum=1; faseNum<=6; faseNum++){
-          const aquecKey = `RF${faseNum}TAquec`;
-          const remKey = `RF${faseNum}DRem`;
-          const tempoAquec = parseFloat(referencia[0][aquecKey]);
-          const tempoRem = parseFloat(referencia[0][remKey]);
-          const aquecValido = !isNaN(tempoAquec) && tempoAquec>0;
-          const remValido = !isNaN(tempoRem) && tempoRem>0;
+    let html = `<div class="bloco">`;
+    html += `<p><strong>Potência:</strong> ${potencia} kVA</p>`;
+    html += `<p><strong>Tensão:</strong> ${tensao} kV</p>`;
+    html += `<p><strong>Massa transformador:</strong> ${massaTotal} kg</p>`;
+    html += `<p><strong>Massa isolantes:</strong> ${massaIsolantes} t</p>`;
+    html += `<p><strong>Duração total:</strong> ${duracao} h</p>`;
+    html += `<p><strong>Água removida:</strong> ${aguaRemovida} L</p>`;
+    html += `<p><strong>Taxa total:</strong> ${taxaTotal} L/(h*t)</p>`;
+    html += `<p><strong>Taxa últimas 10h:</strong> ${taxaUltimas10h} L/(h*t)</p>`;
+    html += `<hr>`;
 
-          if(aquecValido && remValido){
-            const fimAquec = new Date(dataAnterior.getTime() + tempoAquec*3600000);
-            const inicioRem = fimAquec;
-            const fimRem = new Date(inicioRem.getTime() + tempoRem*3600000);
-            html += `<p><strong>Início da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(inicioRem)}</p>`;
-            html += `<p><strong>Fim da zona de remoção RF${faseNum}DRem:</strong> ${formatarData(fimRem)}</p>`;
-            dataAnterior = fimRem;
-          } else {
-            html += `<p><strong>A secagem não chegou à fase RF${faseNum}DRem.</strong></p>`;
-            break;
-          }
-        }
+    html += `<h3>Valores PFxTAquec</h3>`; PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v}</p>`);
+    html += `<h3>Valores RFxTAquec</h3>`; RF_TAquec.forEach((v,i)=> html+=`<p>RF${i+1}TAquec: ${v}</p>`);
+    html += `<h3>Índices PFxTAquec vs RFxTAquec</h3>`; PF_TAquec.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1}: ${calcularIndice(v, RF_TAquec[i])}</p>`);
+
+    html += `<h3>Valores PFxPRem</h3>`; PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v}</p>`);
+    html += `<h3>Valores RFxPRem</h3>`; RF_PRem.forEach((v,i)=> html+=`<p>RF${i+1}PRem: ${v}</p>`);
+    html += `<h3>Índices PFxPRem vs RFxPRem</h3>`; PF_PRem.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1} (pressão): ${calcularIndicePressao(v, RF_PRem[i])}</p>`);
+
+    // Primeira hora PE_5_5_1 < 20
+    const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+    let primeiraHoraPressaoBaixa=null;
+    for(const l of serieOrdenada){
+      const p = parseFloat(l.PE_5_5_1);
+      if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
+    }
+    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
+
+    // Zonas de remoção RFxDRem
+    let dataAnterior = primeiraHoraPressaoBaixa || new Date();
+    for(let fase=1; fase<=6; fase++){
+      const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
+      const rem = parseFloat(serieRef[0][`RF${fase}DRem`]);
+      if(aquec>0 && rem>0){
+        const inicioRem = new Date(dataAnterior.getTime() + aquec*3600000);
+        const fimRem = new Date(inicioRem.getTime() + rem*3600000);
+        html += `<p><strong>Início da zona de remoção RF${fase}DRem:</strong> ${formatarData(inicioRem)}</p>`;
+        html += `<p><strong>Fim da zona de remoção RF${fase}DRem:</strong> ${formatarData(fimRem)}</p>`;
+        dataAnterior = fimRem;
       } else {
-        html += `<p><strong>A série de referência não está disponível ou pressão nunca < 20 mbar.</strong></p>`;
+        html += `<p><strong>A secagem não chegou à fase RF${fase}DRem.</strong></p>`;
+        break;
       }
+    }
 
-      // Taxas últimas 18h
-      const taxas3h=[];
-      if(serie.length>=2){
-        const datas=serie.map(l=>new Date(l.DataHora)).sort((a,b)=>a-b);
-        const final=datas[datas.length-1];
-        for(let i=0;i<6;i++){
-          const h1=new Date(final.getTime()- (i+1)*3*3600000);
-          const h2=new Date(final.getTime()- i*3*3600000);
-          const blocos=serie.filter(l=>{ const d=new Date(l.DataHora); return d>=h1 && d<=h2; });
-          if(blocos.length>=2){
-            const dif=blocos[blocos.length-1].LC_3_8-blocos[0].LC_3_8;
-            taxas3h.unshift(dif/massaiTon);
-          } else taxas3h.unshift(0);
-        }
-      }
+    html += `</div>`;
+    out.innerHTML = html;
 
-      html += `<h4>Taxas de remoção (últimas 18h em blocos de 3h)</h4><ul>`;
-      for(let i=0;i<6;i++){
-        html += `<li>${i*3}h - ${(i+1)*3}h atrás: ${formatNum(taxas3h[i]||0)} L/(h*t)</li>`;
-      }
-      html += `</ul>`;
-
-      // Gráficos
-      html += `<canvas id="graficoTaxa${index}" width="600" height="300"></canvas>`;
-      html += `<canvas id="graficoPF_RF${index}" width="600" height="300"></canvas>`;
-      html += `<canvas id="graficoLC${index}" width="600" height="300"></canvas>`;
-      html += `</div>`;
-
-      setTimeout(()=>{
-        criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon, index);
-        criarGraficoPF_RF('graficoPF_RF'+index, referencia, index);
-        criarGraficoLC('graficoLC'+index, serie, index);
-      },100);
-
-    });
-
-    out.innerHTML=html;
-    document.getElementById('btnExportarPDF').style.display='block';
-
-  }catch(e){
-    console.error(e);
-    out.innerHTML=`<p><strong>Erro ao buscar dados do transformador:</strong> ${e.message}</p>`;
+  } catch(err) {
+    console.error(err);
+    out.textContent = 'Erro ao buscar os dados.';
   }
 }
+
 
 // --- Gráficos ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
