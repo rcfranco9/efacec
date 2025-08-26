@@ -195,8 +195,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     const hora = new Date(Number(chave)).getHours();
     labelsHoras.push(`${hora}h`);
     const valores = dadosPorHora[chave];
-    // usa o último valor da hora como "valor atual"
-    const valorAtual = valores[valores.length - 1];
+    const valorAtual = valores[valores.length - 1]; // último valor da hora
     if (valorAnterior !== null) {
       taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
     } else {
@@ -206,7 +205,10 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
   });
 
   const ctx = document.getElementById(idCanvas);
-  if (!ctx) return;
+  if (!ctx) {
+    console.warn(`Canvas com id '${idCanvas}' não encontrado.`);
+    return;
+  }
 
   new Chart(ctx, {
     type: 'line',
@@ -222,9 +224,33 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
         pointRadius: 4
       }]
     },
-    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Taxa LC por Hora'
+        }
+      },
+      scales: {
+        y: {
+          title: {
+            display: true,
+            text: 'Taxa LC L/(h*t)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Hora'
+          }
+        }
+      }
+    }
   });
 }
+
 
 
 // --- Exportar PDF ---
