@@ -265,12 +265,43 @@ async function buscarPorNome() {
 
 
 // --- Gráficos ---
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
-  const ctx=document.getElementById(idCanvas);
-  if(!ctx||!dadosSerie.length) return;
-  const labels=dadosSerie.map(l=>l.DataHora);
-  const valores=dadosSerie.map(l=>parseFloat(l.LC_3_8)/massaTon || 0);
-  new Chart(ctx,{type:'line',data:{labels, datasets:[{label:'Taxa LC L/(h*t)', data:valores, borderColor:'blue', fill:false}]}, options:{responsive:true}});
+function criarGraficoTaxaHoraAHora(idCanvas, serie, massaTon) {
+  const ctx = document.getElementById(idCanvas);
+  if (!ctx || !serie.length) return;
+
+  // Agrupa por hora
+  const dadosPorHora = {};
+  serie.forEach(l => {
+    const d = new Date(l.DataHora);
+    d.setMinutes(0,0,0); // arredonda para hora
+    const chave = d.getTime();
+    if (!dadosPorHora[chave]) dadosPorHora[chave] = [];
+    dadosPorHora[chave].push(parseFloat(l.LC_3_8) || 0);
+  });
+
+  const chaves = Object.keys(dadosPorHora).sort((a,b)=>a-b);
+  const labels = chaves.map(t => new Date(+t).toLocaleString('pt-PT', {hour:'2-digit', minute:'2-digit'}));
+  const taxas = chaves.map(c => {
+    const arr = dadosPorHora[c];
+    return arr.length >= 2 ? (arr[arr.length-1] - arr[0]) / massaTon : 0;
+  });
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Taxa LC L/(h*t)',
+        data: taxas,
+        borderColor: 'blue',
+        backgroundColor: 'rgba(52,152,219,0.2)',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 4
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } } }
+  });
 }
 
 function criarGraficoPF_RF(idCanvas, referencia){
