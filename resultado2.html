@@ -134,6 +134,15 @@ canvas {
 <button id="btnBuscar">Buscar</button>
 <div id="resultado"></div>
 <button id="btnExportarPDF">Exportar PDF</button>
+
+<script>
+// Funções JavaScript permanecem iguais (formatNum, calcularIndice, busca, gráficos, export PDF)
+// Mantém todo o código JS que já construímos antes
+</script>
+
+</body>
+</html>
+
 <script>
 function formatNum(v, dec = 3) {
   const n = parseFloat(v);
@@ -219,22 +228,10 @@ async function buscarPorNome(){
       }
 
       html+=`<div class="bloco-transformador">
-        
-          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
-            <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
-            <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
-            <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon)} t</p>
-          </div>
-          <div>
-            <p><strong>Duração total:</strong> ${formatNum(duracao,2)} h</p>
-            <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
-            <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-            <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-            <p><strong>Primeira hora PE<20 mbar:</strong> ${primeiraHoraPressaoBaixa}</p>
-            <p><strong>Fases RFxDRem:</strong> ${fasesRem}</p>
-            <p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHoraPressaoBaixa?primeiraHoraPressaoBaixa.toLocaleString():'N/A'}</p>
-          </div>
-        </div>
+        <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
+        <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
+        <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
+        <p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${primeiraHoraPressaoBaixa?primeiraHoraPressaoBaixa.toLocaleString():'N/A'}</p>
         <hr>`;
 
       // PFx/RFx e índices
@@ -263,6 +260,8 @@ async function buscarPorNome(){
 
       // Canvas gráficos
       html+=`<canvas id="graficoTaxa${index}" width="600" height="300"></canvas>`;
+      html+=`<canvas id="graficoPF_RF${index}" width="600" height="300"></canvas>`;
+      html+=`<canvas id="graficoLC${index}" width="600" height="300"></canvas>`;
 
       html+=`</div>`;
 
@@ -305,6 +304,25 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon, idx){
     return v.length>=2?(v[v.length-1]-v[0])/massaTon:0;
   });
   new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Taxa LC (L/(h*t))',data:taxas,borderColor:'blue',fill:false,pointRadius:3,tension:0.2}]},options:{responsive:true}});
+}
+
+function criarGraficoPF_RF(idCanvas, referencia, idx){
+  if(!referencia||!referencia.length) return;
+  const labels=referencia.map((_,i)=>`Etapa ${i+1}`);
+  const pf=referencia.map(r=>parseFloat(r.PF1)||0);
+  const rf=referencia.map(r=>parseFloat(r.RF1)||0);
+  const ctx=document.getElementById(idCanvas);
+  if(!ctx) return;
+  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'PF',data:pf,borderColor:'red',fill:false},{label:'RF',data:rf,borderColor:'green',fill:false}]},options:{responsive:true}});
+}
+
+function criarGraficoLC(idCanvas, serie, idx){
+  if(!serie||!serie.length) return;
+  const labels=serie.map(l=>new Date(l.DataHora).toLocaleString());
+  const valores=serie.map(l=>parseFloat(l.LC_3_8)||0);
+  const ctx=document.getElementById(idCanvas);
+  if(!ctx) return;
+  new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'LC acumulado (L)',data:valores,borderColor:'purple',fill:false}]},options:{responsive:true}});
 }
 
 // --- Export PDF ---
