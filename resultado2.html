@@ -2,31 +2,29 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<title>Consulta Transformador</title>
+<title>Consulta Transformador - Base de Dados</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9;}
-h2 { color:#333; }
-.bloco-transformador { background:#fff; padding:15px; margin-bottom:20px; border-radius:6px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-.coluna-dados { display:flex; justify-content:space-between; }
-.coluna-dados div { width:48%; }
-hr { margin:15px 0; }
-#btnExportarPDF { margin-top:20px; display:none; }
+body { font-family: Arial, sans-serif; margin:20px; background:#f5f5f5; }
+input, button { padding:6px 10px; margin:5px 0; }
+.bloco-transformador { background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+.coluna-dados { display:flex; justify-content:space-between; margin-bottom:10px; }
+.coluna-dados div { flex:1; margin-right:15px; }
 </style>
 </head>
 <body>
 
-<h1>Consulta Transformador</h1>
-<input type="text" id="nomeInput" placeholder="Insere nome do transformador">
-<button id="btnBuscar">Buscar</button>
-<button id="btnExportarPDF">Exportar PDF</button>
+<h2>Consulta Transformador (Base: meubanco)</h2>
+
+<input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
+<button id="btnBuscar" onclick="buscarPorNome()">Buscar</button>
 <div id="resultado"></div>
+<button id="btnExportarPDF" style="display:none; margin-top:20px;">Exportar PDF</button>
 
 <script>
-// --- funções auxiliares ---
-function formatNum(v, dec=3) {
+function formatNum(v, dec = 3) {
   const n = parseFloat(v);
   if (isNaN(n)) return 'N/A';
   if (n === 0) return '0 (ZERO)';
@@ -34,128 +32,151 @@ function formatNum(v, dec=3) {
 }
 
 function calcularIndice(pf, rf) {
-  const p = parseFloat(pf); const r = parseFloat(rf);
-  if (isNaN(p)||isNaN(r)) return 'N/A';
-  if (r>=p+5) return '100%';
-  if (r<=p-5) return '0%';
-  if (r===p) return '50%';
-  let ind = 50 + ((r-p)*10);
-  if(ind<0) ind=0; if(ind>100) ind=100;
-  return `${Math.round(ind)}%`;
+  const p = parseFloat(pf);
+  const r = parseFloat(rf);
+  if (isNaN(p) || isNaN(r)) return 'N/A';
+  if (r >= p + 5) return '100%';
+  if (r <= p - 5) return '0%';
+  if (r === p) return '50%';
+  let indice = 50 + ((r - p) * 10);
+  if (indice < 0) indice = 0;
+  if (indice > 100) indice = 100;
+  return `${Math.round(indice)}%`;
 }
 
 function calculaIndicePressao(pf, rf) {
-  const p=parseFloat(pf); const r=parseFloat(rf);
-  if (isNaN(p)||isNaN(r)) return 'N/A';
-  const diff = r-p;
-  if(diff>=5) return '0%';
-  if(diff<=-5) return '100%';
-  if(diff===0) return '50%';
-  return `${Math.round((5-diff)/10*100)}%`;
+  const p = parseFloat(pf);
+  const r = parseFloat(rf);
+  if (isNaN(p) || isNaN(r)) return 'N/A';
+  const diff = r - p;
+  if (diff >= 5) return '0%';
+  if (diff <= -5) return '100%';
+  if (diff === 0) return '50%';
+  const proporcao = (5 - diff) / 10;
+  const indice = Math.round(proporcao * 100);
+  return `${indice}%`;
 }
 
-// --- buscar dados ---
 let encontradosGlobais = [];
-document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 
-function buscarPorNome() {
-  const nome = document.getElementById('nomeInput').value.trim(); // sem .toLowerCase()
+async function buscarPorNome() {
+  const nome = document.getElementById('nomeInput').value.trim();
   const out = document.getElementById('resultado');
-  if(!nome) { out.textContent='Por favor, insere o nome do transformador.'; return; }
+  if (!nome) {
+    out.textContent = 'Por favor, insere o nome do transformador.';
+    return;
+  }
 
-  fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`)
-    .then(res=>res.json())
-    .then(data=>{
-      if(data.erro){ out.textContent = data.erro; return; }
-      encontradosGlobais = data;
+  out.textContent = 'Buscando dados...';
 
-      let html = `<h2>Resultados para: <strong>${encontradosGlobais[0].meta.subprojecto}</strong></h2>`;
+  try {
+    const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
+    if (!res.ok) throw new Error('Erro ao consultar a base de dados.');
+    const data = await res.json();
+    if (!data.length) {
+      out.textContent = 'Transformador não encontrado.';
+      return;
+    }
 
-      encontradosGlobais.forEach((item,index)=>{
-        const meta=item.meta; const serie=item.serie; const serieRef=item.referencia;
-        const id = meta.id_secagenscore?.trim();
-        if(!id || serie.length===0) return;
+    encontradosGlobais = data;
+    let html = `<h2>Resultados para: <strong>${nome}</strong></h2>`;
 
-        // Taxas
-        const valoresLC = serie.map(l=>Number(l.LC_3_8)).filter(n=>!isNaN(n));
-        const difLC = valoresLC.length>0 ? valoresLC[valoresLC.length-1] : 0;
-        const datas = serie.map(l=>new Date(l.DataHora)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
-        if(datas.length<2) return;
-        const duracao=(datas[datas.length-1]-datas[0])/36e5;
-        const massaiTon=Number(meta.massai)/1000;
-        const taxaLC=difLC/(duracao*massaiTon);
+    data.forEach((item, index) => {
+      const meta = item.meta;
+      const serie = item.serie;
+      const serieRef = item.serieRef || [];
+      const massaiTon = Number(meta.massai) / 1000;
 
-        const final = datas[datas.length-1];
-        const inicial = new Date(final.getTime()-10*3600000);
-        const ultimos = serie.filter(l=>{const d=new Date(l.DataHora);return d>=inicial && d<=final;}).sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-        let difLC10h=0, taxa10h=0;
-        if(ultimos.length>=2){ difLC10h = Number(ultimos[ultimos.length-1].LC_3_8)-Number(ultimos[0].LC_3_8); taxa10h=difLC10h/(10*massaiTon);}
+      // Calcular dif, taxa total, últimas 10h
+      const valoresLC = serie.map(l => Number(l.LC_3_8)).filter(n => !isNaN(n));
+      const difLC = valoresLC.length ? valoresLC[valoresLC.length-1] : 0;
+      const datas = serie.map(l=>new Date(l.DataHora)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+      const duracao = datas.length>1 ? (datas[datas.length-1]-datas[0])/36e5 : 0;
+      let taxaLC = duracao && massaiTon ? difLC/(duracao*massaiTon) : 0;
 
-        // Máximo TE
-        const colTE=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-        let maxTE=null;
-        serie.forEach(l=>{colTE.forEach(col=>{const v=Number(l[col]); if(!isNaN(v)&&v>0&&v<=140) maxTE=maxTE===null?v:Math.max(maxTE,v);});});
+      // Taxa últimas 10h
+      const final = datas[datas.length-1];
+      const inicial = new Date(final.getTime() - 10*3600000);
+      const ultimos = serie.filter(l=>{const d=new Date(l.DataHora);return d>=inicial && d<=final;}).sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+      let difLC10h=0, taxa10h=0;
+      if (ultimos.length>=2){
+        difLC10h = ultimos[ultimos.length-1].LC_3_8 - ultimos[0].LC_3_8;
+        taxa10h = difLC10h/(10*massaiTon);
+      }
 
-        // Mínimos PE
-        let minPE_5_5_1=null, minPE_4_17=null;
-        serie.forEach(l=>{const v1=Number(l.PE_5_5_1);if(!isNaN(v1)&&v1>0.1) minPE_5_5_1=minPE_5_5_1===null?v1:Math.min(minPE_5_5_1,v1);
-                          const v2=Number(l.PE_4_17);if(!isNaN(v2)&&v2>0.1) minPE_4_17=minPE_4_17===null?v2:Math.min(minPE_4_17,v2);});
+      html += `<div class="bloco-transformador">
+      <h3>#${index+1} — ID: ${meta.id_secagenscore}</h3>
+      <div class="coluna-dados">
+        <div>
+          <p><strong>Potência:</strong> ${meta.potencia || 'N/A'} kVA</p>
+          <p><strong>Tensão:</strong> ${meta.tensao || 'N/A'} kV</p>
+          <p><strong>Massa transformador:</strong> ${meta.massat || 'N/A'} kg</p>
+          <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon)} t</p>
+        </div>
+        <div>
+          <p><strong>Duração total:</strong> ${formatNum(duracao,2)} h</p>
+          <p><strong>Água removida:</strong> ${formatNum(difLC)} L</p>
+          <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
+          <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
+        </div>
+      </div>
+      <canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
+      </div>`;
 
-        html+=`<div class="bloco-transformador">
-          <h3>#${index+1} — ID: ${id}</h3>
-          <div class="coluna-dados">
-            <div>
-              <p><strong>Potência:</strong> ${meta.potencia||'N/A'} kVA</p>
-              <p><strong>Tensão:</strong> ${meta.tensao||'N/A'} kV</p>
-              <p><strong>Massa transformador:</strong> ${meta.massat||'N/A'} kg</p>
-              <p><strong>Massa isolantes:</strong> ${formatNum(massaiTon,3)} t</p>
-            </div>
-            <div>
-              <p><strong>Duração total:</strong> ${formatNum(duracao,2)} h</p>
-              <p><strong>Água removida:</strong> ${formatNum(difLC)}</p>
-              <p><strong>Taxa total:</strong> ${formatNum(taxaLC)} (L/(h*t))</p>
-              <p><strong>Taxa últimas 10h:</strong> ${formatNum(taxa10h)} (L/(h*t))</p>
-            </div>
-          </div>
-          <hr>
-          <p><strong>Temp. máx. sondas:</strong> ${formatNum(maxTE,2)} ºC</p>
-          <p><strong>Pressão mínima:</strong> ${formatNum(minPE_5_5_1,3)} mbar</p>
-          <p><strong>Vácuo fino mín.:</strong> ${formatNum(minPE_4_17,3)} mbar</p>
-          <hr>
-          <canvas id="graficoTaxa${index}" width="600" height="300" style="background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:15px;"></canvas>
-        </div>`;
+      criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon);
+    });
 
-        criarGraficoTaxaHoraAHora('graficoTaxa'+index, serie, massaiTon);
-      });
+    out.innerHTML = html;
+    document.getElementById('btnExportarPDF').style.display = 'block';
 
-      out.innerHTML = html;
-      document.getElementById('btnExportarPDF').style.display = encontradosGlobais.length ? 'block' : 'none';
-
-    })
-    .catch(err=>{ console.error(err); out.textContent='Erro ao buscar dados do servidor.'; });
+  } catch(err){
+    console.error(err);
+    out.textContent = 'Erro ao consultar a base de dados.';
+  }
 }
 
-// --- gráfico ---
-function criarGraficoTaxaHoraAHora(idCanvas,dadosSerie,massaTon){
-  if(!massaTon||massaTon<=0)return;
-  const dadosPorHora={};
-  dadosSerie.forEach(l=>{const d=new Date(l.DataHora); if(isNaN(d)) return; d.setMinutes(0,0,0); const chave=d.getTime(); if(!dadosPorHora[chave]) dadosPorHora[chave]=[]; const val=Number(l.LC_3_8); if(!isNaN(val)) dadosPorHora[chave].push(val);});
+// Gráfico
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon){
+  if(!massaTon || massaTon<=0) return;
+  const dadosPorHora = {};
+  dadosSerie.forEach(l=>{
+    const d=new Date(l.DataHora);
+    if(isNaN(d)) return;
+    d.setMinutes(0,0,0);
+    const chave=d.getTime();
+    if(!dadosPorHora[chave]) dadosPorHora[chave]=[];
+    const val = parseFloat(l.LC_3_8);
+    if(!isNaN(val)) dadosPorHora[chave].push(val);
+  });
   const chaves=Object.keys(dadosPorHora).sort((a,b)=>a-b);
-  const labels = chaves.map(ts=>{const h=new Date(Number(ts)).getHours(); return `${h+1}h`;});
-  const taxas = chaves.map(ch=>{const vals=dadosPorHora[ch]; if(!vals||vals.length<2)return 0; return (vals[vals.length-1]-vals[0])/massaTon;});
+  const labels = chaves.map(t=>{const h=new Date(Number(t)).getHours(); return `${h+1}h`;});
+  const taxas = chaves.map(chave=>{
+    const v = dadosPorHora[chave];
+    if(!v || v.length<2) return 0;
+    return (v[v.length-1]-v[0])/massaTon;
+  });
   const ctx=document.getElementById(idCanvas);
-  if(!ctx)return;
+  if(!ctx) return;
   if(window[idCanvas+'_chart']) window[idCanvas+'_chart'].destroy();
-  window[idCanvas+'_chart']=new Chart(ctx,{type:'line',data:{labels, datasets:[{label:'Taxa LC por hora (L/(h*t))', data:taxas, borderColor:'rgba(75,192,192,1)', backgroundColor:'rgba(75,192,192,0.5)', fill:false, pointRadius:5, tension:0.2}]}, options:{responsive:true, plugins:{legend:{display:true}}, scales:{x:{title:{display:true,text:'Hora (real)'}}, y:{title:{display:true,text:'Taxa LC (L/(h*t))'}, beginAtZero:true}}}});
+  window[idCanvas+'_chart'] = new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Taxa LC por hora (L/(h*t))',data:taxas,backgroundColor:'rgba(75,192,192,0.5)',borderColor:'rgba(75,192,192,1)',pointRadius:5,fill:false,tension:0.2}]},options:{responsive:true,plugins:{legend:{display:true}},scales:{x:{title:{display:true,text:'Hora (real)'}},y:{title:{display:true,text:'Taxa LC (L/(h*t))'},beginAtZero:true}}}});
 }
 
-// --- export PDF ---
-document.getElementById('btnExportarPDF').addEventListener('click',()=>{
-  const el = document.getElementById('resultado');
+// PDF
+document.getElementById('btnExportarPDF').addEventListener('click', ()=>{
+  const el=document.getElementById('resultado');
   html2canvas(el).then(canvas=>{
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jspdf.jsPDF('p','pt','a4');
-    const w = pdf.internal.pageSize.getWidth();
-    const h = pdf.internal.pageSize.get
+    const img=canvas.toDataURL('image/png');
+    const pdf=new jspdf.jsPDF('p','pt','a4');
+    const w=pdf.internal.pageSize.getWidth();
+    const h=pdf.internal.pageSize.getHeight();
+    const iw=canvas.width;
+    const ih=canvas.height;
+    const ratio=Math.min(w/iw,h/ih);
+    pdf.addImage(img,'PNG',(w-iw*ratio)/2,20,iw*ratio,ih*ratio);
+    pdf.save('resultado_transformadores.pdf');
+  });
+});
+</script>
 
-
+</body>
+</html>
