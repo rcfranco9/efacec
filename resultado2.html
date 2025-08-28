@@ -172,7 +172,29 @@ async function buscarPorNome() {
           bloco.innerHTML += `<p>Fase ${fase} PRem: PF=${pfp} | RF=${rfp} | Índice Pressão=${calculaIndicePressao(pfp,rfp)}</p>`;
         }
       }
-
+ bloco.innerHTML += `<h4>Fases de Secagem</h4>`;
+  const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
+  let primeiraHoraPressaoBaixa = null;
+  for(const l of serieOrdenada){
+    const p = parseFloat(l.PE_5_5_1);
+    if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
+  }
+  bloco.innerHTML += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
+  
+  let dataAnterior = primeiraHoraPressaoBaixa || new Date();
+  for(let fase=1; fase<=6; fase++){
+    const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
+    const rem = parseFloat(serieRef[0][`RF${fase}DRem`]);
+    if(aquec>0 && rem>0){
+      const inicioRem = new Date(dataAnterior.getTime() + aquec*3600000);
+      const fimRem = new Date(inicioRem.getTime() + rem*3600000);
+      bloco.innerHTML += `<p><strong>RF${fase}DRem:</strong> início ${formatarData(inicioRem)}, fim ${formatarData(fimRem)}</p>`;
+      dataAnterior = fimRem;
+    } else {
+      bloco.innerHTML += `<p><strong>A secagem não chegou à fase RF${fase}DRem.</strong></p>`;
+      break;
+    }
+  }
       // Canvas para gráfico
       const canvas = document.createElement('canvas');
       const canvasId = `graficoTaxa_${index}`;
