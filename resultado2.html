@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Debug Chart</title>
+  <title>Transformador com fallback</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h2>Teste do Gráfico</h2>
+  <h2>Consulta Transformador</h2>
 
   <input type="text" id="nomeTrans" placeholder="Nome do Transformador">
   <button onclick="buscarPorNome()">Buscar</button>
@@ -16,7 +16,7 @@
   <canvas id="graficoTaxa" width="600" height="400"></canvas>
 
   <script>
-    let graficoTaxa = null; // variável global para guardar gráfico
+    let graficoTaxa = null;
 
     async function buscarPorNome() {
       const nome = document.getElementById("nomeTrans").value;
@@ -24,9 +24,7 @@
 
       try {
         const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
-        if (!resp.ok) {
-          console.error("❌ Erro na API:", resp.status);
-        }
+        if (!resp.ok) console.error("❌ Erro na API:", resp.status);
 
         const dados = await resp.json();
         console.log("📦 Dados recebidos da API:", dados);
@@ -34,29 +32,35 @@
         let serie = [];
         let massaTon = NaN;
 
-        // 👇 Se a API devolveu um array
+        // Se API devolver array
         if (Array.isArray(dados)) {
           serie = dados;
           massaTon = parseFloat(dados[0]?.massaTon);
-        } 
-        // 👇 Se a API devolveu um objeto
+        }
+        // Se API devolver objeto
         else if (typeof dados === "object" && dados !== null) {
           serie = dados.serie || [];
           massaTon = parseFloat(dados.massaTon);
         }
 
-        console.log("📊 Serie final usada:", serie);
-        console.log("⚖️ MassaTon usada:", massaTon);
+        // fallback se massaTon não existir
+        if (isNaN(massaTon)) {
+          massaTon = 100; // valor padrão
+          console.warn("⚠️ MassaTon não veio da API. Usando 100 t como fallback");
+        }
 
-        if (!serie.length || isNaN(massaTon)) {
-          console.warn("⚠️ API não retornou dados válidos. Nada a exibir.");
+        if (!serie.length) {
+          console.warn("⚠️ Serie vazia. Nada a exibir.");
           return;
         }
 
+        console.log("📊 Serie usada:", serie);
+        console.log("⚖️ MassaTon usada:", massaTon);
+
         criarGraficoTaxaHoraAHora("graficoTaxa", serie, massaTon);
 
-        // Mostrar botão exportar PDF se deu certo
         document.getElementById("btnExportarPDF").style.display = "block";
+
       } catch (e) {
         console.error("❌ Erro no fetch:", e);
       }
@@ -67,48 +71,29 @@
       console.log("dadosSerie recebido:", dadosSerie);
       console.log("massaTon recebido:", massaTon);
 
-      if (!massaTon || massaTon <= 0) {
-        console.warn("⚠️ massaTon inválido:", massaTon);
-        return;
-      }
-
       const canvas = document.getElementById(idCanvas);
       if (!canvas) {
         console.warn(`⚠️ Canvas com id '${idCanvas}' não encontrado.`);
         return;
       }
-      console.log("✅ Canvas encontrado:", canvas);
+
+      if (graficoTaxa) graficoTaxa.destroy();
 
       const ctx = canvas.getContext("2d");
-
-      // destruir gráfico anterior se já existir
-      if (graficoTaxa) {
-        console.log("🗑️ Destruindo gráfico anterior...");
-        graficoTaxa.destroy();
-      }
-
       const dadosPorHora = {};
+
       dadosSerie.forEach(linha => {
         const dataHora = new Date(linha.DataHora);
-        if (isNaN(dataHora)) {
-          console.warn("⚠️ Data inválida encontrada:", linha.DataHora);
-          return;
-        }
+        if (isNaN(dataHora)) return;
         dataHora.setMinutes(0, 0, 0);
         const chaveHora = dataHora.getTime();
         const valorLC = parseFloat(linha.LC_3_8);
-        if (isNaN(valorLC)) {
-          console.warn("⚠️ Valor LC inválido:", linha.LC_3_8);
-          return;
-        }
+        if (isNaN(valorLC)) return;
         if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
         dadosPorHora[chaveHora].push(valorLC);
       });
 
-      console.log("📊 dadosPorHora agrupados:", dadosPorHora);
-
-      const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
-
+      const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b)=>a-b);
       const labelsHoras = [];
       const taxasHoraAHora = [];
       let valorAnterior = null;
@@ -117,22 +102,11 @@
         const hora = new Date(Number(chave)).getHours();
         labelsHoras.push(`${hora}h`);
         const valores = dadosPorHora[chave];
-        const valorAtual = valores[valores.length - 1];
-        if (valorAnterior !== null) {
-          taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
-        } else {
-          taxasHoraAHora.push(0);
-        }
+        const valorAtual = valores[valores.length-1];
+        if (valorAnterior !== null) taxasHoraAHora.push((valorAtual - valorAnterior)/massaTon);
+        else taxasHoraAHora.push(0);
         valorAnterior = valorAtual;
       });
-
-      console.log("🕒 Labels finais:", labelsHoras);
-      console.log("📈 Taxas calculadas:", taxasHoraAHora);
-
-      if (labelsHoras.length === 0 || taxasHoraAHora.length === 0) {
-        console.warn("⚠️ Sem dados suficientes para plotar o gráfico.");
-        return;
-      }
 
       graficoTaxa = new Chart(ctx, {
         type: "line",
@@ -152,18 +126,11 @@
           responsive: true,
           plugins: {
             legend: { position: "top" },
-            title: {
-              display: true,
-              text: "Taxa LC por Hora"
-            }
+            title: { display: true, text: "Taxa LC por Hora" }
           },
           scales: {
-            y: {
-              title: { display: true, text: "Taxa LC L/(h*t)" }
-            },
-            x: {
-              title: { display: true, text: "Hora" }
-            }
+            y: { title: { display:true, text:"Taxa LC L/(h*t)" } },
+            x: { title: { display:true, text:"Hora" } }
           }
         }
       });
