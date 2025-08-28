@@ -86,78 +86,95 @@ function minPE(dados,coluna){
     return valores.length?Math.min(...valores):null;
 }
 
-document.getElementById('btnComparar').addEventListener('click',async()=>{
-    const nome1=document.getElementById('nome1').value.trim();
-    const nome2=document.getElementById('nome2').value.trim();
-    const out=document.getElementById('resultado');
-    if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
+document.getElementById('btnComparar').addEventListener('click', async () => {
+    const nome1 = document.getElementById('nome1').value.trim();
+    const nome2 = document.getElementById('nome2').value.trim();
+    const out = document.getElementById('resultado');
+    
+    if (!nome1 || !nome2) { 
+        out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; 
+        return; 
+    }
 
-    const m1Array=await buscarDados(nome1);
-    const m2Array=await buscarDados(nome2);
-    if(!m1Array?.length||!m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
+    const m1Array = await buscarDados(nome1);
+    const m2Array = await buscarDados(nome2);
 
-    const m1=m1Array[0];
-    const m2=m2Array[0];
+    console.log('m1Array:', m1Array);
+    console.log('m2Array:', m2Array);
 
-    const blocos1=calcTaxaPorHora(m1);
-    const blocos2=calcTaxaPorHora(m2);
+    if (!m1Array?.length || !m2Array?.length) { 
+        out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>'; 
+        return; 
+    }
 
-    const te1=maxTEfromSerie(m1);
-    const te2=maxTEfromSerie(m2);
+    const m1 = m1Array[0] || {};
+    const m2 = m2Array[0] || {};
 
-    const pe1_417=minPE(m1,'PE_4_17');
-    const pe2_417=minPE(m2,'PE_4_17');
-    const pe1_551=minPE(m1,'PE_5_5_1');
-    const pe2_551=minPE(m2,'PE_5_5_1');
+    const meta1 = m1.meta || {};
+    const meta2 = m2.meta || {};
 
-    out.innerHTML=`
+    // Função para pegar valor seguro
+    const valor = (obj, key) => obj[key] !== undefined && obj[key] !== null ? obj[key] : 'N/A';
+
+    const blocos1 = calcTaxaPorHora(m1);
+    const blocos2 = calcTaxaPorHora(m2);
+
+    const te1 = maxTEfromSerie(m1) ?? 'N/A';
+    const te2 = maxTEfromSerie(m2) ?? 'N/A';
+    const pe1_417 = minPE(m1, 'PE_4_17') ?? 'N/A';
+    const pe2_417 = minPE(m2, 'PE_4_17') ?? 'N/A';
+    const pe1_551 = minPE(m1, 'PE_5_5_1') ?? 'N/A';
+    const pe2_551 = minPE(m2, 'PE_5_5_1') ?? 'N/A';
+
+    out.innerHTML = `
     <div class="transformador-dados">
         <h3>${nome1}</h3>
-        <p>ID: ${m1.meta.id_secagenscore ?? 'N/A'}</p>
-        <p>Tensão: ${m1.meta.tensao ?? 'N/A'} kV</p>
-        <p>Potência: ${m1.meta.potencia ?? 'N/A'} kVA</p>
-        <p>Massa transformador: ${m1.meta.massat ?? 'N/A'} kg</p>
-        <p>Massa dos isolantes: ${m1.meta.massai ?? 'N/A'} kg</p>
+        <p>ID: ${valor(meta1,'id_secagenscore')}</p>
+        <p>Tensão: ${valor(meta1,'tensao')} kV</p>
+        <p>Potência: ${valor(meta1,'potencia')} kVA</p>
+        <p>Massa transformador: ${valor(meta1,'massat')} kg</p>
+        <p>Massa dos isolantes: ${valor(meta1,'massai')} kg</p>
     </div>
     <div class="transformador-dados">
         <h3>${nome2}</h3>
-        <p>ID: ${m2.meta.id_secagenscore ?? 'N/A'}</p>
-        <p>Tensão: ${m2.meta.tensao ?? 'N/A'} kV</p>
-        <p>Potência: ${m2.meta.potencia ?? 'N/A'} kVA</p>
-        <p>Massa transformador: ${m2.meta.massat ?? 'N/A'} kg</p>
-        <p>Massa dos isolantes: ${m2.meta.massai ?? 'N/A'} kg</p>
+        <p>ID: ${valor(meta2,'id_secagenscore')}</p>
+        <p>Tensão: ${valor(meta2,'tensao')} kV</p>
+        <p>Potência: ${valor(meta2,'potencia')} kVA</p>
+        <p>Massa transformador: ${valor(meta2,'massat')} kg</p>
+        <p>Massa dos isolantes: ${valor(meta2,'massai')} kg</p>
     </div>
     <h3>Comparação</h3>
     <table>
         <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-        <tr><td>Duração total (h)</td><td>${m1.meta.duracao ?? 'N/A'}</td><td>${m2.meta.duracao ?? 'N/A'}</td></tr>
-        <tr><td>Quantidade de água removida (L)</td><td>${m1.meta.aguaRemovida ?? 'N/A'}</td><td>${m2.meta.aguaRemovida ?? 'N/A'}</td></tr>
-        <tr><td>Taxa total (L/(h*t))</td><td>${m1.meta.taxaTotal ?? 'N/A'}</td><td>${m2.meta.taxaTotal ?? 'N/A'}</td></tr>
-        <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
+        <tr><td>Duração total (h)</td><td>${valor(meta1,'duracao')}</td><td>${valor(meta2,'duracao')}</td></tr>
+        <tr><td>Quantidade de água removida (L)</td><td>${valor(meta1,'aguaRemovida')}</td><td>${valor(meta2,'aguaRemovida')}</td></tr>
+        <tr><td>Taxa total (L/(h*t))</td><td>${valor(meta1,'taxaTotal')}</td><td>${valor(meta2,'taxaTotal')}</td></tr>
+        <tr><td>Maior temperatura (ºC)</td><td>${te1}</td><td>${te2}</td></tr>
+        <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417}</td><td>${pe2_417}</td></tr>
+        <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551}</td><td>${pe2_551}</td></tr>
     </table>
     `;
 
     // --- Gráficos ---
-    const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
-    if(window.chartTaxas1) window.chartTaxas1.destroy();
-    window.chartTaxas1=new Chart(ctx1,{
-        type:'line',
-        data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:nome1, data:blocos1.map(b=>b.taxa), borderColor:'rgba(41,128,185,1)', backgroundColor:'rgba(41,128,185,0.2)'}]},
-        options:{responsive:true, plugins:{legend:{display:true}}}
+    const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+    if (window.chartTaxas1) window.chartTaxas1.destroy();
+    window.chartTaxas1 = new Chart(ctx1, {
+        type: 'line',
+        data: { labels: blocos1.map(b => b.intervalo), datasets: [{ label: nome1, data: blocos1.map(b => b.taxa), borderColor: 'rgba(41,128,185,1)', backgroundColor: 'rgba(41,128,185,0.2)' }] },
+        options: { responsive: true, plugins: { legend: { display: true } } }
     });
 
-    const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
-    if(window.chartTaxas2) window.chartTaxas2.destroy();
-    window.chartTaxas2=new Chart(ctx2,{
-        type:'line',
-        data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:nome2, data:blocos2.map(b=>b.taxa), borderColor:'rgba(231,76,60,1)', backgroundColor:'rgba(231,76,60,0.2)'}]},
-        options:{responsive:true, plugins:{legend:{display:true}}}
+    const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+    if (window.chartTaxas2) window.chartTaxas2.destroy();
+    window.chartTaxas2 = new Chart(ctx2, {
+        type: 'line',
+        data: { labels: blocos2.map(b => b.intervalo), datasets: [{ label: nome2, data: blocos2.map(b => b.taxa), borderColor: 'rgba(231,76,60,1)', backgroundColor: 'rgba(231,76,60,0.2)' }] },
+        options: { responsive: true, plugins: { legend: { display: true } } }
     });
 
-    document.getElementById("btnExportarPDF").style.display='block';
+    document.getElementById("btnExportarPDF").style.display = 'block';
 });
+
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF('p','pt','a4');
