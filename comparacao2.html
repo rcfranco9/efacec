@@ -140,8 +140,8 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     <h3>Comparação</h3>
     <table>
         <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-        <tr><td>Duração total (h)</td><td>${m1.duracao ?? 'N/A'}</td><td>${m2.duracao ?? 'N/A'}</td></tr>
-        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida ?? 'N/A'}</td><td>${m2.aguaRemovida ?? 'N/A'}</td></tr>
+        <tr><td>Duração total (h)</td><td>${m1.duracao}</td><td>${m2.duracao}</td></tr>
+        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida}</td><td>${m2.aguaRemovida}</td></tr>
         <tr><td>Taxa total (L/(h*t))</td><td>${m1.taxaTotal ?? 'N/A'}</td><td>${m2.taxaTotal ?? 'N/A'}</td></tr>
         <tr><td>Maior temperatura (ºC)</td><td>${m1.maxTE ?? 'N/A'}</td><td>${m2.maxTE ?? 'N/A'}</td></tr>
         <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${m1.minPE_4_17 ?? 'N/A'}</td><td>${m2.minPE_4_17 ?? 'N/A'}</td></tr>
