@@ -67,23 +67,33 @@ function getSerie(dados){
     .sort((a,b)=>a.ts-b.ts);
 }
 
-function calcTaxa(massaKg,dados){
-  const serie=getSerie(dados);
-  if(serie.length<2) return { delta10h:0, taxa10h:0, deltaTotal:0, taxaTotal:0, duracao:0 };
+function calcTaxa(massaKg, dados){
+  const serie = getSerie(dados);
+  if(serie.length < 2) 
+    return { delta10h:0, taxa10h:0, deltaTotal:0, taxaTotal:0, duracao:0 };
 
-  const ton=safeNum(massaKg)/1000 || 1;
-  const primeiro=serie[0], ultimo=serie[serie.length-1];
+  const ton = safeNum(massaKg)/1000 || 1;
+  const primeiro = serie[0], ultimo = serie[serie.length-1];
 
-  const deltaTotal=+(ultimo.lc-primeiro.lc).toFixed(3);
-  const duracao=(ultimo.ts-primeiro.ts)/3600000;
-  const taxaTotal=+(deltaTotal/(duracao*ton)).toFixed(4);
+  // --- usar datainicio e datafim se existirem ---
+  let duracao = 0;
+  if(dados.datainicio && dados.datafim){
+    const ini = new Date(dados.datainicio.replace(' ','T')).getTime();
+    const fim = new Date(dados.datafim.replace(' ','T')).getTime();
+    duracao = (fim - ini)/3600000; // em horas
+  } else {
+    duracao = (ultimo.ts - primeiro.ts)/3600000; // fallback
+  }
 
-  const alvo=ultimo.ts-10*3600*1000;
-  const anterior10h=serie.reduce((acc,r)=>r.ts<=alvo?r:acc,primeiro);
-  const delta10h=+(ultimo.lc-anterior10h.lc).toFixed(3);
-  const taxa10h=+(delta10h/(10*ton)).toFixed(4);
+  const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
+  const taxaTotal = duracao > 0 ? +(deltaTotal / (duracao*ton)).toFixed(4) : 0;
 
-  return { delta10h,taxa10h,deltaTotal,taxaTotal,duracao:+duracao.toFixed(2) };
+  const alvo = ultimo.ts - 10*3600*1000;
+  const anterior10h = serie.reduce((acc,r)=>r.ts<=alvo?r:acc,primeiro);
+  const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
+  const taxa10h = +(delta10h / (10*ton)).toFixed(4);
+
+  return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao:+duracao.toFixed(2) };
 }
 
 function calcTaxaPorHora(dados,massaKg){
