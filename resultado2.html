@@ -31,23 +31,27 @@
         const dados = await resp.json();
         console.log("📦 Dados recebidos da API:", dados);
 
-        let serie = dados.serie || [];
-        let massaTon = parseFloat(dados.massaTon);
+        let serie = [];
+        let massaTon = NaN;
 
-        // Fallback se API não retornar válido
-        if (!serie.length || isNaN(massaTon)) {
-          console.warn("⚠️ Usando MOCK de dados porque API não retornou válido");
-          massaTon = 100; // massa fictícia
-          serie = [
-            { DataHora: "2025-08-28T10:00:00", LC_3_8: 100 },
-            { DataHora: "2025-08-28T11:00:00", LC_3_8: 120 },
-            { DataHora: "2025-08-28T12:00:00", LC_3_8: 160 },
-            { DataHora: "2025-08-28T13:00:00", LC_3_8: 190 }
-          ];
+        // 👇 Se a API devolveu um array
+        if (Array.isArray(dados)) {
+          serie = dados;
+          massaTon = parseFloat(dados[0]?.massaTon);
+        } 
+        // 👇 Se a API devolveu um objeto
+        else if (typeof dados === "object" && dados !== null) {
+          serie = dados.serie || [];
+          massaTon = parseFloat(dados.massaTon);
         }
 
         console.log("📊 Serie final usada:", serie);
         console.log("⚖️ MassaTon usada:", massaTon);
+
+        if (!serie.length || isNaN(massaTon)) {
+          console.warn("⚠️ API não retornou dados válidos. Nada a exibir.");
+          return;
+        }
 
         criarGraficoTaxaHoraAHora("graficoTaxa", serie, massaTon);
 
