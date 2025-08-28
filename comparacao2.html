@@ -123,6 +123,7 @@ function minPE(dados,coluna){
 }
 
 // -------------------- Comparar --------------------
+// -------------------- Comparar --------------------
 document.getElementById('btnComparar').addEventListener('click',async()=>{
   const nome1=document.getElementById('nome1').value.trim();
   const nome2=document.getElementById('nome2').value.trim();
@@ -136,11 +137,24 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   const m1=m1Array[0].meta || {};
   const m2=m2Array[0].meta || {};
 
+  // Validar massa
+  if(!m1.massai || parseNum(m1.massai)<=0 || !m2.massai || parseNum(m2.massai)<=0){
+    out.innerHTML='<p>Massa de isolantes inválida para um dos transformadores.</p>'; 
+    return;
+  }
+
+  // Validar série
+  if(!(m1.serie?.length>=2 && m1.serie.some(r=>r.LC_3_8)) ||
+     !(m2.serie?.length>=2 && m2.serie.some(r=>r.LC_3_8))){
+    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas.</p>'; 
+    return;
+  }
+
   const t1=calcTaxa(m1.id_secagenscore,m1.massai,m1);
   const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
 
   if(!t1 || !t2){ out.innerHTML='<p>Erro ao calcular taxas.</p>'; return; }
-
+  
   const te1=maxTEfromSerie(m1);
   const te2=maxTEfromSerie(m2);
   const pe1_417=minPE(m1,'PE_4_17');
