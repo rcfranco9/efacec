@@ -21,7 +21,7 @@ button:hover { background-color: #2980b9; }
 .bloco-transformador:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
 p, li { margin: 3px 0; font-size: 14px; }
 canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10px; }
-#btnExportarPDF { display: block; background-color: #27ae60; margin: 0 auto 30px auto; }
+#btnExportarPDF { display: none; background-color: #27ae60; margin: 0 auto 30px auto; }
 #btnExportarPDF:hover { background-color: #1e8449; }
 </style>
 </head>
@@ -36,7 +36,7 @@ canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10p
 <h3>Gráfico Taxa L/(h*t) por hora</h3>
 <canvas id="graficoTaxa" width="600" height="300"></canvas>
   
-<button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
+<button id="btnExportarPDF">Exportar PDF</button>
 
 <script>
 function formatNum(v, dec = 3) {
@@ -157,6 +157,10 @@ async function buscarPorNome() {
     html += `</div>`;
     out.innerHTML = html;
 
+    // Mostrar botão exportar PDF
+    document.getElementById("btnExportarPDF").style.display = "block";
+
+    // Criar gráfico
     criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTotal/1000);
 
   } catch(err) {
@@ -204,11 +208,12 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     valorAnterior = valorAtual;
   });
 
-  const ctx = document.getElementById(idCanvas);
-  if (!ctx) {
+  const canvas = document.getElementById(idCanvas);
+  if (!canvas) {
     console.warn(`Canvas com id '${idCanvas}' não encontrado.`);
     return;
   }
+  const ctx = canvas.getContext("2d");
 
   new Chart(ctx, {
     type: 'line',
@@ -250,8 +255,6 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     }
   });
 }
-
-
 
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
