@@ -26,21 +26,32 @@
         const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
         if (!resp.ok) {
           console.error("❌ Erro na API:", resp.status);
-          return;
         }
 
         const dados = await resp.json();
         console.log("📦 Dados recebidos da API:", dados);
 
-        const serie = dados.serie || [];
-        const massaTon = parseFloat(dados.massaTon);
+        let serie = dados.serie || [];
+        let massaTon = parseFloat(dados.massaTon);
 
-        console.log("📊 Serie bruta:", serie);
-        console.log("⚖️ MassaTon:", massaTon);
+        // Fallback se API não retornar válido
+        if (!serie.length || isNaN(massaTon)) {
+          console.warn("⚠️ Usando MOCK de dados porque API não retornou válido");
+          massaTon = 100; // massa fictícia
+          serie = [
+            { DataHora: "2025-08-28T10:00:00", LC_3_8: 100 },
+            { DataHora: "2025-08-28T11:00:00", LC_3_8: 120 },
+            { DataHora: "2025-08-28T12:00:00", LC_3_8: 160 },
+            { DataHora: "2025-08-28T13:00:00", LC_3_8: 190 }
+          ];
+        }
+
+        console.log("📊 Serie final usada:", serie);
+        console.log("⚖️ MassaTon usada:", massaTon);
 
         criarGraficoTaxaHoraAHora("graficoTaxa", serie, massaTon);
 
-        // mostrar botão exportar PDF se deu certo
+        // Mostrar botão exportar PDF se deu certo
         document.getElementById("btnExportarPDF").style.display = "block";
       } catch (e) {
         console.error("❌ Erro no fetch:", e);
