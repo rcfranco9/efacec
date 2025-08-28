@@ -1,1 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel Técnico - Efacec</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #f5f7fa;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px;
+    }
+
+    .header {
+      max-width: 960px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #2a2f3c;
+    }
+
+    .header p {
+      font-size: 15px;
+      color: #4b5563;
+      line-height: 1.6;
+    }
+
+    .container {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 960px;
+      width: 100%;
+    }
+
+    .card {
+      background-color: #f9fbfd;
+      border: 1px solid #e3e7ec;
+      border-radius: 12px;
+      width: 280px;
+      height: 180px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+      transform: translateY(-4px);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Painel Técnico – Transformadores Efacec</h1>
+    <p>Bem-vindo ao sistema de análise e comparação de transformadores. Escolha uma opção abaixo para consultar resultados técnicos, aplicar filtros ou comparar unidades.</p>
+  </div>
+
+  <div class="container">
+    <!-- Card 1: Ver Resultados -->
+    <a class="card" href="resultado.html">
+      <h2>Ver Resultados</h2>
+      <p>Consulta os dados do transformador. O utilizador irá inserir manualmente o subprojeto na página de resultados.</p>
+    </a>
+
+    <!-- Card 2: Comparar Transformadores -->
+    <a class="card" href="comparacao.html">
+      <h2>Comparar Transformadores</h2>
+      <p>Seleciona dois transformadores e compara os seus indicadores técnicos de forma detalhada.</p>
+    </a>
+
+    <!-- Card 3: Aplicar Filtros -->
+    <a class="card" href="comparacaoparcial.html">
+      <h2>Aplicar Filtros</h2>
+      <p>Filtra os transformadores por potência e tensão para análise rápida.</p>
+    </a>
+  </div>
+
+</body>
+</html>
 
