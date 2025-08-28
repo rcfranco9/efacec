@@ -226,7 +226,7 @@ async function buscarPorNome() {
     // --- Criar gráfico taxa hora a hora ---
     criarGraficoTaxaHoraAHora('graficoTaxa', serie, meta);
     document.getElementById('btnExportarPDF').style.display='block';
-
+    });
   } catch(err) {
     console.error(err);
     out.textContent = 'Erro ao buscar os dados.';
