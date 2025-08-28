@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Comparar Transformadores</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <style>
-    body { font-family:'Segoe UI', sans-serif; max-width:900px; margin:40px auto; background:#f7f7f7; padding:30px; border-radius:10px; }
-    h1{text-align:center;color:#2c3e50;}
-    label{display:block;margin-top:20px;font-weight:600;}
-    input,button{padding:10px;width:100%;margin-top:8px;border-radius:5px;border:1px solid #bbb;}
-    button{background:#2980b9;color:#fff;cursor:pointer;font-weight:bold;}
-    button:hover{background:#3498db;}
-    #resultado{margin-top:30px;padding:20px;background:#fff;border:2px solid #ccc;border-radius:8px;overflow-x:auto;}
-    .transformador-dados{margin-bottom:20px;padding:15px;background:#ecf0f1;border-radius:6px;}
-    .transformador-dados h3{margin-top:0;color:#2980b9;}
-    table{width:100%;border-collapse:collapse;margin-top:20px;}
-    th,td{padding:10px;border-bottom:1px solid #ccc;text-align:center;}
-    th{background:#2980b9;color:white;}
-  </style>
+<meta charset="UTF-8">
+<title>Comparar Transformadores</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+body { font-family:'Segoe UI', sans-serif; max-width:900px; margin:40px auto; background:#f7f7f7; padding:30px; border-radius:10px; }
+h1{text-align:center;color:#2c3e50;}
+label{display:block;margin-top:20px;font-weight:600;}
+input,button{padding:10px;width:100%;margin-top:8px;border-radius:5px;border:1px solid #bbb;}
+button{background:#2980b9;color:#fff;cursor:pointer;font-weight:bold;}
+button:hover{background:#3498db;}
+#resultado{margin-top:30px;padding:20px;background:#fff;border:2px solid #ccc;border-radius:8px;overflow-x:auto;}
+.transformador-dados{margin-bottom:20px;padding:15px;background:#ecf0f1;border-radius:6px;}
+.transformador-dados h3{margin-top:0;color:#2980b9;}
+table{width:100%;border-collapse:collapse;margin-top:20px;}
+th,td{padding:10px;border-bottom:1px solid #ccc;text-align:center;}
+th{background:#2980b9;color:white;}
+</style>
 </head>
 <body>
 
@@ -40,195 +40,131 @@
 <button id="btnExportarPDF" style="display:none;margin-top:15px;">Exportar PDF</button>
 
 <script>
-// -------------------- Auxiliares --------------------
-function safeNum(v, def=NaN){
-  const n=parseFloat((v||'').toString().replace(',','.').trim());
-  return isNaN(n)?def:n;
-}
+function safeNum(v, def=NaN){ return isNaN(v=parseFloat((v||'').toString().replace(',','.').trim()))?def:v; }
 
-// -------------------- API --------------------
 async function buscarDados(subprojeto){
-  try{
-    const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
-    if(!resp.ok) throw new Error("Transformador não encontrado");
-    const data = await resp.json();
-    return Array.isArray(data)?data:null;
-  }catch(err){ 
-    console.error(err); 
-    return null; 
-  }
+    try{
+        const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
+        if(!resp.ok) throw new Error("Transformador não encontrado");
+        const data = await resp.json();
+        return Array.isArray(data)?data:null;
+    }catch(err){ console.error(err); return null; }
 }
 
-// -------------------- Séries e cálculos --------------------
-function getSerie(dados){ 
-  return (dados.serie||[])
-    .map(r => ({ ts:new Date(r.DataHora.replace(' ','T')).getTime(), lc:safeNum(r.LC_3_8) }))
-    .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
-    .sort((a,b)=>a.ts-b.ts);
+function getSerie(dados){
+    return (dados.serie||[]).map(r => ({ ts:new Date(r.DataHora.replace(' ','T')).getTime(), lc:safeNum(r.LC_3_8) }))
+        .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
+        .sort((a,b)=>a.ts-b.ts);
 }
 
-function calcTaxa(massaKg, dados){
-  const serie = getSerie(dados);
-  if(serie.length < 2) 
-    return { delta10h:0, taxa10h:0, deltaTotal:0, taxaTotal:0, duracao:0 };
-
-  const ton = safeNum(massaKg)/1000 || 1;
-  const primeiro = serie[0], ultimo = serie[serie.length-1];
-
-  // --- usar datainicio e datafim se existirem ---
-  let duracao = 0;
-  if(dados.datainicio && dados.datafim){
-    const ini = new Date(dados.datainicio.replace(' ','T')).getTime();
-    const fim = new Date(dados.datafim.replace(' ','T')).getTime();
-    duracao = (fim - ini)/3600000; // em horas
-  } else {
-    duracao = (ultimo.ts - primeiro.ts)/3600000; // fallback
-  }
-
-  const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
-  const taxaTotal = duracao > 0 ? +(deltaTotal / (duracao*ton)).toFixed(4) : 0;
-
-  const alvo = ultimo.ts - 10*3600*1000;
-  const anterior10h = serie.reduce((acc,r)=>r.ts<=alvo?r:acc,primeiro);
-  const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
-  const taxa10h = +(delta10h / (10*ton)).toFixed(4);
-
-  return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao:+duracao.toFixed(2) };
-}
-
-function calcTaxaPorHora(dados,massaKg){
-  const serie=getSerie(dados);
-  if(serie.length<2) return [];
-  const ton=safeNum(massaKg)/1000||1;
-  const blocos=[];
-
-  for(let i=1;i<serie.length;i++){
-    const ini=serie[i-1], fim=serie[i];
-    const delta=+(fim.lc-ini.lc).toFixed(3);
-    const taxa=+(delta/ton).toFixed(4);
-    const horaLabel=new Date(fim.ts).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-    blocos.push({intervalo:horaLabel, taxa});
-  }
-  return blocos;
+function calcTaxaPorHora(dados){
+    const serie=getSerie(dados);
+    if(serie.length<2) return [];
+    const blocos=[];
+    for(let i=1;i<serie.length;i++){
+        const ini=serie[i-1], fim=serie[i];
+        const delta=+(fim.lc-ini.lc).toFixed(3);
+        blocos.push({intervalo:new Date(fim.ts).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}), taxa:+delta.toFixed(4)});
+    }
+    return blocos;
 }
 
 function maxTEfromSerie(dados){
-  const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-  const valores=[];
-  (dados.serie||[]).forEach(linha=>{
-    cols.forEach(col=>{
-      const val=safeNum(linha[col]);
-      if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
-    });
-  });
-  return valores.length?Math.max(...valores):null;
+    const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+    const valores=[];
+    (dados.serie||[]).forEach(linha=>cols.forEach(col=>{
+        const val=safeNum(linha[col]);
+        if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
+    }));
+    return valores.length?Math.max(...valores):null;
 }
 
 function minPE(dados,coluna){ 
-  const valores=(dados.serie||[]).map(r=>safeNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
-  return valores.length?Math.min(...valores):null;
+    const valores=(dados.serie||[]).map(r=>safeNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
+    return valores.length?Math.min(...valores):null;
 }
 
-// -------------------- Comparar --------------------
 document.getElementById('btnComparar').addEventListener('click',async()=>{
-  const nome1=document.getElementById('nome1').value.trim();
-  const nome2=document.getElementById('nome2').value.trim();
-  const out=document.getElementById('resultado');
-  if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
+    const nome1=document.getElementById('nome1').value.trim();
+    const nome2=document.getElementById('nome2').value.trim();
+    const out=document.getElementById('resultado');
+    if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
 
-  const m1Array=await buscarDados(nome1);
-  const m2Array=await buscarDados(nome2);
-  if(!m1Array?.length||!m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
+    const m1Array=await buscarDados(nome1);
+    const m2Array=await buscarDados(nome2);
+    if(!m1Array?.length||!m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
 
-  const m1=m1Array[0].meta||{};
-  const m2=m2Array[0].meta||{};
+    const m1=m1Array[0].meta||{}, m2=m2Array[0].meta||{};
+    const blocos1=calcTaxaPorHora(m1), blocos2=calcTaxaPorHora(m2);
+    const te1=maxTEfromSerie(m1), te2=maxTEfromSerie(m2);
+    const pe1_417=minPE(m1,'PE_4_17'), pe2_417=minPE(m2,'PE_4_17');
+    const pe1_551=minPE(m1,'PE_5_5_1'), pe2_551=minPE(m2,'PE_5_5_1');
 
-  const t1=calcTaxa(m1.massai,m1);
-  const t2=calcTaxa(m2.massai,m2);
+    out.innerHTML=`
+    <div class="transformador-dados">
+        <h3>${nome1}</h3>
+        <p>ID: ${m1.id_secagenscore ?? 'N/A'}</p>
+        <p>Tensão: ${m1.tensao ?? 'N/A'} kV</p>
+        <p>Potência: ${m1.potencia ?? 'N/A'} kVA</p>
+        <p>Massa transformador: ${m1.massat ?? 'N/A'} kg</p>
+        <p>Massa dos isolantes: ${m1.massai ?? 'N/A'} kg</p>
+    </div>
+    <div class="transformador-dados">
+        <h3>${nome2}</h3>
+        <p>ID: ${m2.id_secagenscore ?? 'N/A'}</p>
+        <p>Tensão: ${m2.tensao ?? 'N/A'} kV</p>
+        <p>Potência: ${m2.potencia ?? 'N/A'} kVA</p>
+        <p>Massa transformador: ${m2.massat ?? 'N/A'} kg</p>
+        <p>Massa dos isolantes: ${m2.massai ?? 'N/A'} kg</p>
+    </div>
+    <h3>Comparação</h3>
+    <table>
+        <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
+        <tr><td>Duração total (h)</td><td>${m1.duracao ?? 'N/A'}</td><td>${m2.duracao ?? 'N/A'}</td></tr>
+        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida ?? 'N/A'}</td><td>${m2.aguaRemovida ?? 'N/A'}</td></tr>
+        <tr><td>Taxa total (L/(h*t))</td><td>${m1.taxaTotal ?? 'N/A'}</td><td>${m2.taxaTotal ?? 'N/A'}</td></tr>
+        <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
+        <tr><td>Menor pressão (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
+        <tr><td>Menor vácuo fino (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
+    </table>
+    `;
 
-  const te1=maxTEfromSerie(m1);
-  const te2=maxTEfromSerie(m2);
-  const pe1_417=minPE(m1,'PE_4_17');
-  const pe2_417=minPE(m2,'PE_4_17');
-  const pe1_551=minPE(m1,'PE_5_5_1');
-  const pe2_551=minPE(m2,'PE_5_5_1');
+    // --- Gráficos ---
+    const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
+    if(window.chartTaxas1) window.chartTaxas1.destroy();
+    window.chartTaxas1=new Chart(ctx1,{
+        type:'line',
+        data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:nome1, data:blocos1.map(b=>b.taxa), borderColor:'rgba(41,128,185,1)', backgroundColor:'rgba(41,128,185,0.2)'}]},
+        options:{responsive:true, plugins:{legend:{display:true}}}
+    });
 
-  const blocos1=calcTaxaPorHora(m1,m1.massai);
-  const blocos2=calcTaxaPorHora(m2,m2.massai);
+    const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
+    if(window.chartTaxas2) window.chartTaxas2.destroy();
+    window.chartTaxas2=new Chart(ctx2,{
+        type:'line',
+        data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:nome2, data:blocos2.map(b=>b.taxa), borderColor:'rgba(231,76,60,1)', backgroundColor:'rgba(231,76,60,0.2)'}]},
+        options:{responsive:true, plugins:{legend:{display:true}}}
+    });
 
-  // --- HTML ---
-  out.innerHTML=`
-  <div class="transformador-dados">
-    <h3>${nome1}</h3>
-    <p>ID: ${m1.id_secagenscore ?? 'N/A'}</p>
-    <p>Tensão: ${m1.tensao ?? 'N/A'} kV</p>
-    <p>Potência: ${m1.potencia ?? 'N/A'} kVA</p>
-    <p>Massa transformador: ${m1.massat ?? 'N/A'} kg</p>
-    <p>Massa dos isolantes: ${m1.massai ?? 'N/A'} kg</p>
-  </div>
-  <div class="transformador-dados">
-    <h3>${nome2}</h3>
-    <p>ID: ${m2.id_secagenscore ?? 'N/A'}</p>
-    <p>Tensão: ${m2.tensao ?? 'N/A'} kV</p>
-    <p>Potência: ${m2.potencia ?? 'N/A'} kVA</p>
-    <p>Massa transformador: ${m2.massat ?? 'N/A'} kg</p>
-    <p>Massa dos isolantes: ${m2.massai ?? 'N/A'} kg</p>
-  </div>
-
-  <h3>Comparação</h3>
-  <table>
-    <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-    <tr><td>Duração total (h)</td><td>${t1.duracao}</td><td>${t2.duracao}</td></tr>
-    <tr><td>Quantidade de água removida (L)</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
-    <tr><td>Taxa total (L/(h*t))</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
-    <tr><td>Taxa últimas 10h (L/(h*t))</td><td>${t1.taxa10h}</td><td>${t2.taxa10h}</td></tr>
-    <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
-    <tr><td>Menor pressão (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
-    <tr><td>Menor vácuo fino (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
-  </table>
-  `;
-
-  // --- Gráficos ---
-  const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
-  if(window.chartTaxas1) window.chartTaxas1.destroy();
-  window.chartTaxas1=new Chart(ctx1,{
-    type:'line',
-    data:{labels:blocos1.map(b=>b.intervalo),
-      datasets:[{label:nome1,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)'}]},
-    options:{responsive:true,plugins:{legend:{display:true}}}
-  });
-
-  const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
-  if(window.chartTaxas2) window.chartTaxas2.destroy();
-  window.chartTaxas2=new Chart(ctx2,{
-    type:'line',
-    data:{labels:blocos2.map(b=>b.intervalo),
-      datasets:[{label:nome2,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)'}]},
-    options:{responsive:true,plugins:{legend:{display:true}}}
-  });
-
-  document.getElementById("btnExportarPDF").style.display='block';
+    document.getElementById("btnExportarPDF").style.display='block';
 });
 
-// -------------------- Exportar PDF --------------------
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
-  const { jsPDF }=window.jspdf;
-  const doc=new jsPDF('p','pt','a4');
-  const elements=[document.getElementById("resultado"),document.getElementById("graficoTaxas1"),document.getElementById("graficoTaxas2")];
-  
-  let y=20;
-  for(const el of elements){
-    const canvas=await html2canvas(el);
-    const img=canvas.toDataURL("image/png");
-    const w=doc.internal.pageSize.getWidth();
-    const h=(canvas.height*w)/canvas.width;
-    if(y+h>doc.internal.pageSize.getHeight()){ doc.addPage(); y=20; }
-    doc.addImage(img,'PNG',0,y,w,h);
-    y+=h+20;
-  }
-  doc.save("comparacao_transformadores.pdf");
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF('p','pt','a4');
+    const elements=[document.getElementById("resultado"),document.getElementById("graficoTaxas1"),document.getElementById("graficoTaxas2")];
+    let y=20;
+    for(const el of elements){
+        const canvas=await html2canvas(el);
+        const img=canvas.toDataURL("image/png");
+        const w=doc.internal.pageSize.getWidth();
+        const h=(canvas.height*w)/canvas.width;
+        if(y+h>doc.internal.pageSize.getHeight()){ doc.addPage(); y=20; }
+        doc.addImage(img,'PNG',0,y,w,h);
+        y+=h+20;
+    }
+    doc.save("comparacao_transformadores.pdf");
 });
 </script>
-
 </body>
 </html>
