@@ -149,8 +149,8 @@ async function buscarPorNome() {
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
     html += `<p><strong>Potência:</strong> ${meta.potencia || 0} kVA</p>`;
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
-    html += `<p><strong>Massa transformador:</strong> ${meta.massaTotal || 0} kg</p>`;
-    html += `<p><strong>Massa isolantes:</strong> ${meta.massaIsolantes || 0} t</p>`;
+    html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
+    html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
     html += `<p><strong>Duração total:</strong> ${meta.duracao || 0} h</p>`;
     html += `<p><strong>Água removida:</strong> ${meta.aguaRemovida || 0} L</p>`;
     html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal || 0} L/(h*t)</p>`;
