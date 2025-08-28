@@ -103,10 +103,9 @@ function calcTaxa(id, massaKg, dados){
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
 
-
 function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
   const serie = getSerie(dados);
-  if(serie.length<2) return [];
+  if(serie.length<1) return [];
   const ton=parseNum(massaKg)/1000||1;
   const blocos=[];
   const tIniGlobal=serie[0].ts;
@@ -135,7 +134,7 @@ function maxTEfromSerie(dados){
   (dados.serie||[]).forEach(linha=>{
     colunas.forEach(col=>{
       const val=parseNum(linha[col]);
-      if(!isNaN(val)&&val>0&&val<=140) valores.push(val);
+      if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
     });
   });
   return valores.length>0?Math.max(...valores):null;
@@ -160,15 +159,14 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   const m1=m1Array[0].meta || {};
   const m2=m2Array[0].meta || {};
 
-  // Validar massa
   if(!m1.massai || parseNum(m1.massai)<=0 || !m2.massai || parseNum(m2.massai)<=0){
     out.innerHTML='<p>Massa de isolantes inválida para um dos transformadores.</p>'; 
     return;
   }
 
-  // Validar série
+  // Validar série: agora aceita séries com apenas 1 ponto
   if(!hasSerieValida(m1) || !hasSerieValida(m2)){
-    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas. Necessário pelo menos 2 pontos com valores.</p>'; 
+    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas.</p>'; 
     return;
   }
 
@@ -238,7 +236,6 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   `;
   document.getElementById("btnExportarPDF").style.display='block';
 });
-
 
 // -------------------- Exportar PDF --------------------
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
