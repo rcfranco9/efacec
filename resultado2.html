@@ -240,7 +240,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
   let valorAnterior = null;
 
   chavesOrdenadas.forEach(chave=>{
-    const hora = new Date(Number(chave)).getHours();
+    const hora = new Date(Number(chave)).getHours()+1;
     labelsHoras.push(`${hora}h`);
     const valores=dadosPorHora[chave];
     const valorAtual=valores[valores.length-1];
