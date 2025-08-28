@@ -65,24 +65,27 @@ async function buscarDados(subprojeto){
 // -------------------- Cálculos --------------------
 function getSerie(dados){ 
   return (dados.serie||[])
-    .map(r => ({ ts: new Date(r.DataHora.replace(' ','T')).getTime(), lc: parseNum(r.LC_3_8) }))
-    .filter(r => !isNaN(r.ts) && !isNaN(r.lc)) // 0 é válido
+    .map(r => ({ 
+       ts: new Date((r.DataHora||'').replace(' ','T')).getTime(), 
+       lc: parseNum(r.LC_3_8) || 0  // valores vazios passam a 0
+    }))
+    .filter(r => !isNaN(r.ts))
     .sort((a, b) => a.ts - b.ts);
 }
 
 function calcTaxa(id, massaKg, dados){
   const serie = getSerie(dados);
-  if(serie.length === 0) return null;
+  if(serie.length === 0) return { delta10h:0, taxa10h:0, deltaTotal:0, taxaTotal:0, duracao:1 };
 
-  const ton = parseNum(massaKg)/1000 || 1; // kg -> toneladas
+  const ton = parseNum(massaKg)/1000 || 1; 
   const primeiro = serie[0];
   const ultimo = serie[serie.length - 1];
 
-  const deltaTotal = serie.length > 1 ? +(ultimo.lc - primeiro.lc).toFixed(3) : 0;
+  const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
   const duracao = serie.length > 1 ? (ultimo.ts - primeiro.ts) / 3600000 : 1;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
-  const alvo = ultimo.ts - 10*3600*1000;
+  const alvo = ultimo.ts - 10*3600*1000; 
   const anterior10h = serie.find(r => r.ts <= alvo) || primeiro;
   const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
@@ -97,20 +100,16 @@ function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
   const blocos=[];
   const tIniGlobal=serie[0].ts;
   const tFimGlobal=serie[serie.length-1].ts;
-  const horas=Math.floor((tFimGlobal-tIniGlobal)/(3600*1000));
+  const horas=Math.floor((tFimGlobal-tIniGlobal)/(3600*1000)) || 1;
   for(let i=1;i<=horas;i++){
     const tIni=tIniGlobal+(i-1)*3600*1000;
     const tFim=tIniGlobal+i*3600*1000;
-    const anterior=serie.find(r=>r.ts<=tIni);
-    const atual=serie.find(r=>r.ts<=tFim);
+    const anterior=serie.find(r=>r.ts<=tIni) || serie[0];
+    const atual=serie.find(r=>r.ts<=tFim) || serie[serie.length-1];
     const horaLabel=new Date(tFim).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-    if(anterior && atual && atual.ts>anterior.ts){
-      const delta=+(atual.lc-anterior.lc).toFixed(3);
-      const taxa=+(delta/ton).toFixed(4);
-      blocos.push({intervalo:horaLabel,delta,taxa});
-    } else { 
-      blocos.push({intervalo:horaLabel,delta:'N/A',taxa:'N/A'}); 
-    }
+    const delta=+(atual.lc-anterior.lc).toFixed(3);
+    const taxa=+(delta/ton).toFixed(4);
+    blocos.push({intervalo:horaLabel,delta,taxa});
   }
   return blocos;
 }
@@ -124,75 +123,45 @@ function maxTEfromSerie(dados){
       if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
     });
   });
-  return valores.length>0?Math.max(...valores):null;
+  return valores.length>0?Math.max(...valores):0;
 }
 
 function minPE(dados,coluna){ 
   const valores=(dados.serie||[]).map(r=>parseNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
-  return valores.length?Math.min(...valores):null;
+  return valores.length?Math.min(...valores):0;
 }
 
 // -------------------- Comparar --------------------
-document.getElementById('btnComparar').addEventListener('click', async () => {
-  const nome1 = document.getElementById('nome1').value.trim();
-  const nome2 = document.getElementById('nome2').value.trim();
-  const out = document.getElementById('resultado');
-  if (!nome1 || !nome2) { out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; return; }
+document.getElementById('btnComparar').addEventListener('click',async()=>{
+  const nome1=document.getElementById('nome1').value.trim();
+  const nome2=document.getElementById('nome2').value.trim();
+  const out=document.getElementById('resultado');
+  if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
 
-  console.log("Buscando dados para:", nome1, "e", nome2);
+  const m1Array=await buscarDados(nome1);
+  const m2Array=await buscarDados(nome2);
+  if(!m1Array?.length || !m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
 
-  const m1Array = await buscarDados(nome1);
-  const m2Array = await buscarDados(nome2);
+  const m1=m1Array[0].meta || {};
+  const m2=m2Array[0].meta || {};
 
-  console.log("Dados retornados do API:");
-  console.log(nome1, m1Array);
-  console.log(nome2, m2Array);
-
-  if (!m1Array?.length || !m2Array?.length) { out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>'; return; }
-
-  const m1 = m1Array[0].meta || {};
-  const m2 = m2Array[0].meta || {};
-
-  console.log("Metadados extraídos:");
-  console.log(nome1, m1);
-  console.log(nome2, m2);
-
-  if (!m1.massai || parseNum(m1.massai) <= 0 || !m2.massai || parseNum(m2.massai) <= 0) {
-    out.innerHTML = '<p>Massa de isolantes inválida para um dos transformadores.</p>';
-    console.log("Massa inválida detectada:", m1.massai, m2.massai);
+  if(!m1.massai || parseNum(m1.massai)<=0 || !m2.massai || parseNum(m2.massai)<=0){
+    out.innerHTML='<p>Massa de isolantes inválida para um dos transformadores.</p>'; 
     return;
   }
 
-  const t1 = calcTaxa(m1.id_secagenscore, m1.massai, m1);
-  const t2 = calcTaxa(m2.id_secagenscore, m2.massai, m2);
+  const t1=calcTaxa(m1.id_secagenscore,m1.massai,m1);
+  const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
 
-  console.log("Cálculos de taxa:");
-  console.log(nome1, t1);
-  console.log(nome2, t2);
+  const te1=maxTEfromSerie(m1);
+  const te2=maxTEfromSerie(m2);
+  const pe1_417=minPE(m1,'PE_4_17');
+  const pe2_417=minPE(m2,'PE_4_17');
+  const pe1_551=minPE(m1,'PE_5_5_1');
+  const pe2_551=minPE(m2,'PE_5_5_1');
 
-  if (!t1 || !t2) { out.innerHTML = '<p>Erro ao calcular taxas.</p>'; return; }
-
-  const te1 = maxTEfromSerie(m1);
-  const te2 = maxTEfromSerie(m2);
-  const pe1_417 = minPE(m1, 'PE_4_17');
-  const pe2_417 = minPE(m2, 'PE_4_17');
-  const pe1_551 = minPE(m1, 'PE_5_5_1');
-  const pe2_551 = minPE(m2, 'PE_5_5_1');
-
-  console.log("TE/PE valores:");
-  console.log(nome1, { te1, pe1_417, pe1_551 });
-  console.log(nome2, { te2, pe2_417, pe2_551 });
-
-  const blocos1 = calcTaxaPorHoraTodoPeriodo(m1, m1.massai);
-  const blocos2 = calcTaxaPorHoraTodoPeriodo(m2, m2.massai);
-
-  console.log("Taxas por hora:");
-  console.log(nome1, blocos1);
-  console.log(nome2, blocos2);
-
-  // O restante código de gráficos e HTML permanece igual...
-});
-
+  const blocos1=calcTaxaPorHoraTodoPeriodo(m1,m1.massai);
+  const blocos2=calcTaxaPorHoraTodoPeriodo(m2,m2.massai);
 
   // --- gráficos ---
   const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
@@ -201,7 +170,7 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     type:'line',
     data:{
       labels:blocos1.map(b=>b.intervalo).reverse(),
-      datasets:[{label:nome1,data:blocos1.map(b=>parseNum(b.taxa)),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)'}]
+      datasets:[{label:nome1,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)'}]
     },
     options:{responsive:true,plugins:{legend:{display:true}}}
   });
@@ -212,7 +181,7 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     type:'line',
     data:{
       labels:blocos2.map(b=>b.intervalo).reverse(),
-      datasets:[{label:nome2,data:blocos2.map(b=>parseNum(b.taxa)),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)'}]
+      datasets:[{label:nome2,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)'}]
     },
     options:{responsive:true,plugins:{legend:{display:true}}}
   });
@@ -223,28 +192,28 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     <h3>${nome1}</h3>
     <p>Delta 10h: ${t1.delta10h} | Taxa 10h: ${t1.taxa10h}</p>
     <p>Delta Total: ${t1.deltaTotal} | Taxa Total: ${t1.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te1??'N/A'}</p>
-    <p>Mín PE_4_17: ${pe1_417??'N/A'} | Mín PE_5_5_1: ${pe1_551??'N/A'}</p>
+    <p>Máx TE_5_4_X (≤140): ${te1}</p>
+    <p>Mín PE_4_17: ${pe1_417} | Mín PE_5_5_1: ${pe1_551}</p>
   </div>
   <div class="transformador-dados">
     <h3>${nome2}</h3>
     <p>Delta 10h: ${t2.delta10h} | Taxa 10h: ${t2.taxa10h}</p>
     <p>Delta Total: ${t2.deltaTotal} | Taxa Total: ${t2.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te2??'N/A'}</p>
-    <p>Mín PE_4_17: ${pe2_417??'N/A'} | Mín PE_5_5_1: ${pe2_551??'N/A'}</p>
+    <p>Máx TE_5_4_X (≤140): ${te2}</p>
+    <p>Mín PE_4_17: ${pe2_417} | Mín PE_5_5_1: ${pe2_551}</p>
   </div>
   <h3>Comparação</h3>
   <table>
     <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
     <tr><td>Taxa Total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
     <tr><td>Delta Total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
-    <tr><td>Máx TE_5_4_X</td><td>${te1??'N/A'}</td><td>${te2??'N/A'}</td></tr>
-    <tr><td>Mín PE_4_17</td><td>${pe1_417??'N/A'}</td><td>${pe2_417??'N/A'}</td></tr>
-    <tr><td>Mín PE_5_5_1</td><td>${pe1_551??'N/A'}</td><td>${pe2_551??'N/A'}</td></tr>
+    <tr><td>Máx TE_5_4_X</td><td>${te1}</td><td>${te2}</td></tr>
+    <tr><td>Mín PE_4_17</td><td>${pe1_417}</td><td>${pe2_417}</td></tr>
+    <tr><td>Mín PE_5_5_1</td><td>${pe1_551}</td><td>${pe2_551}</td></tr>
   </table>
   `;
   document.getElementById("btnExportarPDF").style.display='block';
-
+});
 
 // -------------------- Exportar PDF --------------------
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
