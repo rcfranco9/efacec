@@ -151,12 +151,18 @@ async function buscarPorNome() {
     }
 
     // --- Calcular duração correta ---
-    let duracao = 0;
-    if (secagem.datainicio && secagem.datafim) {
-      const inicio = new Date(secagem.datainicio);
-      const fim = new Date(secagem.datafim);
-      duracao = (fim - inicio) / 3600000; // diferença em horas
+   // --- Calcular duração usando secagens_core ---
+let duracao = 0;
+if(referencia.length > 0){
+    const inicioSecagem = referencia[0].datainicio ? new Date(referencia[0].datainicio) : null;
+    const fimSecagem = referencia[0].datafim ? new Date(referencia[0].datafim) : null;
+    if(inicioSecagem && fimSecagem){
+        duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
     }
+}
+
+
+
 
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
@@ -164,7 +170,7 @@ async function buscarPorNome() {
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
     html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
-    html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
+   html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
     html += `<p><strong>Água removida:</strong> ${meta.aguaRemovida || 0} L</p>`;
     html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal || 0} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
