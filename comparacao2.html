@@ -89,24 +89,16 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     const nome2 = document.getElementById('nome2').value.trim();
     const out = document.getElementById('resultado');
 
-    if(!nome1 || !nome2){ 
-        out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; 
-        return; 
+    if (!nome1 || !nome2) {
+        out.innerHTML = '<p>Introduz os dois subprojetos.</p>';
+        return;
     }
 
     const m1Array = await buscarDados(nome1);
     const m2Array = await buscarDados(nome2);
 
-    if(m1Array.length === 0 && m2Array.length === 0){
-        out.innerHTML = '<p>Nenhum dos transformadores foi encontrado.</p>';
-        return;
-    }
-    if(m1Array.length === 0){
-        out.innerHTML = `<p>Transformador "${nome1}" não encontrado.</p>`;
-        return;
-    }
-    if(m2Array.length === 0){
-        out.innerHTML = `<p>Transformador "${nome2}" não encontrado.</p>`;
+    if (!m1Array?.length || !m2Array?.length) {
+        out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>';
         return;
     }
 
@@ -116,6 +108,15 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     const blocos1 = calcTaxaPorHora(m1);
     const blocos2 = calcTaxaPorHora(m2);
 
+    const te1 = maxTEfromSerie(m1);
+    const te2 = maxTEfromSerie(m2);
+
+    const pe1_417 = minPE(m1, 'PE_4_17');
+    const pe2_417 = minPE(m2, 'PE_4_17');
+
+    const pe1_551 = minPE(m1, 'PE_5_5_1');
+    const pe2_551 = minPE(m2, 'PE_5_5_1');
+
     out.innerHTML = `
     <div class="transformador-dados">
         <h3>${nome1}</h3>
@@ -124,6 +125,7 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
         <p>Potência: ${m1.potencia ?? 'N/A'} kVA</p>
         <p>Massa transformador: ${m1.massat ?? 'N/A'} kg</p>
         <p>Massa dos isolantes: ${m1.massai ?? 'N/A'} kg</p>
+        <p>Índice TAquec: ${m1.indice_taquec ?? 'N/A'}</p>
     </div>
     <div class="transformador-dados">
         <h3>${nome2}</h3>
@@ -132,35 +134,47 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
         <p>Potência: ${m2.potencia ?? 'N/A'} kVA</p>
         <p>Massa transformador: ${m2.massat ?? 'N/A'} kg</p>
         <p>Massa dos isolantes: ${m2.massai ?? 'N/A'} kg</p>
+        <p>Índice TAquec: ${m2.indice_taquec ?? 'N/A'}</p>
     </div>
+
+    <h3>Comparação</h3>
+    <table>
+        <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
+        <tr><td>Duração total (h)</td><td>${m1.duracao ?? 'N/A'}</td><td>${m2.duracao ?? 'N/A'}</td></tr>
+        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida ?? 'N/A'}</td><td>${m2.aguaRemovida ?? 'N/A'}</td></tr>
+        <tr><td>Taxa total (L/(h*t))</td><td>${m1.taxaTotal ?? 'N/A'}</td><td>${m2.taxaTotal ?? 'N/A'}</td></tr>
+        <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
+        <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
+        <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
+    </table>
     `;
 
-    // --- Gráficos ---
-    function renderChart(ctxId, blocos, nome, cor){
+    function renderChart(ctxId, blocos, nome, cor) {
         const ctx = document.getElementById(ctxId)?.getContext('2d');
-        if(!ctx) return;
-        if(window[ctxId]) window[ctxId].destroy();
+        if (!ctx) return;
+        if (window[ctxId]) window[ctxId].destroy();
 
         const labels = blocos.map(b => b.intervalo);
         const data = blocos.map(b => b.taxa);
 
-        if(data.length === 0){
-            ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
+        if (data.length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
 
         window[ctxId] = new Chart(ctx, {
-            type:'line',
-            data: { labels, datasets:[{label:nome, data, borderColor:cor, backgroundColor:`${cor}33`}] },
-            options:{responsive:true, plugins:{legend:{display:true}}}
+            type: 'line',
+            data: { labels, datasets: [{ label: nome, data, borderColor: cor, backgroundColor: `${cor}33` }] },
+            options: { responsive: true, plugins: { legend: { display: true } } }
         });
     }
 
     renderChart('graficoTaxas1', blocos1, nome1, 'rgba(41,128,185,1)');
     renderChart('graficoTaxas2', blocos2, nome2, 'rgba(231,76,60,1)');
 
-    document.getElementById("btnExportarPDF").style.display='block';
+    document.getElementById("btnExportarPDF").style.display = 'block';
 });
+
 
 
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
