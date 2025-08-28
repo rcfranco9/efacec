@@ -133,38 +133,66 @@ function minPE(dados,coluna){
 }
 
 // -------------------- Comparar --------------------
-document.getElementById('btnComparar').addEventListener('click',async()=>{
-  const nome1=document.getElementById('nome1').value.trim();
-  const nome2=document.getElementById('nome2').value.trim();
-  const out=document.getElementById('resultado');
-  if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
+document.getElementById('btnComparar').addEventListener('click', async () => {
+  const nome1 = document.getElementById('nome1').value.trim();
+  const nome2 = document.getElementById('nome2').value.trim();
+  const out = document.getElementById('resultado');
+  if (!nome1 || !nome2) { out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; return; }
 
-  const m1Array=await buscarDados(nome1);
-  const m2Array=await buscarDados(nome2);
-  if(!m1Array?.length || !m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
+  console.log("Buscando dados para:", nome1, "e", nome2);
 
-  const m1=m1Array[0].meta || {};
-  const m2=m2Array[0].meta || {};
+  const m1Array = await buscarDados(nome1);
+  const m2Array = await buscarDados(nome2);
 
-  if(!m1.massai || parseNum(m1.massai)<=0 || !m2.massai || parseNum(m2.massai)<=0){
-    out.innerHTML='<p>Massa de isolantes inválida para um dos transformadores.</p>'; 
+  console.log("Dados retornados do API:");
+  console.log(nome1, m1Array);
+  console.log(nome2, m2Array);
+
+  if (!m1Array?.length || !m2Array?.length) { out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>'; return; }
+
+  const m1 = m1Array[0].meta || {};
+  const m2 = m2Array[0].meta || {};
+
+  console.log("Metadados extraídos:");
+  console.log(nome1, m1);
+  console.log(nome2, m2);
+
+  if (!m1.massai || parseNum(m1.massai) <= 0 || !m2.massai || parseNum(m2.massai) <= 0) {
+    out.innerHTML = '<p>Massa de isolantes inválida para um dos transformadores.</p>';
+    console.log("Massa inválida detectada:", m1.massai, m2.massai);
     return;
   }
 
-  const t1=calcTaxa(m1.id_secagenscore,m1.massai,m1);
-  const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
+  const t1 = calcTaxa(m1.id_secagenscore, m1.massai, m1);
+  const t2 = calcTaxa(m2.id_secagenscore, m2.massai, m2);
 
-  if(!t1 || !t2){ out.innerHTML='<p>Erro ao calcular taxas.</p>'; return; }
+  console.log("Cálculos de taxa:");
+  console.log(nome1, t1);
+  console.log(nome2, t2);
 
-  const te1=maxTEfromSerie(m1);
-  const te2=maxTEfromSerie(m2);
-  const pe1_417=minPE(m1,'PE_4_17');
-  const pe2_417=minPE(m2,'PE_4_17');
-  const pe1_551=minPE(m1,'PE_5_5_1');
-  const pe2_551=minPE(m2,'PE_5_5_1');
+  if (!t1 || !t2) { out.innerHTML = '<p>Erro ao calcular taxas.</p>'; return; }
 
-  const blocos1=calcTaxaPorHoraTodoPeriodo(m1,m1.massai);
-  const blocos2=calcTaxaPorHoraTodoPeriodo(m2,m2.massai);
+  const te1 = maxTEfromSerie(m1);
+  const te2 = maxTEfromSerie(m2);
+  const pe1_417 = minPE(m1, 'PE_4_17');
+  const pe2_417 = minPE(m2, 'PE_4_17');
+  const pe1_551 = minPE(m1, 'PE_5_5_1');
+  const pe2_551 = minPE(m2, 'PE_5_5_1');
+
+  console.log("TE/PE valores:");
+  console.log(nome1, { te1, pe1_417, pe1_551 });
+  console.log(nome2, { te2, pe2_417, pe2_551 });
+
+  const blocos1 = calcTaxaPorHoraTodoPeriodo(m1, m1.massai);
+  const blocos2 = calcTaxaPorHoraTodoPeriodo(m2, m2.massai);
+
+  console.log("Taxas por hora:");
+  console.log(nome1, blocos1);
+  console.log(nome2, blocos2);
+
+  // O restante código de gráficos e HTML permanece igual...
+});
+
 
   // --- gráficos ---
   const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
