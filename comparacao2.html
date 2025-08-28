@@ -84,23 +84,39 @@ function minPE(dados,coluna){
     return valores.length?Math.min(...valores):null;
 }
 
-document.getElementById('btnComparar').addEventListener('click',async()=>{
-    const nome1=document.getElementById('nome1').value.trim();
-    const nome2=document.getElementById('nome2').value.trim();
-    const out=document.getElementById('resultado');
-    if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
+document.getElementById('btnComparar').addEventListener('click', async () => {
+    const nome1 = document.getElementById('nome1').value.trim();
+    const nome2 = document.getElementById('nome2').value.trim();
+    const out = document.getElementById('resultado');
 
-    const m1Array=await buscarDados(nome1);
-    const m2Array=await buscarDados(nome2);
-    if(!m1Array?.length||!m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
+    if(!nome1 || !nome2){ 
+        out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; 
+        return; 
+    }
 
-    const m1=m1Array[0].meta||{}, m2=m2Array[0].meta||{};
-    const blocos1=calcTaxaPorHora(m1), blocos2=calcTaxaPorHora(m2);
-    const te1=maxTEfromSerie(m1), te2=maxTEfromSerie(m2);
-    const pe1_417=minPE(m1,'PE_4_17'), pe2_417=minPE(m2,'PE_4_17');
-    const pe1_551=minPE(m1,'PE_5_5_1'), pe2_551=minPE(m2,'PE_5_5_1');
+    const m1Array = await buscarDados(nome1);
+    const m2Array = await buscarDados(nome2);
 
-    out.innerHTML=`
+    if(m1Array.length === 0 && m2Array.length === 0){
+        out.innerHTML = '<p>Nenhum dos transformadores foi encontrado.</p>';
+        return;
+    }
+    if(m1Array.length === 0){
+        out.innerHTML = `<p>Transformador "${nome1}" não encontrado.</p>`;
+        return;
+    }
+    if(m2Array.length === 0){
+        out.innerHTML = `<p>Transformador "${nome2}" não encontrado.</p>`;
+        return;
+    }
+
+    const m1 = m1Array[0]?.meta || {};
+    const m2 = m2Array[0]?.meta || {};
+
+    const blocos1 = calcTaxaPorHora(m1);
+    const blocos2 = calcTaxaPorHora(m2);
+
+    out.innerHTML = `
     <div class="transformador-dados">
         <h3>${nome1}</h3>
         <p>ID: ${m1.id_secagenscore ?? 'N/A'}</p>
@@ -117,38 +133,35 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
         <p>Massa transformador: ${m2.massat ?? 'N/A'} kg</p>
         <p>Massa dos isolantes: ${m2.massai ?? 'N/A'} kg</p>
     </div>
-    <h3>Comparação</h3>
-    <table>
-        <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-        <tr><td>Duração total (h)</td><td>${m1.duracao ?? 'N/A'}</td><td>${m2.duracao ?? 'N/A'}</td></tr>
-        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida ?? 'N/A'}</td><td>${m2.aguaRemovida ?? 'N/A'}</td></tr>
-        <tr><td>Taxa total (L/(h*t))</td><td>${m1.taxaTotal ?? 'N/A'}</td><td>${m2.taxaTotal ?? 'N/A'}</td></tr>
-        <tr><td>Maior temperatura (ºC)</td><td>${m1.maxTE ?? 'N/A'}</td><td>${m2.maxTE ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão (mbar)</td><td>${m1.minPE_4_17 ?? 'N/A'}</td><td>${m2.minPE_4_17 ?? 'N/A'}</td></tr>
-      <tr><td>Menor valor de vacuo fino (mbar)</td><td>${m1.minPE_5_5_1 ?? 'N/A'}</td><td>${m2.minPE_5_5_1 ?? 'N/A'}</td></tr>
-
-    </table>
     `;
 
     // --- Gráficos ---
-    const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
-    if(window.chartTaxas1) window.chartTaxas1.destroy();
-    window.chartTaxas1=new Chart(ctx1,{
-        type:'line',
-        data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:nome1, data:blocos1.map(b=>b.taxa), borderColor:'rgba(41,128,185,1)', backgroundColor:'rgba(41,128,185,0.2)'}]},
-        options:{responsive:true, plugins:{legend:{display:true}}}
-    });
+    function renderChart(ctxId, blocos, nome, cor){
+        const ctx = document.getElementById(ctxId)?.getContext('2d');
+        if(!ctx) return;
+        if(window[ctxId]) window[ctxId].destroy();
 
-    const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
-    if(window.chartTaxas2) window.chartTaxas2.destroy();
-    window.chartTaxas2=new Chart(ctx2,{
-        type:'line',
-        data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:nome2, data:blocos2.map(b=>b.taxa), borderColor:'rgba(231,76,60,1)', backgroundColor:'rgba(231,76,60,0.2)'}]},
-        options:{responsive:true, plugins:{legend:{display:true}}}
-    });
+        const labels = blocos.map(b => b.intervalo);
+        const data = blocos.map(b => b.taxa);
+
+        if(data.length === 0){
+            ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
+            return;
+        }
+
+        window[ctxId] = new Chart(ctx, {
+            type:'line',
+            data: { labels, datasets:[{label:nome, data, borderColor:cor, backgroundColor:`${cor}33`}] },
+            options:{responsive:true, plugins:{legend:{display:true}}}
+        });
+    }
+
+    renderChart('graficoTaxas1', blocos1, nome1, 'rgba(41,128,185,1)');
+    renderChart('graficoTaxas2', blocos2, nome2, 'rgba(231,76,60,1)');
 
     document.getElementById("btnExportarPDF").style.display='block';
 });
+
 
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
     const { jsPDF }=window.jspdf;
