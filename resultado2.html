@@ -120,7 +120,10 @@ document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 async function buscarPorNome() {
   const nome = document.getElementById('nomeInput').value.trim();
   const out = document.getElementById('resultado');
-  if (!nome) { out.textContent = 'Por favor, insira o nome do transformador.'; return; }
+  if (!nome) { 
+    out.textContent = 'Por favor, insira o nome do transformador.'; 
+    return; 
+  }
   out.textContent = 'Buscando dados...';
 
   try {
@@ -129,21 +132,31 @@ async function buscarPorNome() {
     const data = await res.json();
     console.log("📦 Dados recebidos da API:", data);
 
-    if (!data.length) { out.textContent = 'Transformador não encontrado.'; return; }
+    if (!data.length) { 
+      out.textContent = 'Transformador não encontrado.'; 
+      return; 
+    }
 
     const t = data[0];
     const serieRef = t.referencia || [{}];
     const meta = t.meta || {};
     const serie = t.serie || [];
+    const secagem = t.secagem || {};
 
-    let massaTon = parseFloat(meta.massaTotal)/1000;
+    // Massa transformador (kg) / isolantes (t)
+    let massaTon = parseFloat(meta.massat)/1000;
     if (isNaN(massaTon)) {
       massaTon = 100;
       console.warn("⚠️ MassaTon não veio da API. Usando fallback 100 t");
     }
 
-    console.log("📊 Serie usada:", serie);
-    console.log("⚖️ MassaTon usada:", massaTon);
+    // --- Calcular duração correta ---
+    let duracao = 0;
+    if (secagem.datainicio && secagem.datafim) {
+      const inicio = new Date(secagem.datainicio);
+      const fim = new Date(secagem.datafim);
+      duracao = (fim - inicio) / 3600000; // diferença em horas
+    }
 
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
@@ -151,17 +164,7 @@ async function buscarPorNome() {
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
     html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
-    
-   // --- Calcular duração usando secagens_core ---
-const inicioSecagem = t.datainicio ? new Date(t.datainicio) : null;
-const fimSecagem = t.datafim ? new Date(t.datafim) : null;
-let duracao = 0;
-if(inicioSecagem && fimSecagem){
-  duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
-}
-
-html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
-
+    html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
     html += `<p><strong>Água removida:</strong> ${meta.aguaRemovida || 0} L</p>`;
     html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal || 0} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
@@ -213,6 +216,7 @@ html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
     out.textContent = 'Erro ao buscar os dados.';
   }
 }
+
 
 // --- Gráfico ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
