@@ -1,274 +1,160 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Consulta Transformador - Base de Dados</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin: 20px;
-  background: #f0f2f5;
-  color: #333;
-}
-h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
-input, button { padding: 8px 12px; margin: 5px 5px 20px 0; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
-button { background-color: #3498db; color: #fff; cursor: pointer; transition: 0.3s; }
-button:hover { background-color: #2980b9; }
-.bloco-transformador { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
-.bloco-transformador:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-p, li { margin: 3px 0; font-size: 14px; }
-canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10px; }
-#btnExportarPDF { display: none; background-color: #27ae60; margin: 0 auto 30px auto; }
-#btnExportarPDF:hover { background-color: #1e8449; }
-</style>
+  <meta charset="UTF-8">
+  <title>Debug Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <h2>Teste do Gráfico</h2>
 
-<h2>Consulta Transformador (Base: meubanco)</h2>
+  <input type="text" id="nomeTrans" placeholder="Nome do Transformador">
+  <button onclick="buscarPorNome()">Buscar</button>
+  <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
 
-<input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
-<button id="btnBuscar">Buscar</button>
-<div id="resultado"></div>
+  <br><br>
+  <canvas id="graficoTaxa" width="600" height="400"></canvas>
 
-<h3>Gráfico Taxa L/(h*t) por hora</h3>
-<canvas id="graficoTaxa" width="600" height="300"></canvas>
-  
-<button id="btnExportarPDF">Exportar PDF</button>
+  <script>
+    let graficoTaxa = null; // variável global para guardar gráfico
 
-<script>
-function formatNum(v, dec = 3) {
-  const n = parseFloat(v);
-  if (isNaN(n)) return 'N/A';
-  if (n === 0) return '0';
-  return parseFloat(n.toFixed(dec)).toString();
-}
+    async function buscarPorNome() {
+      const nome = document.getElementById("nomeTrans").value;
+      console.log("🔎 Nome pesquisado:", nome);
 
-function calcularIndice(pf, rf) {
-  const p = parseFloat(pf), r = parseFloat(rf);
-  if(isNaN(p)||isNaN(r)) return 'N/A';
-  if(r>=p+5) return '100%';
-  if(r<=p-5) return '0%';
-  if(r===p) return '50%';
-  let ind=50+((r-p)*10);
-  if(ind<0) ind=0;
-  if(ind>100) ind=100;
-  return `${Math.round(ind)}%`;
-}
+      try {
+        const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
+        if (!resp.ok) {
+          console.error("❌ Erro na API:", resp.status);
+          return;
+        }
 
-function calculaIndicePressao(pf, rf){
-  const p=parseFloat(pf), r=parseFloat(rf);
-  if(isNaN(p)||isNaN(r)) return 'N/A';
-  const diff=r-p;
-  if(diff>=5) return '0%';
-  if(diff<=-5) return '100%';
-  if(diff===0) return '50%';
-  const prop=(5-diff)/10;
-  return `${Math.round(prop*100)}%`;
-}
+        const dados = await resp.json();
+        console.log("📦 Dados recebidos da API:", dados);
 
-function formatarData(d){
-  if(!d) return 'N/A';
-  const dia = String(d.getDate()).padStart(2,'0');
-  const mes = String(d.getMonth()+1).padStart(2,'0');
-  const ano = d.getFullYear();
-  const hora = String(d.getHours()).padStart(2,'0');
-  const min = String(d.getMinutes()).padStart(2,'0');
-  return `${dia}/${mes}/${ano} ${hora}:${min}`;
-}
+        const serie = dados.serie || [];
+        const massaTon = parseFloat(dados.massaTon);
 
-document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
+        console.log("📊 Serie bruta:", serie);
+        console.log("⚖️ MassaTon:", massaTon);
 
-async function buscarPorNome() {
-  const nome = document.getElementById('nomeInput').value.trim();
-  const out = document.getElementById('resultado');
-  if (!nome) { out.textContent = 'Por favor, insira o nome do transformador.'; return; }
-  out.textContent = 'Buscando dados...';
+        criarGraficoTaxaHoraAHora("graficoTaxa", serie, massaTon);
 
-  try {
-    const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
-    if (!res.ok) throw new Error('Erro ao consultar a base de dados.');
-    const data = await res.json();
-    if (!data.length) { out.textContent = 'Transformador não encontrado.'; return; }
-
-    const t = data[0]; // assume 1 resultado
-    const serieRef = t.referencia || [{}];
-    const meta = t.meta || {};
-    const serie = t.serie || [];
-
-    const potencia = meta.potencia || 0;
-    const tensao = meta.tensao || 0;
-    const massaTotal = meta.massaTotal || 0;
-    const massaIsolantes = meta.massaIsolantes || 0;
-    const duracao = meta.duracao || 0;
-    const aguaRemovida = meta.aguaRemovida || 0;
-    const taxaTotal = meta.taxaTotal || 0;
-    const taxaUltimas10h = meta.taxaUltimas10h || 0;
-
-    const PF_TAquec = serieRef.map(r => [r.PF1TAquec,r.PF2TAquec,r.PF3TAquec,r.PF4TAquec,r.PF5TAquec,r.PF6TAquec])[0];
-    const RF_TAquec = serieRef.map(r => [r.RF1TAquec,r.RF2TAquec,r.RF3TAquec,r.RF4TAquec,r.RF5TAquec,r.RF6TAquec])[0];
-    const PF_PRem = serieRef.map(r => [r.PF1PRem,r.PF2PRem,r.PF3PRem,r.PF4PRem,r.PF5PRem,r.PF6PRem])[0];
-    const RF_PRem = serieRef.map(r => [r.RF1PRem,r.RF2PRem,r.RF3PRem,r.RF4PRem,r.RF5PRem,r.RF6PRem])[0];
-
-    let html = `<div class="bloco-transformador">`;
-    html += `<p><strong>Potência:</strong> ${potencia} kVA</p>`;
-    html += `<p><strong>Tensão:</strong> ${tensao} kV</p>`;
-    html += `<p><strong>Massa transformador:</strong> ${massaTotal} kg</p>`;
-    html += `<p><strong>Massa isolantes:</strong> ${massaIsolantes} t</p>`;
-    html += `<p><strong>Duração total:</strong> ${duracao} h</p>`;
-    html += `<p><strong>Água removida:</strong> ${aguaRemovida} L</p>`;
-    html += `<p><strong>Taxa total:</strong> ${taxaTotal} L/(h*t)</p>`;
-    html += `<p><strong>Taxa últimas 10h:</strong> ${taxaUltimas10h} L/(h*t)</p>`;
-    html += `<hr>`;
-
-    PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v}</p>`);
-    RF_TAquec.forEach((v,i)=> html+=`<p>RF${i+1}TAquec: ${v}</p>`);
-    PF_TAquec.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1}: ${calcularIndice(v, RF_TAquec[i])}</p>`);
-    PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v}</p>`);
-    RF_PRem.forEach((v,i)=> html+=`<p>RF${i+1}PRem: ${v}</p>`);
-    PF_PRem.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1} (pressão): ${calculaIndicePressao(v, RF_PRem[i])}</p>`);
-
-    const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-    let primeiraHoraPressaoBaixa = null;
-    for(const l of serieOrdenada){
-      const p = parseFloat(l.PE_5_5_1);
-      if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
-    }
-    html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
-
-    let dataAnterior = primeiraHoraPressaoBaixa || new Date();
-    for(let fase=1; fase<=6; fase++){
-      const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
-      const rem = parseFloat(serieRef[0][`RF${fase}DRem`]);
-      if(aquec>0 && rem>0){
-        const inicioRem = new Date(dataAnterior.getTime() + aquec*3600000);
-        const fimRem = new Date(inicioRem.getTime() + rem*3600000);
-        html += `<p><strong>Início da zona de remoção RF${fase}DRem:</strong> ${formatarData(inicioRem)}</p>`;
-        html += `<p><strong>Fim da zona de remoção RF${fase}DRem:</strong> ${formatarData(fimRem)}</p>`;
-        dataAnterior = fimRem;
-      } else {
-        html += `<p><strong>A secagem não chegou à fase RF${fase}DRem.</strong></p>`;
-        break;
+        // mostrar botão exportar PDF se deu certo
+        document.getElementById("btnExportarPDF").style.display = "block";
+      } catch (e) {
+        console.error("❌ Erro no fetch:", e);
       }
     }
 
-    html += `</div>`;
-    out.innerHTML = html;
+    function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
+      console.log("🚀 Iniciando criarGraficoTaxaHoraAHora...");
+      console.log("dadosSerie recebido:", dadosSerie);
+      console.log("massaTon recebido:", massaTon);
 
-    // Mostrar botão exportar PDF
-    document.getElementById("btnExportarPDF").style.display = "block";
+      if (!massaTon || massaTon <= 0) {
+        console.warn("⚠️ massaTon inválido:", massaTon);
+        return;
+      }
 
-    // Criar gráfico
-    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTotal/1000);
+      const canvas = document.getElementById(idCanvas);
+      if (!canvas) {
+        console.warn(`⚠️ Canvas com id '${idCanvas}' não encontrado.`);
+        return;
+      }
+      console.log("✅ Canvas encontrado:", canvas);
 
-  } catch(err) {
-    console.error(err);
-    out.textContent = 'Erro ao buscar os dados.';
-  }
-}
+      const ctx = canvas.getContext("2d");
 
-// --- Apenas gráfico de taxa ---
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
-  if (!massaTon || massaTon <= 0) {
-    console.warn('massaTon inválido:', massaTon);
-    return;
-  }
+      // destruir gráfico anterior se já existir
+      if (graficoTaxa) {
+        console.log("🗑️ Destruindo gráfico anterior...");
+        graficoTaxa.destroy();
+      }
 
-  const dadosPorHora = {};
-
-  dadosSerie.forEach(linha => {
-    const dataHora = new Date(linha.DataHora);
-    if (isNaN(dataHora)) return;
-    dataHora.setMinutes(0, 0, 0);
-    const chaveHora = dataHora.getTime();
-    const valorLC = parseFloat(linha.LC_3_8);
-    if (isNaN(valorLC)) return;
-    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
-    dadosPorHora[chaveHora].push(valorLC);
-  });
-
-  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
-
-  const labelsHoras = [];
-  const taxasHoraAHora = [];
-  let valorAnterior = null;
-
-  chavesOrdenadas.forEach(chave => {
-    const hora = new Date(Number(chave)).getHours();
-    labelsHoras.push(`${hora}h`);
-    const valores = dadosPorHora[chave];
-    const valorAtual = valores[valores.length - 1]; // último valor da hora
-    if (valorAnterior !== null) {
-      taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
-    } else {
-      taxasHoraAHora.push(0); // primeiro ponto
-    }
-    valorAnterior = valorAtual;
-  });
-
-  const canvas = document.getElementById(idCanvas);
-  if (!canvas) {
-    console.warn(`Canvas com id '${idCanvas}' não encontrado.`);
-    return;
-  }
-  const ctx = canvas.getContext("2d");
-
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labelsHoras,
-      datasets: [{
-        label: 'Taxa LC L/(h*t)',
-        data: taxasHoraAHora,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(52,152,219,0.2)',
-        fill: true,
-        tension: 0.2,
-        pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: {
-          display: true,
-          text: 'Taxa LC por Hora'
+      const dadosPorHora = {};
+      dadosSerie.forEach(linha => {
+        const dataHora = new Date(linha.DataHora);
+        if (isNaN(dataHora)) {
+          console.warn("⚠️ Data inválida encontrada:", linha.DataHora);
+          return;
         }
-      },
-      scales: {
-        y: {
-          title: {
-            display: true,
-            text: 'Taxa LC L/(h*t)'
-          }
+        dataHora.setMinutes(0, 0, 0);
+        const chaveHora = dataHora.getTime();
+        const valorLC = parseFloat(linha.LC_3_8);
+        if (isNaN(valorLC)) {
+          console.warn("⚠️ Valor LC inválido:", linha.LC_3_8);
+          return;
+        }
+        if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
+        dadosPorHora[chaveHora].push(valorLC);
+      });
+
+      console.log("📊 dadosPorHora agrupados:", dadosPorHora);
+
+      const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
+
+      const labelsHoras = [];
+      const taxasHoraAHora = [];
+      let valorAnterior = null;
+
+      chavesOrdenadas.forEach(chave => {
+        const hora = new Date(Number(chave)).getHours();
+        labelsHoras.push(`${hora}h`);
+        const valores = dadosPorHora[chave];
+        const valorAtual = valores[valores.length - 1];
+        if (valorAnterior !== null) {
+          taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
+        } else {
+          taxasHoraAHora.push(0);
+        }
+        valorAnterior = valorAtual;
+      });
+
+      console.log("🕒 Labels finais:", labelsHoras);
+      console.log("📈 Taxas calculadas:", taxasHoraAHora);
+
+      if (labelsHoras.length === 0 || taxasHoraAHora.length === 0) {
+        console.warn("⚠️ Sem dados suficientes para plotar o gráfico.");
+        return;
+      }
+
+      graficoTaxa = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labelsHoras,
+          datasets: [{
+            label: "Taxa LC L/(h*t)",
+            data: taxasHoraAHora,
+            borderColor: "blue",
+            backgroundColor: "rgba(52,152,219,0.2)",
+            fill: true,
+            tension: 0.2,
+            pointRadius: 4
+          }]
         },
-        x: {
-          title: {
-            display: true,
-            text: 'Hora'
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "top" },
+            title: {
+              display: true,
+              text: "Taxa LC por Hora"
+            }
+          },
+          scales: {
+            y: {
+              title: { display: true, text: "Taxa LC L/(h*t)" }
+            },
+            x: {
+              title: { display: true, text: "Hora" }
+            }
           }
         }
-      }
-    }
-  });
-}
+      });
 
-// --- Exportar PDF ---
-document.getElementById('btnExportarPDF').addEventListener('click',()=>{
-  html2canvas(document.body).then(canvas=>{
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p','mm','a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = 210;
-    const pdfHeight = (imgProps.height * pdfWidth)/imgProps.width;
-    pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
-    pdf.save('transformador.pdf');
-  });
-});
-</script>
+      console.log("✅ Gráfico criado com sucesso!");
+    }
+  </script>
 </body>
 </html>
