@@ -1,142 +1,227 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <title>Transformador com fallback</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<title>Consulta Transformador - Base de Dados</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 20px;
+  background: #f0f2f5;
+  color: #333;
+}
+h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+input, button { padding: 8px 12px; margin: 5px 5px 20px 0; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+button { background-color: #3498db; color: #fff; cursor: pointer; transition: 0.3s; }
+button:hover { background-color: #2980b9; }
+.bloco-transformador { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
+.bloco-transformador:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+p, li { margin: 3px 0; font-size: 14px; }
+canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10px; }
+#btnExportarPDF { display: block; background-color: #27ae60; margin: 0 auto 30px auto; }
+#btnExportarPDF:hover { background-color: #1e8449; }
+</style>
 </head>
 <body>
-  <h2>Consulta Transformador</h2>
 
-  <input type="text" id="nomeTrans" placeholder="Nome do Transformador">
-  <button onclick="buscarPorNome()">Buscar</button>
-  <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
+<h2>Consulta Transformador (Base: meubanco)</h2>
 
-  <br><br>
-  <canvas id="graficoTaxa" width="600" height="400"></canvas>
+<input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
+<button id="btnBuscar">Buscar</button>
+<div id="resultado"></div>
 
-  <script>
-    let graficoTaxa = null;
+<h3>Gráfico Taxa L/(h*t) por hora</h3>
+<canvas id="graficoTaxa" width="600" height="300"></canvas>
+  
+<button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
 
-    async function buscarPorNome() {
-      const nome = document.getElementById("nomeTrans").value;
-      console.log("🔎 Nome pesquisado:", nome);
+<script>
+let graficoTaxa = null;
 
-      try {
-        const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
-        if (!resp.ok) console.error("❌ Erro na API:", resp.status);
+function formatNum(v, dec = 3) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return 'N/A';
+  if (n === 0) return '0';
+  return parseFloat(n.toFixed(dec)).toString();
+}
 
-        const dados = await resp.json();
-        console.log("📦 Dados recebidos da API:", dados);
+function calcularIndice(pf, rf) {
+  const p = parseFloat(pf), r = parseFloat(rf);
+  if(isNaN(p)||isNaN(r)) return 'N/A';
+  if(r>=p+5) return '100%';
+  if(r<=p-5) return '0%';
+  if(r===p) return '50%';
+  let ind=50+((r-p)*10);
+  if(ind<0) ind=0;
+  if(ind>100) ind=100;
+  return `${Math.round(ind)}%`;
+}
 
-        let serie = [];
-        let massaTon = NaN;
+function calculaIndicePressao(pf, rf){
+  const p=parseFloat(pf), r=parseFloat(rf);
+  if(isNaN(p)||isNaN(r)) return 'N/A';
+  const diff=r-p;
+  if(diff>=5) return '0%';
+  if(diff<=-5) return '100%';
+  if(diff===0) return '50%';
+  const prop=(5-diff)/10;
+  return `${Math.round(prop*100)}%`;
+}
 
-        // Se API devolver array
-        if (Array.isArray(dados)) {
-          serie = dados;
-          massaTon = parseFloat(dados[0]?.massaTon);
-        }
-        // Se API devolver objeto
-        else if (typeof dados === "object" && dados !== null) {
-          serie = dados.serie || [];
-          massaTon = parseFloat(dados.massaTon);
-        }
+function formatarData(d){
+  if(!d) return 'N/A';
+  const dia = String(d.getDate()).padStart(2,'0');
+  const mes = String(d.getMonth()+1).padStart(2,'0');
+  const ano = d.getFullYear();
+  const hora = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dia}/${mes}/${ano} ${hora}:${min}`;
+}
 
-        // fallback se massaTon não existir
-        if (isNaN(massaTon)) {
-          massaTon = 100; // valor padrão
-          console.warn("⚠️ MassaTon não veio da API. Usando 100 t como fallback");
-        }
+document.getElementById('btnBuscar').addEventListener('click', buscarPorNome);
 
-        if (!serie.length) {
-          console.warn("⚠️ Serie vazia. Nada a exibir.");
-          return;
-        }
+async function buscarPorNome() {
+  const nome = document.getElementById('nomeInput').value.trim();
+  const out = document.getElementById('resultado');
+  if (!nome) { out.textContent = 'Por favor, insira o nome do transformador.'; return; }
+  out.textContent = 'Buscando dados...';
 
-        console.log("📊 Serie usada:", serie);
-        console.log("⚖️ MassaTon usada:", massaTon);
+  try {
+    const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
+    if (!res.ok) throw new Error('Erro ao consultar a base de dados.');
+    const data = await res.json();
+    console.log("📦 Dados recebidos da API:", data);
 
-        criarGraficoTaxaHoraAHora("graficoTaxa", serie, massaTon);
+    let t = {};
+    let serie = [];
+    let massaTon = NaN;
 
-        document.getElementById("btnExportarPDF").style.display = "block";
-
-      } catch (e) {
-        console.error("❌ Erro no fetch:", e);
-      }
+    if (Array.isArray(data)) {
+      serie = data;
+      massaTon = parseFloat(data[0]?.massaTon);
+      console.warn("⚠️ MassaTon não veio da API. Usando fallback se necessário.");
+    } else if (typeof data === 'object') {
+      t = data;
+      serie = data.serie || [];
+      massaTon = parseFloat(data.massaTon);
     }
 
-    function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
-      console.log("🚀 Iniciando criarGraficoTaxaHoraAHora...");
-      console.log("dadosSerie recebido:", dadosSerie);
-      console.log("massaTon recebido:", massaTon);
+    if (isNaN(massaTon)) massaTon = 100; // fallback
+    console.log("📊 Serie usada:", serie);
+    console.log("⚖️ MassaTon usada:", massaTon);
 
-      const canvas = document.getElementById(idCanvas);
-      if (!canvas) {
-        console.warn(`⚠️ Canvas com id '${idCanvas}' não encontrado.`);
-        return;
+    if (!serie.length) { out.textContent = 'Nenhuma série de dados disponível.'; return; }
+
+    // Mostrar informações básicas (opcional: pode ser expandido com PF/RF)
+    let html = `<div class="bloco-transformador">`;
+    html += `<p><strong>Massa usada para cálculos:</strong> ${massaTon} t (fallback se API não enviou)</p>`;
+    html += `<p><strong>Total de registros da série:</strong> ${serie.length}</p>`;
+    html += `<hr>`;
+    out.innerHTML = html;
+
+    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTon);
+
+    document.getElementById("btnExportarPDF").style.display = "block";
+
+  } catch(err) {
+    console.error(err);
+    out.textContent = 'Erro ao buscar os dados.';
+  }
+}
+
+// --- Gráfico de taxa ---
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
+  console.log("🚀 Iniciando criarGraficoTaxaHoraAHora...");
+  console.log("dadosSerie recebido:", dadosSerie);
+  console.log("massaTon recebido:", massaTon);
+
+  if (!massaTon || massaTon <= 0) {
+    console.warn('⚠️ massaTon inválido:', massaTon);
+    return;
+  }
+
+  const canvas = document.getElementById(idCanvas);
+  if (!canvas) {
+    console.warn(`Canvas com id '${idCanvas}' não encontrado.`);
+    return;
+  }
+
+  if (graficoTaxa) graficoTaxa.destroy();
+  const ctx = canvas.getContext("2d");
+
+  const dadosPorHora = {};
+  dadosSerie.forEach(linha => {
+    const dataHora = new Date(linha.DataHora);
+    if (isNaN(dataHora)) return;
+    dataHora.setMinutes(0,0,0);
+    const chaveHora = dataHora.getTime();
+    const valorLC = parseFloat(linha.LC_3_8);
+    if (isNaN(valorLC)) return;
+    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
+    dadosPorHora[chaveHora].push(valorLC);
+  });
+
+  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b)=>a-b);
+  const labelsHoras = [];
+  const taxasHoraAHora = [];
+  let valorAnterior = null;
+
+  chavesOrdenadas.forEach(chave => {
+    const hora = new Date(Number(chave)).getHours();
+    labelsHoras.push(`${hora}h`);
+    const valores = dadosPorHora[chave];
+    const valorAtual = valores[valores.length-1];
+    if (valorAnterior !== null) taxasHoraAHora.push((valorAtual-valorAnterior)/massaTon);
+    else taxasHoraAHora.push(0);
+    valorAnterior = valorAtual;
+  });
+
+  graficoTaxa = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labelsHoras,
+      datasets: [{
+        label: 'Taxa LC L/(h*t)',
+        data: taxasHoraAHora,
+        borderColor: 'blue',
+        backgroundColor: 'rgba(52,152,219,0.2)',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Taxa LC por Hora' }
+      },
+      scales: {
+        y: { title: { display:true, text:'Taxa LC L/(h*t)' } },
+        x: { title: { display:true, text:'Hora' } }
       }
-
-      if (graficoTaxa) graficoTaxa.destroy();
-
-      const ctx = canvas.getContext("2d");
-      const dadosPorHora = {};
-
-      dadosSerie.forEach(linha => {
-        const dataHora = new Date(linha.DataHora);
-        if (isNaN(dataHora)) return;
-        dataHora.setMinutes(0, 0, 0);
-        const chaveHora = dataHora.getTime();
-        const valorLC = parseFloat(linha.LC_3_8);
-        if (isNaN(valorLC)) return;
-        if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
-        dadosPorHora[chaveHora].push(valorLC);
-      });
-
-      const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b)=>a-b);
-      const labelsHoras = [];
-      const taxasHoraAHora = [];
-      let valorAnterior = null;
-
-      chavesOrdenadas.forEach(chave => {
-        const hora = new Date(Number(chave)).getHours();
-        labelsHoras.push(`${hora}h`);
-        const valores = dadosPorHora[chave];
-        const valorAtual = valores[valores.length-1];
-        if (valorAnterior !== null) taxasHoraAHora.push((valorAtual - valorAnterior)/massaTon);
-        else taxasHoraAHora.push(0);
-        valorAnterior = valorAtual;
-      });
-
-      graficoTaxa = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: labelsHoras,
-          datasets: [{
-            label: "Taxa LC L/(h*t)",
-            data: taxasHoraAHora,
-            borderColor: "blue",
-            backgroundColor: "rgba(52,152,219,0.2)",
-            fill: true,
-            tension: 0.2,
-            pointRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: "top" },
-            title: { display: true, text: "Taxa LC por Hora" }
-          },
-          scales: {
-            y: { title: { display:true, text:"Taxa LC L/(h*t)" } },
-            x: { title: { display:true, text:"Hora" } }
-          }
-        }
-      });
-
-      console.log("✅ Gráfico criado com sucesso!");
     }
-  </script>
+  });
+
+  console.log("✅ Gráfico criado com sucesso!");
+}
+
+// --- Exportar PDF ---
+document.getElementById('btnExportarPDF').addEventListener('click', ()=>{
+  html2canvas(document.body).then(canvas=>{
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = 210;
+    const pdfHeight = (imgProps.height*pdfWidth)/imgProps.width;
+    pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
+    pdf.save('transformador.pdf');
+  });
+});
+</script>
 </body>
 </html>
