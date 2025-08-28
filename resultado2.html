@@ -141,41 +141,37 @@ async function buscarPorNome() {
     const serieRef = t.referencia || [{}];
     const meta = t.meta || {};
     const serie = t.serie || [];
-    const secagem = t.secagem || {};
 
     // Massa transformador (kg) / isolantes (t)
     let massaTon = parseFloat(meta.massat)/1000;
-    if (isNaN(massaTon)) {
-      massaTon = 100;
-      console.warn("⚠️ MassaTon não veio da API. Usando fallback 100 t");
+    if (isNaN(massaTon)) massaTon = 100; // fallback
+
+    // Calcular duração total
+    let duracao = 0;
+    if(serieRef.length > 0){
+        const inicioSecagem = serieRef[0].datainicio ? new Date(serieRef[0].datainicio) : null;
+        const fimSecagem = serieRef[0].datafim ? new Date(serieRef[0].datafim) : null;
+        if(inicioSecagem && fimSecagem){
+            duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
+        }
     }
 
-  
-let duracao = 0;
-if(serieRef.length > 0){
-    const inicioSecagem = serieRef[0].datainicio ? new Date(serieRef[0].datainicio) : null;
-    const fimSecagem = serieRef[0].datafim ? new Date(serieRef[0].datafim) : null;
-    if(inicioSecagem && fimSecagem){
-        duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
+    // Calcular água removida (último valor LC_3_8)
+    let aguaRemovida = 0;
+    if (serie.length > 0) {
+        const ultimaLinha = serie[serie.length - 1];
+        aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
     }
-}
 
-    // --- Calcular água removida (último valor LC_3_8) ---
-let aguaRemovida = 0;
-if (serie.length > 0) {
-    // A série já está ordenada por DataHora?
-    const ultimaLinha = serie[serie.length - 1];
-    aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
-}
-let massaIsolantesTon = parseFloat(meta.massai)/1000;
-if(isNaN(massaIsolantesTon) || massaIsolantesTon <= 0) massaIsolantesTon = 1; // fallback
+    // Massa isolantes em toneladas
+    let massaIsolantesTon = parseFloat(meta.massai)/1000;
+    if(isNaN(massaIsolantesTon) || massaIsolantesTon <= 0) massaIsolantesTon = 1; // fallback
 
-let taxaTotal = 0;
-if(meta.duracao > 0){
-    taxaTotal = meta.aguaRemovida / (meta.duracao * massaIsolantesTon);
-}
-
-
+    // Taxa total
+    let taxaTotal = 0;
+    if(meta.duracao > 0){
+        taxaTotal = meta.aguaRemovida / (meta.duracao * massaIsolantesTon);
+    }
 
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
@@ -183,9 +179,9 @@ if(meta.duracao > 0){
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
     html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
-  html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
-html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
-html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)} L/(h*t)</p>`;
+    html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
+    html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
+    html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
     html += `</div>`;
 
@@ -227,6 +223,7 @@ html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)
 
     out.innerHTML = html;
 
+    // --- Criar gráfico taxa hora a hora ---
     criarGraficoTaxaHoraAHora('graficoTaxa', serie, meta);
     document.getElementById('btnExportarPDF').style.display='block';
 
@@ -238,19 +235,19 @@ html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)
 
 // --- Gráfico ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
-  // Massa dos isolantes em toneladas
-  let massaIsolantesTon = parseFloat(meta.massai) / 1000;
-  if (!massaIsolantesTon || massaIsolantesTon <= 0) return;
+  if(!dadosSerie || dadosSerie.length===0) return;
+  let massaIsolantesTon = parseFloat(meta.massai)/1000;
+  if(isNaN(massaIsolantesTon) || massaIsolantesTon<=0) massaIsolantesTon=1;
 
   const dadosPorHora = {};
-  dadosSerie.forEach(linha => {
-    const dataHora = new Date(linha.DataHora);
-    if (isNaN(dataHora)) return;
+  dadosSerie.forEach(linha=>{
+    const dataHora=new Date(linha.DataHora);
+    if(isNaN(dataHora)) return;
     dataHora.setMinutes(0,0,0);
     const chaveHora = dataHora.getTime();
     const valorLC = parseFloat(linha.LC_3_8);
-    if (isNaN(valorLC)) return;
-    if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
+    if(isNaN(valorLC)) return;
+    if(!dadosPorHora[chaveHora]) dadosPorHora[chaveHora]=[];
     dadosPorHora[chaveHora].push(valorLC);
   });
 
@@ -259,52 +256,48 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
   const taxasHoraAHora = [];
   let valorAnterior = null;
 
-  chavesOrdenadas.forEach(chave => {
+  chavesOrdenadas.forEach(chave=>{
     const hora = new Date(Number(chave)).getHours();
     labelsHoras.push(`${hora}h`);
-
-    // Último valor da hora
-    const valores = dadosPorHora[chave];
-    const valorAtual = valores[valores.length-1];
-
-    // Calcula a taxa hora a hora em L/(h*t)
+    const valores=dadosPorHora[chave];
+    const valorAtual=valores[valores.length-1];
     const taxaHora = valorAnterior !== null ? (valorAtual - valorAnterior) / massaIsolantesTon : 0;
     taxasHoraAHora.push(parseFloat(taxaHora.toFixed(3)));
-
-    valorAnterior = valorAtual;
+    valorAnterior=valorAtual;
   });
 
   const ctx = document.getElementById(idCanvas);
-  if (!ctx) return;
-  if (graficoTaxa) graficoTaxa.destroy();
+  if(!ctx) return;
+  if(graficoTaxa) graficoTaxa.destroy();
 
-  graficoTaxa = new Chart(ctx, {
-    type: 'line',
-    data: {
+  graficoTaxa = new Chart(ctx,{
+    type:'line',
+    data:{
       labels: labelsHoras,
-      datasets: [{
-        label: 'Taxa LC L/(h*t)',
+      datasets:[{
+        label:'Taxa LC L/(h*t)',
         data: taxasHoraAHora,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(52,152,219,0.2)',
-        fill: true,
-        tension: 0.2,
-        pointRadius: 4
+        borderColor:'blue',
+        backgroundColor:'rgba(52,152,219,0.2)',
+        fill:true,
+        tension:0.2,
+        pointRadius:4
       }]
     },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Taxa LC por Hora' }
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{ position:'top' },
+        title:{ display:true, text:'Taxa LC por Hora' }
       },
-      scales: {
-        y: { title: { display: true, text: 'Taxa LC L/(h*t)' } },
-        x: { title: { display: true, text: 'Hora' } }
+      scales:{
+        y:{ title:{ display:true, text:'Taxa LC L/(h*t)' } },
+        x:{ title:{ display:true, text:'Hora' } }
       }
     }
   });
 }
+
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
   html2canvas(document.body).then(canvas=>{
