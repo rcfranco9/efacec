@@ -159,6 +159,17 @@ if(serieRef.length > 0){
         duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
     }
 }
+
+    // --- Calcular água removida (último valor LC_3_8) ---
+let aguaRemovida = 0;
+if (serie.length > 0) {
+    // A série já está ordenada por DataHora?
+    const ultimaLinha = serie[serie.length - 1];
+    aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
+}
+
+html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
+
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
     html += `<p><strong>Potência:</strong> ${meta.potencia || 0} kVA</p>`;
