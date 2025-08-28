@@ -1,36 +1,37 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
-  <title>Comparar Transformadores</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      max-width: 900px;
-      margin: 40px auto;
-      background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
-      padding: 30px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.1);
-      border-radius: 10px;
-    }
-    h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
-    label { display: block; margin-top: 20px; font-weight: 600; color: #34495e; }
-    input, button { padding: 10px; width: 100%; margin-top: 8px; border-radius: 5px; border: 1px solid #bbb; font-size: 16px; }
-    button { margin-top: 20px; background-color: #2980b9; color: white; border: none; font-weight: bold; cursor: pointer; }
-    button:hover { background-color: #3498db; }
-    #resultado { margin-top: 30px; padding: 20px; background: #fff; border: 2px solid #ccc; border-radius: 8px; overflow-x: auto; }
-    .transformador-dados { margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 6px; }
-    .transformador-dados h3 { margin-top: 0; color: #2980b9; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; min-width: 650px; }
-    th, td { padding: 10px; border-bottom: 1px solid #ccc; text-align: center; }
-    th { background: #2980b9; color: white; }
-    .diff-positive { color: green; font-weight: bold; }
-    .diff-negative { color: red; font-weight: bold; }
-    .diff-neutral { color: gray; }
-  </style>
+<meta charset="UTF-8" />
+<title>Comparar Transformadores</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    max-width: 1000px;
+    margin: 40px auto;
+    background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1);
+    padding: 30px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    border-radius: 10px;
+  }
+  h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+  label { display: block; margin-top: 20px; font-weight: 600; color: #34495e; }
+  input, button { padding: 10px; width: 100%; margin-top: 8px; border-radius: 5px; border: 1px solid #bbb; font-size: 16px; }
+  button { margin-top: 20px; background-color: #2980b9; color: white; border: none; font-weight: bold; cursor: pointer; }
+  button:hover { background-color: #3498db; }
+  #resultado { margin-top: 30px; padding: 20px; background: #fff; border: 2px solid #ccc; border-radius: 8px; overflow-x: auto; }
+  .transformador-dados { display: inline-block; width: 48%; margin-bottom: 20px; padding: 15px; background: #ecf0f1; border-radius: 6px; vertical-align: top; }
+  .transformador-dados h3 { margin-top: 0; color: #2980b9; text-align:center; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; min-width: 650px; }
+  th, td { padding: 10px; border-bottom: 1px solid #ccc; text-align: center; }
+  th { background: #2980b9; color: white; }
+  .diff-positive { color: green; font-weight: bold; }
+  .diff-negative { color: red; font-weight: bold; }
+  .diff-neutral { color: gray; }
+  canvas { margin-top: 40px; }
+</style>
 </head>
 <body>
 
@@ -46,8 +47,8 @@
 
 <div id="resultado">Introduz os nomes dos transformadores e clica "Comparar".</div>
 
-<canvas id="graficoTaxas1" style="max-width: 100%; margin-top: 40px;"></canvas>
-<canvas id="graficoTaxas2" width="600" height="400"></canvas>
+<canvas id="graficoTaxas1" style="max-width: 100%;"></canvas>
+<canvas id="graficoTaxas2" style="max-width: 100%;"></canvas>
 <button id="btnExportarPDF" style="display: none; margin-top: 15px;">Exportar PDF</button>
 
 <script>
@@ -57,15 +58,10 @@ function parseNum(v) {
   return isNaN(n) ? NaN : n;
 }
 
-function diffClass(v) {
-  if(v>0) return 'diff-positive';
-  if(v<0) return 'diff-negative';
+function diffClass(v1,v2){
+  if(v1>v2) return 'diff-positive';
+  if(v1<v2) return 'diff-negative';
   return 'diff-neutral';
-}
-
-function classeIndice(indiceStr){
-  if(indiceStr==='N/A') return '';
-  return parseInt(indiceStr) >= 50 ? 'diff-positive' : 'diff-negative';
 }
 
 // -------------------- API --------------------
@@ -74,7 +70,7 @@ async function buscarDados(subprojeto){
     const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
     if(!resp.ok) throw new Error("Transformador não encontrado");
     const data = await resp.json();
-    return data;
+    return data[0].meta; // pegar o primeiro registro
   } catch(err){
     console.error(err);
     return null;
@@ -83,53 +79,22 @@ async function buscarDados(subprojeto){
 
 // -------------------- Cálculos --------------------
 function getSerie(dados) {
-  return (dados.serie || [])
-    .map(r => {
-      const t = new Date(r.DataHora.replace(' ', 'T')).getTime();
-      return { ts: t, lc: parseNum(r.LC_3_8) };
-    })
-    .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
-    .sort((a,b)=>a.ts-b.ts);
+  return (dados.serie || []).map(r => ({
+    ts: new Date(r.DataHora.replace(' ','T')).getTime(),
+    lc: parseNum(r.LC_3_8)
+  })).filter(r=>!isNaN(r.ts)&&!isNaN(r.lc)).sort((a,b)=>a.ts-b.ts);
 }
 
-function calcTaxa(id, massaKg, dados) {
+function calcTaxa(dados){
   const serie = getSerie(dados);
   if(serie.length<2) return null;
-  const ton = parseNum(massaKg)/1000 || 1;
+  const ton = parseNum(dados.massai)/1000 || 1;
   const ultimo = serie[serie.length-1];
-  const alvo = ultimo.ts - 10*3600*1000;
-  const anterior = serie.findLast(r=>r.ts<=alvo) || serie[0];
-  const delta10h = +(ultimo.lc - anterior.lc).toFixed(3);
-  const taxa10h = +(delta10h/(10*ton)).toFixed(4);
-  const deltaTotal = +serie[serie.length-1].lc.toFixed(3);
-  const duracao = (serie[serie.length-1].ts - serie[0].ts)/3600000;
+  const anterior = serie[0];
+  const deltaTotal = +(ultimo.lc - anterior.lc).toFixed(3);
+  const duracao = (ultimo.ts - anterior.ts)/3600000;
   const taxaTotal = +(deltaTotal/(duracao*ton)).toFixed(4);
-  return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
-}
-
-function calcTaxaPorHoraTodoPeriodo(dados, massaKg){
-  const serie = getSerie(dados);
-  if(serie.length<2) return null;
-  const ton = parseNum(massaKg)/1000 || 1;
-  const blocos = [];
-  const tIniGlobal = serie[0].ts;
-  const tFimGlobal = serie[serie.length-1].ts;
-  const horas = Math.floor((tFimGlobal - tIniGlobal)/(3600*1000));
-  for(let i=1;i<=horas;i++){
-    const tIni = tIniGlobal+(i-1)*3600*1000;
-    const tFim = tIniGlobal+i*3600*1000;
-    const anterior = serie.findLast(r=>r.ts<=tIni);
-    const atual = serie.findLast(r=>r.ts<=tFim);
-    const horaLabel = new Date(tFim).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-    if(anterior && atual && atual.ts>anterior.ts){
-      const delta = +(atual.lc - anterior.lc).toFixed(3);
-      const taxa = +(delta/ton).toFixed(4);
-      blocos.push({intervalo:horaLabel,delta,taxa});
-    }else{
-      blocos.push({intervalo:horaLabel,delta:'N/A',taxa:'N/A'});
-    }
-  }
-  return blocos;
+  return {deltaTotal,taxaTotal,duracao};
 }
 
 function maxTEfromSerie(dados){
@@ -138,42 +103,15 @@ function maxTEfromSerie(dados){
   (dados.serie||[]).forEach(linha=>{
     colunas.forEach(col=>{
       const val = parseNum(linha[col]);
-      if(!isNaN(val) && val>0 && val<=140) valores.push(val);
+      if(!isNaN(val)&&val>0&&val<=140) valores.push(val);
     });
   });
   return valores.length>0 ? Math.max(...valores) : null;
 }
 
-function minPE(dados,coluna){
-  const valores = (dados.serie||[]).map(r=>parseNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
+function minPE(dados,col){
+  const valores = (dados.serie||[]).map(r=>parseNum(r[col])).filter(v=>!isNaN(v)&&v>0.1);
   return valores.length ? Math.min(...valores) : null;
-}
-
-function getValorCampo(dados,campo){
-  return dados.terceiro?.[campo] ?? null;
-}
-
-function calculaIndiceTemperatura(pf,rf){
-  if(isNaN(pf)||isNaN(rf)) return 'N/A';
-  if(pf===0 && rf===0) return 'N/A';
-  const diff = rf-pf;
-  if(diff>=5) return '100%';
-  if(diff<=-5) return '0%';
-  const proporcao = (diff+5)/10;
-  const indice = Math.round(proporcao*100);
-  return `${indice}%`;
-}
-
-function calculaIndicePressao(pf,rf){
-  if(isNaN(pf)||isNaN(rf)) return 'N/A';
-  if(pf===0 && rf===0) return 'N/A';
-  const diff = rf-pf;
-  if(diff>=5) return '0%';
-  if(diff<=-5) return '100%';
-  if(diff===0) return '50%';
-  const proporcao = (5-diff)/10;
-  const indice = Math.round(proporcao*100);
-  return `${indice}%`;
 }
 
 // -------------------- Comparar --------------------
@@ -187,63 +125,42 @@ document.getElementById('btnComparar').addEventListener('click', async ()=>{
     return;
   }
 
-  const m1 = await buscarDados(nome1);
-  const m2 = await buscarDados(nome2);
+  const t1 = await buscarDados(nome1);
+  const t2 = await buscarDados(nome2);
 
-  if(!m1||!m2){
+  if(!t1||!t2){
     out.innerHTML='<p>Transformador(es) não encontrado(s).</p>';
     return;
   }
 
-  const t1 = calcTaxa(m1.id_secagenscore,m1.massai,m1);
-  const t2 = calcTaxa(m2.id_secagenscore,m2.massai,m2);
-  if(!t1||!t2){ out.innerHTML='<p>Erro ao calcular taxas.</p>'; return; }
+  const taxa1 = calcTaxa(t1);
+  const taxa2 = calcTaxa(t2);
+  const te1 = maxTEfromSerie(t1);
+  const te2 = maxTEfromSerie(t2);
+  const pe1_417 = minPE(t1,'PE_4_17');
+  const pe2_417 = minPE(t2,'PE_4_17');
+  const pe1_551 = minPE(t1,'PE_5_5_1');
+  const pe2_551 = minPE(t2,'PE_5_5_1');
 
-  const te1 = maxTEfromSerie(m1);
-  const te2 = maxTEfromSerie(m2);
-  const pe1_417 = minPE(m1,'PE_4_17');
-  const pe2_417 = minPE(m2,'PE_4_17');
-  const pe1_551 = minPE(m1,'PE_5_5_1');
-  const pe2_551 = minPE(m2,'PE_5_5_1');
-
-  const blocos1 = calcTaxaPorHoraTodoPeriodo(m1,m1.massai);
-  const blocos2 = calcTaxaPorHoraTodoPeriodo(m2,m2.massai);
-
-  // --- gráficos
-  const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
-  if(window.chartTaxas1) window.chartTaxas1.destroy();
-  window.chartTaxas1 = new Chart(ctx1,{type:'line',data:{labels:blocos1.map(b=>b.intervalo).reverse(),datasets:[{label:m1.subprojecto||m1.id_secagenscore,data:blocos1.map(b=>parseNum(b.taxa)),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)'}]},options:{responsive:true,plugins:{legend:{display:true}}}});
-
-  const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-  if(window.chartTaxas2) window.chartTaxas2.destroy();
-  window.chartTaxas2 = new Chart(ctx2,{type:'line',data:{labels:blocos2.map(b=>b.intervalo).reverse(),datasets:[{label:m2.subprojecto||m2.id_secagenscore,data:blocos2.map(b=>parseNum(b.taxa)),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)'}]},options:{responsive:true,plugins:{legend:{display:true}}}});
-
-  // --- HTML resultado
   out.innerHTML = `
   <div class="transformador-dados">
-    <h3>${m1.subprojecto||m1.id_secagenscore}</h3>
-    <p>Delta 10h: ${t1.delta10h} | Taxa 10h: ${t1.taxa10h}</p>
-    <p>Delta Total: ${t1.deltaTotal} | Taxa Total: ${t1.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te1}</p>
-    <p>Mín PE_4_17: ${pe1_417} | Mín PE_5_5_1: ${pe1_551}</p>
+    <h3>${t1.subprojecto||t1.id_secagenscore}</h3>
+    <p>Delta Total: <span class="${diffClass(taxa1.deltaTotal,taxa2.deltaTotal)}">${taxa1.deltaTotal}</span></p>
+    <p>Taxa Total: <span class="${diffClass(taxa1.taxaTotal,taxa2.taxaTotal)}">${taxa1.taxaTotal}</span></p>
+    <p>Máx TE_5_4_X: <span class="${diffClass(te1,te2)}">${te1}</span></p>
+    <p>Mín PE_4_17: <span class="${diffClass(pe1_417,pe2_417)}">${pe1_417}</span></p>
+    <p>Mín PE_5_5_1: <span class="${diffClass(pe1_551,pe2_551)}">${pe1_551}</span></p>
   </div>
   <div class="transformador-dados">
-    <h3>${m2.subprojecto||m2.id_secagenscore}</h3>
-    <p>Delta 10h: ${t2.delta10h} | Taxa 10h: ${t2.taxa10h}</p>
-    <p>Delta Total: ${t2.deltaTotal} | Taxa Total: ${t2.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te2}</p>
-    <p>Mín PE_4_17: ${pe2_417} | Mín PE_5_5_1: ${pe2_551}</p>
+    <h3>${t2.subprojecto||t2.id_secagenscore}</h3>
+    <p>Delta Total: <span class="${diffClass(taxa2.deltaTotal,taxa1.deltaTotal)}">${taxa2.deltaTotal}</span></p>
+    <p>Taxa Total: <span class="${diffClass(taxa2.taxaTotal,taxa1.taxaTotal)}">${taxa2.taxaTotal}</span></p>
+    <p>Máx TE_5_4_X: <span class="${diffClass(te2,te1)}">${te2}</span></p>
+    <p>Mín PE_4_17: <span class="${diffClass(pe2_417,pe1_417)}">${pe2_417}</span></p>
+    <p>Mín PE_5_5_1: <span class="${diffClass(pe2_551,pe1_551)}">${pe2_551}</span></p>
   </div>
-  <h3>Comparação</h3>
-  <table>
-    <tr><th>Indicador</th><th>${m1.subprojecto||m1.id_secagenscore}</th><th>${m2.subprojecto||m2.id_secagenscore}</th></tr>
-    <tr><td>Taxa Total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
-    <tr><td>Delta Total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
-    <tr><td>Máx TE_5_4_X</td><td>${te1}</td><td>${te2}</td></tr>
-    <tr><td>Mín PE_4_17</td><td>${pe1_417}</td><td>${pe2_417}</td></tr>
-    <tr><td>Mín PE_5_5_1</td><td>${pe1_551}</td><td>${pe2_551}</td></tr>
-  </table>
   `;
+
   document.getElementById("btnExportarPDF").style.display='block';
 });
 
@@ -264,4 +181,3 @@ document.getElementById("btnExportarPDF").addEventListener("click", async ()=>{
 
 </body>
 </html>
-
