@@ -118,25 +118,20 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
         <p>Massa dos isolantes: ${m2.massai ?? 'N/A'} kg</p>
     </div>
     <h3>Comparação</h3>
-    <table>
-        <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-        <tr><td>Duração total (h)</td><td>${m1.duracao ?? 'N/A'}</td><td>${m2.duracao ?? 'N/A'}</td></tr>
-        <tr><td>Quantidade de água removida (L)</td><td>${m1.aguaRemovida ?? 'N/A'}</td><td>${m2.aguaRemovida ?? 'N/A'}</td></tr>
-        <tr><td>Taxa total (L/(h*t))</td><td>${m1.taxaTotal ?? 'N/A'}</td><td>${m2.taxaTotal ?? 'N/A'}</td></tr>
-        <tr><td>Maior temperatura (ºC)</td><td>${m1.maxTE ?? 'N/A'}</td><td>${m2.maxTE ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão (mbar)</td><td>${m1.minPE_4_17 ?? 'N/A'}</td><td>${m2.minPE_4_17 ?? 'N/A'}</td></tr>
-      <tr><td>Menor valor de vacuo fino (mbar)</td><td>${m1.minPE_5_5_1 ?? 'N/A'}</td><td>${m2.minPE_5_5_1 ?? 'N/A'}</td></tr>
-
-    </table>
-    `;
-<h3>Índice TAquec</h3>
+    <h3>Comparação</h3>
 <table>
-  <tr>
-    <th>TAquec</th>
-    <th>PF</th>
-    <th>RF</th>
-    <th>Índice (%)</th>
-  </tr>
+  <tr><th>Indicador</th><th>{{nome1}}</th><th>{{nome2}}</th></tr>
+  <tr><td>Duração total (h)</td><td>{{m1.duracao}}</td><td>{{m2.duracao}}</td></tr>
+  <tr><td>Quantidade de água removida (L)</td><td>{{m1.aguaRemovida}}</td><td>{{m2.aguaRemovida}}</td></tr>
+  <tr><td>Taxa total (L/(h*t))</td><td>{{m1.taxaTotal}}</td><td>{{m2.taxaTotal}}</td></tr>
+  <tr><td>Maior temperatura (ºC)</td><td>{{m1.maxTE}}</td><td>{{m2.maxTE}}</td></tr>
+  <tr><td>Menor pressão (mbar)</td><td>{{m1.minPE_4_17}}</td><td>{{m2.minPE_4_17}}</td></tr>
+  <tr><td>Menor vácuo fino (mbar)</td><td>{{m1.minPE_5_5_1}}</td><td>{{m2.minPE_5_5_1}}</td></tr>
+</table>
+
+<h3>Índice TAquec - {{nome1}}</h3>
+<table>
+  <tr><th>TAquec</th><th>PF</th><th>RF</th><th>Índice (%)</th></tr>
   {% for i, taquec in enumerate(m1.indice_taquec) %}
   <tr>
     <td>TAquec {{ i+1 }}</td>
@@ -147,13 +142,9 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   {% endfor %}
 </table>
 
+<h3>Índice TAquec - {{nome2}}</h3>
 <table>
-  <tr>
-    <th>TAquec</th>
-    <th>PF</th>
-    <th>RF</th>
-    <th>Índice (%)</th>
-  </tr>
+  <tr><th>TAquec</th><th>PF</th><th>RF</th><th>Índice (%)</th></tr>
   {% for i, taquec in enumerate(m2.indice_taquec) %}
   <tr>
     <td>TAquec {{ i+1 }}</td>
@@ -163,6 +154,7 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   </tr>
   {% endfor %}
 </table>
+
 
     // --- Gráficos ---
     const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
