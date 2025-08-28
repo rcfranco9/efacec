@@ -7,7 +7,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* --- Estilo geral --- */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #f0f2f5;
@@ -15,17 +14,14 @@ body {
   padding: 0;
 }
 .container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 20px auto;
   padding: 20px;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
-h1, h2, h3 {
-  text-align: center;
-  color: #2c3e50;
-}
+h1, h2, h3 { text-align: center; color: #2c3e50; }
 input, button {
   padding: 10px 15px;
   margin: 5px 5px 20px 0;
@@ -43,13 +39,13 @@ button:hover { background-color: #2980b9; }
 .bloco {
   background: #f7f9fc;
   padding: 15px 20px;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   border-radius: 10px;
   box-shadow: 0 3px 10px rgba(0,0,0,0.08);
 }
 .bloco h3 { margin-top: 0; color: #34495e; }
 .bloco p { margin: 3px 0; font-size: 14px; }
-canvas { display: block; margin: 0 auto 20px auto; border-radius: 8px; background: #fff; padding: 10px; }
+canvas { display: block; margin: 20px auto; border-radius: 8px; background: #fff; padding: 10px; }
 #btnExportarPDF { display: block; background-color: #27ae60; margin: 0 auto 30px auto; }
 #btnExportarPDF:hover { background-color: #1e8449; }
 </style>
@@ -66,14 +62,11 @@ canvas { display: block; margin: 0 auto 20px auto; border-radius: 8px; backgroun
 
 <div id="resultado"></div>
 
-<h2>Gráfico Taxa L/(h*t) por hora</h2>
-<canvas id="graficoTaxa" width="700" height="350"></canvas>
-
 <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
 </div>
 
 <script>
-let graficoTaxa = null;
+let graficos = [];
 
 function formatNum(v, dec = 3) {
   const n = parseFloat(v);
@@ -125,6 +118,9 @@ async function buscarPorNome() {
     return; 
   }
   out.textContent = 'Buscando dados...';
+  graficos.forEach(g => g.destroy());
+  graficos = [];
+  out.innerHTML = '';
 
   try {
     const res = await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
@@ -137,48 +133,38 @@ async function buscarPorNome() {
       return; 
     }
 
-    // Limpar conteúdo anterior
-    out.innerHTML = '';
-    let graficosTaxa = [];
-
     data.forEach((t, index) => {
       const serieRef = t.referencia || [{}];
       const meta = t.meta || {};
       const serie = t.serie || [];
 
-      // Massa transformador (kg) / isolantes (t)
+      // Massa transformador / isolantes
       let massaTon = parseFloat(meta.massat)/1000;
-      if (isNaN(massaTon)) massaTon = 100; // fallback
+      if (isNaN(massaTon)) massaTon = 100;
 
-      // Calcular duração total
       let duracao = 0;
       if(serieRef.length > 0){
           const inicioSecagem = serieRef[0].datainicio ? new Date(serieRef[0].datainicio) : null;
           const fimSecagem = serieRef[0].datafim ? new Date(serieRef[0].datafim) : null;
           if(inicioSecagem && fimSecagem){
-              duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
+              duracao = (fimSecagem - inicioSecagem) / 3600000;
           }
       }
 
-      // Calcular água removida (último valor LC_3_8)
       let aguaRemovida = 0;
       if (serie.length > 0) {
           const ultimaLinha = serie[serie.length - 1];
           aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
       }
 
-      // Massa isolantes em toneladas
       let massaIsolantesTon = parseFloat(meta.massai)/1000;
-      if(isNaN(massaIsolantesTon) || massaIsolantesTon <= 0) massaIsolantesTon = 1; // fallback
+      if(isNaN(massaIsolantesTon) || massaIsolantesTon <= 0) massaIsolantesTon = 1;
 
-      // Taxa total
-      let taxaTotal = 0;
-      if(duracao > 0){
-          taxaTotal = aguaRemovida / (duracao * massaIsolantesTon);
-      }
+      let taxaTotal = duracao > 0 ? aguaRemovida / (duracao * massaIsolantesTon) : 0;
 
-      // --- Bloco Meta ---
-      let html = `<div class="bloco"><h3>Transformador #${index+1}</h3>`;
+      // Canvas único
+      const canvasId = `graficoTaxa_${index}`;
+      let html = `<div class="bloco"><h3>Transformador #${index+1} - ID: ${meta.id_secagenscore || 'N/A'}</h3>`;
       html += `<p><strong>Potência:</strong> ${meta.potencia || 0} kVA</p>`;
       html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
       html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
@@ -186,54 +172,13 @@ async function buscarPorNome() {
       html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
       html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
       html += `<p><strong>Taxa total:</strong> ${taxaTotal.toFixed(3)} L/(h*t)</p>`;
-      html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
-      html += `</div>`;
+      html += `<canvas id="${canvasId}" width="800" height="350"></canvas></div>`;
 
-      // --- Bloco PF/RF ---
-      html += `<div class="bloco"><h3>PF/RF e Índices</h3>`;
-      const PF_TAquec = serieRef.map(r => [r.PF1TAquec,r.PF2TAquec,r.PF3TAquec,r.PF4TAquec,r.PF5TAquec,r.PF6TAquec])[0];
-      const RF_TAquec = serieRef.map(r => [r.RF1TAquec,r.RF2TAquec,r.RF3TAquec,r.RF4TAquec,r.RF5TAquec,r.RF6TAquec])[0];
-      const PF_PRem = serieRef.map(r => [r.PF1PRem,r.PF2PRem,r.PF3PRem,r.PF4PRem,r.PF5PRem,r.PF6PRem])[0];
-      const RF_PRem = serieRef.map(r => [r.RF1PRem,r.RF2PRem,r.RF3PRem,r.RF4PRem,r.RF5PRem,r.RF6PRem])[0];
-
-      PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v} | RF${i+1}TAquec: ${RF_TAquec[i]} | Índice: ${calcularIndice(v, RF_TAquec[i])}</p>`);
-      PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v} | RF${i+1}PRem: ${RF_PRem[i]} | Índice pressão: ${calculaIndicePressao(v, RF_PRem[i])}</p>`);
-      html += `</div>`;
-
-      // --- Bloco fases de secagem ---
-      html += `<div class="bloco"><h3>Fases de Secagem</h3>`;
-      const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
-      let primeiraHoraPressaoBaixa = null;
-      for(const l of serieOrdenada){
-        const p = parseFloat(l.PE_5_5_1);
-        if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
-      }
-      html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
-      let dataAnterior = primeiraHoraPressaoBaixa || new Date();
-      for(let fase=1; fase<=6; fase++){
-        const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
-        const rem = parseFloat(serieRef[0][`RF${fase}DRem`]);
-        if(aquec>0 && rem>0){
-          const inicioRem = new Date(dataAnterior.getTime() + aquec*3600000);
-          const fimRem = new Date(inicioRem.getTime() + rem*3600000);
-          html += `<p><strong>RF${fase}DRem:</strong> início ${formatarData(inicioRem)}, fim ${formatarData(fimRem)}</p>`;
-          dataAnterior = fimRem;
-        } else {
-          html += `<p><strong>A secagem não chegou à fase RF${fase}DRem.</strong></p>`;
-          break;
-        }
-      }
-      html += `</div>`;
-
-      // --- Canvas para gráfico ---
-      const canvasId = `graficoTaxa_${index}`;
-      html += `<canvas id="${canvasId}" width="700" height="350"></canvas>`;
-
-      // Adiciona ao container
       out.innerHTML += html;
 
-      // --- Criar gráfico taxa hora a hora ---
-      criarGraficoTaxaHoraAHora(canvasId, serie, meta, graficosTaxa);
+      // Criar gráfico do transformador
+      const g = criarGraficoTaxaHoraAHora(canvasId, serie, meta);
+      graficos.push(g);
     });
 
     document.getElementById('btnExportarPDF').style.display='block';
@@ -243,9 +188,9 @@ async function buscarPorNome() {
   }
 }
 
-// --- Atualizar função do gráfico para receber array de gráficos ---
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta, graficosTaxa) {
-  if(!dadosSerie || dadosSerie.length===0) return;
+// Função para criar gráfico e retornar instância Chart
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
+  if(!dadosSerie || dadosSerie.length===0) return null;
   let massaIsolantesTon = parseFloat(meta.massai)/1000;
   if(isNaN(massaIsolantesTon) || massaIsolantesTon<=0) massaIsolantesTon=1;
 
@@ -277,7 +222,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta, graficosTaxa) {
   });
 
   const ctx = document.getElementById(idCanvas);
-  if(!ctx) return;
+  if(!ctx) return null;
 
   const chart = new Chart(ctx,{
     type:'line',
@@ -295,22 +240,15 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta, graficosTaxa) {
     },
     options:{
       responsive:true,
-      plugins:{
-        legend:{ position:'top' },
-        title:{ display:true, text:'Taxa LC por Hora' }
-      },
-      scales:{
-        y:{ title:{ display:true, text:'Taxa LC L/(h*t)' } },
-        x:{ title:{ display:true, text:'Hora' } }
-      }
+      plugins:{ legend:{ position:'top' }, title:{ display:true, text:'Taxa LC por Hora' } },
+      scales:{ y:{ title:{ display:true, text:'Taxa LC L/(h*t)' } }, x:{ title:{ display:true, text:'Hora' } } }
     }
   });
 
-  graficosTaxa.push(chart);
+  return chart;
 }
 
-
-// --- Exportar PDF ---
+// Exportar PDF
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
   html2canvas(document.body).then(canvas=>{
     const imgData=canvas.toDataURL('image/png');
