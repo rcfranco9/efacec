@@ -67,18 +67,28 @@ function getSerie(dados){
 
 function calcTaxa(id, massaKg, dados){
   const serie = getSerie(dados);
-  if(serie.length<2) return null;
-  const ton = parseNum(massaKg)/1000||1;
-  const ultimo = serie[serie.length-1];
+  if(serie.length < 2) return null; // precisa de pelo menos 2 pontos para calcular delta
+
+  const ton = parseNum(massaKg)/1000 || 1;
+
+  // primeiro e último ponto da série
+  const primeiro = serie[0];
+  const ultimo = serie[serie.length - 1];
+
+  // delta total e taxa total
+  const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
+  const duracao = (ultimo.ts - primeiro.ts) / 3600000; // duração em horas
+  const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
+
+  // delta e taxa das últimas 10h (se existir)
   const alvo = ultimo.ts - 10*3600*1000;
-  const anterior = serie.find(r=>r.ts<=alvo) || serie[0]; // findLast pode não estar disponível em todos os browsers
-  const delta10h = +(ultimo.lc-anterior.lc).toFixed(3);
-  const taxa10h = +(delta10h/(10*ton)).toFixed(4);
-  const deltaTotal = +(ultimo.lc).toFixed(3);
-  const duracao = (ultimo.ts-serie[0].ts)/3600000;
-  const taxaTotal = +(deltaTotal/(duracao*ton)).toFixed(4);
-  return {delta10h,taxa10h,deltaTotal,taxaTotal,duracao};
+  const anterior10h = serie.find(r => r.ts <= alvo) || primeiro;
+  const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
+  const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
+
+  return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
+
 
 function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
   const serie = getSerie(dados);
