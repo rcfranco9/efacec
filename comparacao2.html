@@ -164,12 +164,6 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
     return;
   }
 
-  // Validar série: agora aceita séries com apenas 1 ponto
-  if(!hasSerieValida(m1) || !hasSerieValida(m2)){
-    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas.</p>'; 
-    return;
-  }
-
   const t1=calcTaxa(m1.id_secagenscore,m1.massai,m1);
   const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
 
