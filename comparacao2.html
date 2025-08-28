@@ -44,8 +44,15 @@
 
 <script>
 // -------------------- Funções auxiliares --------------------
-function parseNum(v){ const n=parseFloat((v||'').toString().replace(',','.').trim()); return isNaN(n)?NaN:n; }
-function diffClass(v){ if(v>0) return 'diff-positive'; if(v<0) return 'diff-negative'; return 'diff-neutral'; }
+function parseNum(v){ 
+  const n=parseFloat((v||'').toString().replace(',','.').trim()); 
+  return isNaN(n)?NaN:n; 
+}
+function diffClass(v){ 
+  if(v>0) return 'diff-positive'; 
+  if(v<0) return 'diff-negative'; 
+  return 'diff-neutral'; 
+}
 
 // -------------------- API --------------------
 async function buscarDados(subprojeto){
@@ -53,34 +60,39 @@ async function buscarDados(subprojeto){
     const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
     if(!resp.ok) throw new Error("Transformador não encontrado");
     const data = await resp.json();
-    // Certificar que retorna sempre uma lista
     return Array.isArray(data)?data:null;
-  }catch(err){ console.error(err); return null; }
+  }catch(err){ 
+    console.error(err); 
+    return null; 
+  }
 }
 
 // -------------------- Cálculos --------------------
 function getSerie(dados){ 
-  return (dados.serie||[]).map(r=>({ts:new Date(r.DataHora.replace(' ','T')).getTime(),lc:parseNum(r.LC_3_8)}))
-          .filter(r=>!isNaN(r.ts)&&!isNaN(r.lc))
+  return (dados.serie||[])
+          .map(r=>({ts:new Date(r.DataHora.replace(' ','T')).getTime(), lc:parseNum(r.LC_3_8)}))
+          .filter(r=>!isNaN(r.ts) && !isNaN(r.lc))
           .sort((a,b)=>a.ts-b.ts);
+}
+
+function hasSerieValida(dados){
+  const serie = getSerie(dados);
+  console.log("Serie filtrada:", serie); // log para depurar
+  return serie.length >= 2; 
 }
 
 function calcTaxa(id, massaKg, dados){
   const serie = getSerie(dados);
-  if(serie.length < 2) return null; // precisa de pelo menos 2 pontos para calcular delta
+  if(serie.length < 2) return null;
 
   const ton = parseNum(massaKg)/1000 || 1;
-
-  // primeiro e último ponto da série
   const primeiro = serie[0];
   const ultimo = serie[serie.length - 1];
 
-  // delta total e taxa total
   const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
-  const duracao = (ultimo.ts - primeiro.ts) / 3600000; // duração em horas
+  const duracao = (ultimo.ts - primeiro.ts) / 3600000;
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
-  // delta e taxa das últimas 10h (se existir)
   const alvo = ultimo.ts - 10*3600*1000;
   const anterior10h = serie.find(r => r.ts <= alvo) || primeiro;
   const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
@@ -88,7 +100,6 @@ function calcTaxa(id, massaKg, dados){
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
-
 
 function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
   const serie = getSerie(dados);
@@ -133,7 +144,6 @@ function minPE(dados,coluna){
 }
 
 // -------------------- Comparar --------------------
-// -------------------- Comparar --------------------
 document.getElementById('btnComparar').addEventListener('click',async()=>{
   const nome1=document.getElementById('nome1').value.trim();
   const nome2=document.getElementById('nome2').value.trim();
@@ -154,9 +164,8 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   }
 
   // Validar série
-  if(!(m1.serie?.length>=2 && m1.serie.some(r=>r.LC_3_8)) ||
-     !(m2.serie?.length>=2 && m2.serie.some(r=>r.LC_3_8))){
-    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas.</p>'; 
+  if(!hasSerieValida(m1) || !hasSerieValida(m2)){
+    out.innerHTML='<p>Série de LC_3_8 insuficiente para calcular taxas. Necessário pelo menos 2 pontos com valores.</p>'; 
     return;
   }
 
@@ -164,7 +173,7 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
 
   if(!t1 || !t2){ out.innerHTML='<p>Erro ao calcular taxas.</p>'; return; }
-  
+
   const te1=maxTEfromSerie(m1);
   const te2=maxTEfromSerie(m2);
   const pe1_417=minPE(m1,'PE_4_17');
@@ -226,6 +235,7 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
   `;
   document.getElementById("btnExportarPDF").style.display='block';
 });
+
 
 // -------------------- Exportar PDF --------------------
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
