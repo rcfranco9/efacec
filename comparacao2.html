@@ -129,40 +129,6 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
 
     </table>
     `;
-<h3>Índice TAquec</h3>
-<table>
-  <tr>
-    <th>TAquec</th>
-    <th>PF</th>
-    <th>RF</th>
-    <th>Índice (%)</th>
-  </tr>
-  {% for i, taquec in enumerate(m1.indice_taquec) %}
-  <tr>
-    <td>TAquec {{ i+1 }}</td>
-    <td>{{ taquec.PF }}</td>
-    <td>{{ taquec.RF }}</td>
-    <td>{{ taquec.indice }}</td>
-  </tr>
-  {% endfor %}
-</table>
-
-<table>
-  <tr>
-    <th>TAquec</th>
-    <th>PF</th>
-    <th>RF</th>
-    <th>Índice (%)</th>
-  </tr>
-  {% for i, taquec in enumerate(m2.indice_taquec) %}
-  <tr>
-    <td>TAquec {{ i+1 }}</td>
-    <td>{{ taquec.PF }}</td>
-    <td>{{ taquec.RF }}</td>
-    <td>{{ taquec.indice }}</td>
-  </tr>
-  {% endfor %}
-</table>
 
     // --- Gráficos ---
     const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
