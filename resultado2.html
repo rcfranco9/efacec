@@ -167,7 +167,13 @@ if (serie.length > 0) {
     const ultimaLinha = serie[serie.length - 1];
     aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
 }
+let massaIsolantesTon = parseFloat(meta.massai)/1000;
+if(isNaN(massaIsolantesTon) || massaIsolantesTon <= 0) massaIsolantesTon = 1; // fallback
 
+let taxaTotal = 0;
+if(meta.duracao > 0){
+    taxaTotal = meta.aguaRemovida / (meta.duracao * massaIsolantesTon);
+}
 
 
 
@@ -179,7 +185,7 @@ if (serie.length > 0) {
     html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
   html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
 html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
-html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal?.toFixed(3) || 0} L/(h*t)</p>`;
+html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
     html += `</div>`;
 
