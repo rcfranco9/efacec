@@ -150,20 +150,15 @@ async function buscarPorNome() {
       console.warn("⚠️ MassaTon não veio da API. Usando fallback 100 t");
     }
 
-    // --- Calcular duração correta ---
-   // --- Calcular duração usando secagens_core ---
+  
 let duracao = 0;
-if(referencia.length > 0){
-    const inicioSecagem = referencia[0].datainicio ? new Date(referencia[0].datainicio) : null;
-    const fimSecagem = referencia[0].datafim ? new Date(referencia[0].datafim) : null;
+if(serieRef.length > 0){
+    const inicioSecagem = serieRef[0].datainicio ? new Date(serieRef[0].datainicio) : null;
+    const fimSecagem = serieRef[0].datafim ? new Date(serieRef[0].datafim) : null;
     if(inicioSecagem && fimSecagem){
         duracao = (fimSecagem - inicioSecagem) / 3600000; // diferença em horas
     }
 }
-
-
-
-
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
     html += `<p><strong>Potência:</strong> ${meta.potencia || 0} kVA</p>`;
