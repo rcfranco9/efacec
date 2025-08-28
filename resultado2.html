@@ -7,36 +7,70 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+/* --- Estilo geral --- */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin: 20px;
   background: #f0f2f5;
-  color: #333;
+  margin: 0;
+  padding: 0;
 }
-h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
-input, button { padding: 8px 12px; margin: 5px 5px 20px 0; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
-button { background-color: #3498db; color: #fff; cursor: pointer; transition: 0.3s; }
+.container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+h1, h2, h3 {
+  text-align: center;
+  color: #2c3e50;
+}
+input, button {
+  padding: 10px 15px;
+  margin: 5px 5px 20px 0;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+button {
+  background-color: #3498db;
+  color: #fff;
+  cursor: pointer;
+  transition: 0.3s;
+}
 button:hover { background-color: #2980b9; }
-.bloco-transformador { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
-.bloco-transformador:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-p, li { margin: 3px 0; font-size: 14px; }
-canvas { margin-top: 15px; border-radius: 8px; background: #f7f9fc; padding: 10px; }
+.bloco {
+  background: #f7f9fc;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+}
+.bloco h3 { margin-top: 0; color: #34495e; }
+.bloco p { margin: 3px 0; font-size: 14px; }
+canvas { display: block; margin: 0 auto 20px auto; border-radius: 8px; background: #fff; padding: 10px; }
 #btnExportarPDF { display: block; background-color: #27ae60; margin: 0 auto 30px auto; }
 #btnExportarPDF:hover { background-color: #1e8449; }
 </style>
 </head>
 <body>
 
-<h2>Consulta Transformador (Base: meubanco)</h2>
+<div class="container">
+<h1>Consulta Transformador</h1>
 
+<div style="text-align:center; margin-bottom:20px;">
 <input type="text" id="nomeInput" placeholder="Digite o nome do transformador">
 <button id="btnBuscar">Buscar</button>
+</div>
+
 <div id="resultado"></div>
 
-<h3>Gráfico Taxa L/(h*t) por hora</h3>
-<canvas id="graficoTaxa" width="600" height="300"></canvas>
-  
+<h2>Gráfico Taxa L/(h*t) por hora</h2>
+<canvas id="graficoTaxa" width="700" height="350"></canvas>
+
 <button id="btnExportarPDF" style="display:none;">Exportar PDF</button>
+</div>
 
 <script>
 let graficoTaxa = null;
@@ -111,7 +145,8 @@ async function buscarPorNome() {
     console.log("📊 Serie usada:", serie);
     console.log("⚖️ MassaTon usada:", massaTon);
 
-    let html = `<div class="bloco-transformador">`;
+    // --- Bloco Meta ---
+    let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
     html += `<p><strong>Potência:</strong> ${meta.potencia || 0} kVA</p>`;
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${meta.massaTotal || 0} kg</p>`;
@@ -120,20 +155,21 @@ async function buscarPorNome() {
     html += `<p><strong>Água removida:</strong> ${meta.aguaRemovida || 0} L</p>`;
     html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal || 0} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
-    html += `<hr>`;
+    html += `</div>`;
 
+    // --- Bloco PF/RF ---
+    html += `<div class="bloco"><h3>PF/RF e Índices</h3>`;
     const PF_TAquec = serieRef.map(r => [r.PF1TAquec,r.PF2TAquec,r.PF3TAquec,r.PF4TAquec,r.PF5TAquec,r.PF6TAquec])[0];
     const RF_TAquec = serieRef.map(r => [r.RF1TAquec,r.RF2TAquec,r.RF3TAquec,r.RF4TAquec,r.RF5TAquec,r.RF6TAquec])[0];
     const PF_PRem = serieRef.map(r => [r.PF1PRem,r.PF2PRem,r.PF3PRem,r.PF4PRem,r.PF5PRem,r.PF6PRem])[0];
     const RF_PRem = serieRef.map(r => [r.RF1PRem,r.RF2PRem,r.RF3PRem,r.RF4PRem,r.RF5PRem,r.RF6PRem])[0];
 
-    PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v}</p>`);
-    RF_TAquec.forEach((v,i)=> html+=`<p>RF${i+1}TAquec: ${v}</p>`);
-    PF_TAquec.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1}: ${calcularIndice(v, RF_TAquec[i])}</p>`);
-    PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v}</p>`);
-    RF_PRem.forEach((v,i)=> html+=`<p>RF${i+1}PRem: ${v}</p>`);
-    PF_PRem.forEach((v,i)=> html+=`<p>Índice PF${i+1} vs RF${i+1} (pressão): ${calculaIndicePressao(v, RF_PRem[i])}</p>`);
+    PF_TAquec.forEach((v,i)=> html+=`<p>PF${i+1}TAquec: ${v} | RF${i+1}TAquec: ${RF_TAquec[i]} | Índice: ${calcularIndice(v, RF_TAquec[i])}</p>`);
+    PF_PRem.forEach((v,i)=> html+=`<p>PF${i+1}PRem: ${v} | RF${i+1}PRem: ${RF_PRem[i]} | Índice pressão: ${calculaIndicePressao(v, RF_PRem[i])}</p>`);
+    html += `</div>`;
 
+    // --- Bloco fases de secagem ---
+    html += `<div class="bloco"><h3>Fases de Secagem</h3>`;
     const serieOrdenada = serie.slice().sort((a,b)=>new Date(a.DataHora)-new Date(b.DataHora));
     let primeiraHoraPressaoBaixa = null;
     for(const l of serieOrdenada){
@@ -141,7 +177,6 @@ async function buscarPorNome() {
       if(!isNaN(p) && p<20){ primeiraHoraPressaoBaixa=new Date(l.DataHora); break; }
     }
     html += `<p><strong>Primeira hora com pressão PE_5_5_1 abaixo de 20 mbar:</strong> ${formatarData(primeiraHoraPressaoBaixa)}</p>`;
-
     let dataAnterior = primeiraHoraPressaoBaixa || new Date();
     for(let fase=1; fase<=6; fase++){
       const aquec = parseFloat(serieRef[0][`RF${fase}DAquec`]);
@@ -149,19 +184,19 @@ async function buscarPorNome() {
       if(aquec>0 && rem>0){
         const inicioRem = new Date(dataAnterior.getTime() + aquec*3600000);
         const fimRem = new Date(inicioRem.getTime() + rem*3600000);
-        html += `<p><strong>Início da zona de remoção RF${fase}DRem:</strong> ${formatarData(inicioRem)}</p>`;
-        html += `<p><strong>Fim da zona de remoção RF${fase}DRem:</strong> ${formatarData(fimRem)}</p>`;
+        html += `<p><strong>RF${fase}DRem:</strong> início ${formatarData(inicioRem)}, fim ${formatarData(fimRem)}</p>`;
         dataAnterior = fimRem;
       } else {
         html += `<p><strong>A secagem não chegou à fase RF${fase}DRem.</strong></p>`;
         break;
       }
     }
-
     html += `</div>`;
+
     out.innerHTML = html;
 
     criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTon);
+    document.getElementById('btnExportarPDF').style.display='block';
 
   } catch(err) {
     console.error(err);
@@ -169,93 +204,58 @@ async function buscarPorNome() {
   }
 }
 
-// --- Apenas gráfico de taxa ---
+// --- Gráfico ---
 function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
-  console.log("🚀 Iniciando criarGraficoTaxaHoraAHora...");
-  console.log("dadosSerie recebido:", dadosSerie);
-  console.log("massaTon recebido:", massaTon);
-
-  if (!massaTon || massaTon <= 0) {
-    console.warn('⚠️ massaTon inválido:', massaTon);
-    return;
-  }
-
+  if (!massaTon || massaTon <= 0) return;
   const dadosPorHora = {};
-
   dadosSerie.forEach(linha => {
     const dataHora = new Date(linha.DataHora);
     if (isNaN(dataHora)) return;
-    dataHora.setMinutes(0, 0, 0);
+    dataHora.setMinutes(0,0,0);
     const chaveHora = dataHora.getTime();
     const valorLC = parseFloat(linha.LC_3_8);
     if (isNaN(valorLC)) return;
     if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
     dadosPorHora[chaveHora].push(valorLC);
   });
-
-  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a, b) => a - b);
-
+  const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b)=>a-b);
   const labelsHoras = [];
   const taxasHoraAHora = [];
   let valorAnterior = null;
-
-  chavesOrdenadas.forEach(chave => {
+  chavesOrdenadas.forEach(chave=>{
     const hora = new Date(Number(chave)).getHours();
     labelsHoras.push(`${hora}h`);
     const valores = dadosPorHora[chave];
-    const valorAtual = valores[valores.length - 1];
-    if (valorAnterior !== null) {
-      taxasHoraAHora.push((valorAtual - valorAnterior) / massaTon);
-    } else {
-      taxasHoraAHora.push(0);
-    }
-    valorAnterior = valorAtual;
+    const valorAtual = valores[valores.length-1];
+    taxasHoraAHora.push(valorAnterior!==null ? (valorAtual-valorAnterior)/massaTon : 0);
+    valorAnterior=valorAtual;
   });
-
   const ctx = document.getElementById(idCanvas);
-  if (!ctx) {
-    console.warn(`Canvas com id '${idCanvas}' não encontrado.`);
-    return;
-  }
-
-  if (graficoTaxa) graficoTaxa.destroy(); // destruir gráfico anterior
-  graficoTaxa = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labelsHoras,
-      datasets: [{
-        label: 'Taxa LC L/(h*t)',
-        data: taxasHoraAHora,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(52,152,219,0.2)',
-        fill: true,
-        tension: 0.2,
-        pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: {
-          display: true,
-          text: 'Taxa LC por Hora'
-        }
-      },
-      scales: {
-        y: { title: { display: true, text: 'Taxa LC L/(h*t)' } },
-        x: { title: { display: true, text: 'Hora' } }
-      }
+  if(!ctx) return;
+  if(graficoTaxa) graficoTaxa.destroy();
+  graficoTaxa = new Chart(ctx,{
+    type:'line',
+    data:{ labels: labelsHoras, datasets:[{
+      label:'Taxa LC L/(h*t)',
+      data: taxasHoraAHora,
+      borderColor:'blue',
+      backgroundColor:'rgba(52,152,219,0.2)',
+      fill:true,
+      tension:0.2,
+      pointRadius:4
+    }]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{position:'top'}, title:{display:true,text:'Taxa LC por Hora'} },
+      scales:{ y:{title:{display:true,text:'Taxa LC L/(h*t)'}}, x:{title:{display:true,text:'Hora'}} }
     }
   });
-
-  console.log("✅ Gráfico criado com sucesso!");
 }
 
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
   html2canvas(document.body).then(canvas=>{
-    const imgData = canvas.toDataURL('image/png');
+    const imgData=canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p','mm','a4');
     const imgProps = pdf.getImageProperties(imgData);
