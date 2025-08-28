@@ -227,7 +227,7 @@ html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)
 
     out.innerHTML = html;
 
-    criarGraficoTaxaHoraAHora('graficoTaxa', serie, massaTon);
+    criarGraficoTaxaHoraAHora('graficoTaxa', serie, meta);
     document.getElementById('btnExportarPDF').style.display='block';
 
   } catch(err) {
