@@ -238,8 +238,13 @@ html += `<p><strong>Taxa total:</strong> ${parseFloat(meta.taxaTotal).toFixed(3)
 
 
 // --- Gráfico ---
-function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
-  if (!massaTon || massaTon <= 0) return;
+<script>
+// --- Gráfico ---
+function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
+  // Massa dos isolantes em toneladas
+  let massaIsolantesTon = parseFloat(meta.massai) / 1000;
+  if (!massaIsolantesTon || massaIsolantesTon <= 0) return;
+
   const dadosPorHora = {};
   dadosSerie.forEach(linha => {
     const dataHora = new Date(linha.DataHora);
@@ -251,40 +256,58 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, massaTon) {
     if (!dadosPorHora[chaveHora]) dadosPorHora[chaveHora] = [];
     dadosPorHora[chaveHora].push(valorLC);
   });
+
   const chavesOrdenadas = Object.keys(dadosPorHora).sort((a,b)=>a-b);
   const labelsHoras = [];
   const taxasHoraAHora = [];
   let valorAnterior = null;
-  chavesOrdenadas.forEach(chave=>{
+
+  chavesOrdenadas.forEach(chave => {
     const hora = new Date(Number(chave)).getHours();
     labelsHoras.push(`${hora}h`);
+
+    // Último valor da hora
     const valores = dadosPorHora[chave];
     const valorAtual = valores[valores.length-1];
-    taxasHoraAHora.push(valorAnterior!==null ? (valorAtual-valorAnterior)/massaTon : 0);
-    valorAnterior=valorAtual;
+
+    // Calcula a taxa hora a hora em L/(h*t)
+    const taxaHora = valorAnterior !== null ? (valorAtual - valorAnterior) / massaIsolantesTon : 0;
+    taxasHoraAHora.push(parseFloat(taxaHora.toFixed(3)));
+
+    valorAnterior = valorAtual;
   });
+
   const ctx = document.getElementById(idCanvas);
-  if(!ctx) return;
-  if(graficoTaxa) graficoTaxa.destroy();
-  graficoTaxa = new Chart(ctx,{
-    type:'line',
-    data:{ labels: labelsHoras, datasets:[{
-      label:'Taxa LC L/(h*t)',
-      data: taxasHoraAHora,
-      borderColor:'blue',
-      backgroundColor:'rgba(52,152,219,0.2)',
-      fill:true,
-      tension:0.2,
-      pointRadius:4
-    }]},
-    options:{
-      responsive:true,
-      plugins:{ legend:{position:'top'}, title:{display:true,text:'Taxa LC por Hora'} },
-      scales:{ y:{title:{display:true,text:'Taxa LC L/(h*t)'}}, x:{title:{display:true,text:'Hora'}} }
+  if (!ctx) return;
+  if (graficoTaxa) graficoTaxa.destroy();
+
+  graficoTaxa = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labelsHoras,
+      datasets: [{
+        label: 'Taxa LC L/(h*t)',
+        data: taxasHoraAHora,
+        borderColor: 'blue',
+        backgroundColor: 'rgba(52,152,219,0.2)',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Taxa LC por Hora' }
+      },
+      scales: {
+        y: { title: { display: true, text: 'Taxa LC L/(h*t)' } },
+        x: { title: { display: true, text: 'Hora' } }
+      }
     }
   });
 }
-
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
   html2canvas(document.body).then(canvas=>{
