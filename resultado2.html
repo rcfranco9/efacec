@@ -142,17 +142,6 @@ async function buscarPorNome() {
     const meta = t.meta || {};
     const serie = t.serie || [];
     const secagem = t.secagem || {};
-// Massa isolantes em toneladas
-let massaTon = parseFloat(meta.massai) || 1; // fallback 1 t
-
-// Duração em horas
-let duracao = parseFloat(meta.duracao) || 0;
-
-// Água removida (último LC_3_8)
-let aguaRemovida = parseFloat(meta.aguaRemovida) || 0;
-
-// Taxa total (L/(h*t))
-let taxaTotal = parseFloat(meta.taxaTotal) || 0;
 
     // Massa transformador (kg) / isolantes (t)
     let massaTon = parseFloat(meta.massat)/1000;
