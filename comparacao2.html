@@ -113,36 +113,36 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
     const pe2_417=minPE(m2,'PE_4_17');
     const pe1_551=minPE(m1,'PE_5_5_1');
     const pe2_551=minPE(m2,'PE_5_5_1');
+out.innerHTML = `
+<div class="transformador-dados">
+    <h3>${nome1}</h3>
+    <p>ID: ${m1.meta?.id_secagenscore ?? 'N/A'}</p>
+    <p>Tensão: ${m1.meta?.tensao ?? 'N/A'} kV</p>
+    <p>Potência: ${m1.meta?.potencia ?? 'N/A'} kVA</p>
+    <p>Massa transformador: ${m1.meta?.massat ?? 'N/A'} kg</p>
+    <p>Massa dos isolantes: ${m1.meta?.massai ?? 'N/A'} kg</p>
+</div>
+<div class="transformador-dados">
+    <h3>${nome2}</h3>
+    <p>ID: ${m2.meta?.id_secagenscore ?? 'N/A'}</p>
+    <p>Tensão: ${m2.meta?.tensao ?? 'N/A'} kV</p>
+    <p>Potência: ${m2.meta?.potencia ?? 'N/A'} kVA</p>
+    <p>Massa transformador: ${m2.meta?.massat ?? 'N/A'} kg</p>
+    <p>Massa dos isolantes: ${m2.meta?.massai ?? 'N/A'} kg</p>
+</div>
 
-    out.innerHTML=`
-    <div class="transformador-dados">
-        <h3>${nome1}</h3>
-        <p>ID: ${m1.meta?.id_secagenscore ?? 'N/A'}</p>
-        <p>Tensão: ${m1.meta?.tensao ?? 'N/A'} kV</p>
-        <p>Potência: ${m1.meta?.potencia ?? 'N/A'} kVA</p>
-        <p>Massa transformador: ${m1.meta?.massat ?? 'N/A'} kg</p>
-        <p>Massa dos isolantes: ${m1.meta?.massai ?? 'N/A'} kg</p>
-    </div>
-    <div class="transformador-dados">
-        <h3>${nome2}</h3>
-        <p>ID: ${m2.meta?.id_secagenscore ?? 'N/A'}</p>
-        <p>Tensão: ${m2.meta?.tensao ?? 'N/A'} kV</p>
-        <p>Potência: ${m2.meta?.potencia ?? 'N/A'} kVA</p>
-        <p>Massa transformador: ${m2.meta?.massat ?? 'N/A'} kg</p>
-        <p>Massa dos isolantes: ${m2.meta?.massai ?? 'N/A'} kg</p>
-    </div>
-    <h3>Comparação</h3>
-    <table>
-        <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-        <tr><td>Duração total (h)</td><td>${m1.meta?.duracao ?? 'N/A'}</td><td>${m2.meta?.duracao ?? 'N/A'}</td></tr>
-        <tr><td>Quantidade de água removida (L)</td><td>${m1.meta?.aguaRemovida ?? 'N/A'}</td><td>${m2.meta?.aguaRemovida ?? 'N/A'}</td></tr>
-        <tr><td>Taxa total (L/(h*t))</td><td>${m1.meta?.taxaTotal ?? 'N/A'}</td><td>${m2.meta?.taxaTotal ?? 'N/A'}</td></tr>
-        <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
-        <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
-    </table>
-    `;
-    <h3>Comparação PF x TAquec e RF x TAquec</h3>
+<h3>Comparação</h3>
+<table>
+    <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
+    <tr><td>Duração total (h)</td><td>${m1.meta?.duracao ?? 'N/A'}</td><td>${m2.meta?.duracao ?? 'N/A'}</td></tr>
+    <tr><td>Quantidade de água removida (L)</td><td>${m1.meta?.aguaRemovida ?? 'N/A'}</td><td>${m2.meta?.aguaRemovida ?? 'N/A'}</td></tr>
+    <tr><td>Taxa total (L/(h*t))</td><td>${m1.meta?.taxaTotal ?? 'N/A'}</td><td>${m2.meta?.taxaTotal ?? 'N/A'}</td></tr>
+    <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
+    <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
+    <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
+</table>
+
+<h3>Comparação PF x TAquec e RF x TAquec</h3>
 <table id="tabelaTAquec" border="1" style="border-collapse:collapse; text-align:center;">
     <thead style="background:#2980b9; color:white;">
         <tr>
@@ -155,10 +155,9 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
             <th id="nome2Indice">Índice Transformador 2</th>
         </tr>
     </thead>
-    <tbody id="corpoTAquec">
-    </tbody>
+    <tbody id="corpoTAquec"></tbody>
 </table>
-
+`;
 
 function preencherTAquec(t1, t2, nome1, nome2) {
     const corpo = document.getElementById('corpoTAquec');
