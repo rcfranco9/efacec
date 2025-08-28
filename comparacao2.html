@@ -142,6 +142,60 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
         <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
     </table>
     `;
+    <h3>Comparação PF x TAquec e RF x TAquec</h3>
+<table id="tabelaTAquec" border="1" style="border-collapse:collapse; text-align:center;">
+    <thead style="background:#2980b9; color:white;">
+        <tr>
+            <th>Parâmetro</th>
+            <th id="nome1PF">Transformador 1 PF</th>
+            <th id="nome1RF">Transformador 1 RF</th>
+            <th id="nome1Indice">Índice Transformador 1</th>
+            <th id="nome2PF">Transformador 2 PF</th>
+            <th id="nome2RF">Transformador 2 RF</th>
+            <th id="nome2Indice">Índice Transformador 2</th>
+        </tr>
+    </thead>
+    <tbody id="corpoTAquec">
+    </tbody>
+</table>
+
+<script>
+function preencherTAquec(t1, t2, nome1, nome2) {
+    const corpo = document.getElementById('corpoTAquec');
+    corpo.innerHTML = '';
+    const maxIndex = Math.max(t1.meta.indice_taquec.length, t2.meta.indice_taquec.length);
+
+    for(let i=0; i<maxIndex; i++){
+        const linha = document.createElement('tr');
+
+        const t1Item = t1.meta.indice_taquec[i] || {TAquec:`TAquec ${i+1}`, PF:0, RF:0, indice:'N/A'};
+        const t2Item = t2.meta.indice_taquec[i] || {TAquec:`TAquec ${i+1}`, PF:0, RF:0, indice:'N/A'};
+
+        linha.innerHTML = `
+            <td>${t1Item.TAquec}</td>
+            <td>${t1Item.PF}</td>
+            <td>${t1Item.RF}</td>
+            <td style="color:green;font-weight:bold;">${t1Item.indice==='N/A'? 'N/A': t1Item.indice+'%'}</td>
+            <td>${t2Item.PF}</td>
+            <td>${t2Item.RF}</td>
+            <td style="color:green;font-weight:bold;">${t2Item.indice==='N/A'? 'N/A': t2Item.indice+'%'}</td>
+        `;
+        corpo.appendChild(linha);
+    }
+
+    // Atualiza cabeçalhos com nomes reais
+    document.getElementById('nome1PF').textContent = `${nome1} PF`;
+    document.getElementById('nome1RF').textContent = `${nome1} RF`;
+    document.getElementById('nome1Indice').textContent = `Índice ${nome1}`;
+    document.getElementById('nome2PF').textContent = `${nome2} PF`;
+    document.getElementById('nome2RF').textContent = `${nome2} RF`;
+    document.getElementById('nome2Indice').textContent = `Índice ${nome2}`;
+}
+
+// Exemplo de uso dentro do teu botão de comparação:
+preencherTAquec(m1, m2, nome1, nome2);
+</script>
+
 
     // --- Gráficos ---
     const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
