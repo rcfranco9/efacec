@@ -142,6 +142,17 @@ async function buscarPorNome() {
     const meta = t.meta || {};
     const serie = t.serie || [];
     const secagem = t.secagem || {};
+// Massa isolantes em toneladas
+let massaTon = parseFloat(meta.massai) || 1; // fallback 1 t
+
+// Duração em horas
+let duracao = parseFloat(meta.duracao) || 0;
+
+// Água removida (último LC_3_8)
+let aguaRemovida = parseFloat(meta.aguaRemovida) || 0;
+
+// Taxa total (L/(h*t))
+let taxaTotal = parseFloat(meta.taxaTotal) || 0;
 
     // Massa transformador (kg) / isolantes (t)
     let massaTon = parseFloat(meta.massat)/1000;
@@ -168,7 +179,8 @@ if (serie.length > 0) {
     aguaRemovida = parseFloat(ultimaLinha.LC_3_8) || 0;
 }
 
-html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
+
+
 
     // --- Bloco Meta ---
     let html = `<div class="bloco"><h3>Informações do Transformador</h3>`;
@@ -176,9 +188,9 @@ html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
     html += `<p><strong>Tensão:</strong> ${meta.tensao || 0} kV</p>`;
     html += `<p><strong>Massa transformador:</strong> ${meta.massat || 0} kg</p>`;
     html += `<p><strong>Massa isolantes:</strong> ${meta.massai || 0} t</p>`;
-   html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
-    html += `<p><strong>Água removida:</strong> ${meta.aguaRemovida || 0} L</p>`;
-    html += `<p><strong>Taxa total:</strong> ${meta.taxaTotal || 0} L/(h*t)</p>`;
+  html += `<p><strong>Duração total:</strong> ${duracao.toFixed(2)} h</p>`;
+html += `<p><strong>Água removida:</strong> ${aguaRemovida.toFixed(2)} L</p>`;
+html += `<p><strong>Taxa total:</strong> ${taxaTotal.toFixed(3)} L/(h*t)</p>`;
     html += `<p><strong>Taxa últimas 10h:</strong> ${meta.taxaUltimas10h || 0} L/(h*t)</p>`;
     html += `</div>`;
 
