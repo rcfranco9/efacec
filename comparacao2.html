@@ -43,59 +43,19 @@
 <button id="btnExportarPDF" style="display:none;margin-top:15px;">Exportar PDF</button>
 
 <script>
-// -------------------- Funções auxiliares --------------------
-function parseNum(v){ 
-  const n=parseFloat((v||'').toString().replace(',','.').trim()); 
-  return isNaN(n)?NaN:n; 
-}
-function diffClass(v){ 
-  if(v>0) return 'diff-positive'; 
-  if(v<0) return 'diff-negative'; 
-  return 'diff-neutral'; 
-}
-
-// -------------------- API --------------------
-async function buscarDados(subprojeto){
-  try{
-    const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
-    if(!resp.ok) throw new Error("Transformador não encontrado");
-    const data = await resp.json();
-    return Array.isArray(data)?data:null;
-  }catch(err){ 
-    console.error(err); 
-    return null; 
-  }
-}
-
-// -------------------- Cálculos --------------------
-function getSerie(dados){ 
-  return (dados.serie||[])
-    .map(r => ({ ts: new Date(r.DataHora.replace(' ','T')).getTime(), lc: parseNum(r.LC_3_8) }))
-    .filter(r => !isNaN(r.ts) && !isNaN(r.lc)) // 0 é válido
-    .sort((a, b) => a.ts - b.ts);
-}
-
-// Retirar validação >=2, agora qualquer série com pelo menos 1 ponto é válida
-function hasSerieValida(dados){
-  const serie = getSerie(dados);
-  console.log("Serie filtrada:", serie); // log para depuração
-  return ; 
-}
-
 function calcTaxa(id, massaKg, dados){
   const serie = getSerie(dados);
   if(serie.length === 0) return null;
 
-  const ton = parseNum(massaKg)/1000 || 1;
+  const ton = parseNum(massaKg)/1000 || 1; // converte kg para toneladas
   const primeiro = serie[0];
   const ultimo = serie[serie.length - 1];
 
-  // Se houver apenas 1 ponto, delta = 0 e taxa = 0
   const deltaTotal = serie.length > 1 ? +(ultimo.lc - primeiro.lc).toFixed(3) : 0;
-  const duracao = serie.length > 1 ? (ultimo.ts - primeiro.ts) / 3600000 : 1; // evita divisão por 0
+  const duracao = serie.length > 1 ? (ultimo.ts - primeiro.ts) / 3600000 : 1; // em horas
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
-  const alvo = ultimo.ts - 10*3600*1000;
+  const alvo = ultimo.ts - 10*3600*1000; // 10 horas atrás
   const anterior10h = serie.find(r => r.ts <= alvo) || primeiro;
   const delta10h = +(ultimo.lc - anterior10h.lc).toFixed(3);
   const taxa10h = +(delta10h / (10 * ton)).toFixed(4);
@@ -103,133 +63,110 @@ function calcTaxa(id, massaKg, dados){
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
 
-function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
-  const serie = getSerie(dados);
-  if(serie.length<1) return [];
-  const ton=parseNum(massaKg)/1000||1;
-  const blocos=[];
-  const tIniGlobal=serie[0].ts;
-  const tFimGlobal=serie[serie.length-1].ts;
-  const horas=Math.floor((tFimGlobal-tIniGlobal)/(3600*1000));
-  for(let i=1;i<=horas;i++){
-    const tIni=tIniGlobal+(i-1)*3600*1000;
-    const tFim=tIniGlobal+i*3600*1000;
-    const anterior=serie.find(r=>r.ts<=tIni);
-    const atual=serie.find(r=>r.ts<=tFim);
-    const horaLabel=new Date(tFim).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});
-    if(anterior && atual && atual.ts>anterior.ts){
-      const delta=+(atual.lc-anterior.lc).toFixed(3);
-      const taxa=+(delta/ton).toFixed(4);
-      blocos.push({intervalo:horaLabel,delta,taxa});
-    } else { 
-      blocos.push({intervalo:horaLabel,delta:'N/A',taxa:'N/A'}); 
-    }
-  }
-  return blocos;
-}
-
-function maxTEfromSerie(dados){
-  const colunas=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-  const valores=[];
-  (dados.serie||[]).forEach(linha=>{
-    colunas.forEach(col=>{
-      const val=parseNum(linha[col]);
-      if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
-    });
-  });
-  return valores.length>0?Math.max(...valores):null;
-}
-
-function minPE(dados,coluna){ 
-  const valores=(dados.serie||[]).map(r=>parseNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
-  return valores.length?Math.min(...valores):null;
-}
-
 // -------------------- Comparar --------------------
-document.getElementById('btnComparar').addEventListener('click',async()=>{
-  const nome1=document.getElementById('nome1').value.trim();
-  const nome2=document.getElementById('nome2').value.trim();
-  const out=document.getElementById('resultado');
-  if(!nome1||!nome2){ out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return; }
+document.getElementById('btnComparar').addEventListener('click', async () => {
+  const nome1 = document.getElementById('nome1').value.trim();
+  const nome2 = document.getElementById('nome2').value.trim();
+  const out = document.getElementById('resultado');
 
-  const m1Array=await buscarDados(nome1);
-  const m2Array=await buscarDados(nome2);
-  if(!m1Array?.length || !m2Array?.length){ out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return; }
-
-  const m1=m1Array[0].meta || {};
-  const m2=m2Array[0].meta || {};
-
-  if(!m1.massai || parseNum(m1.massai)<=0 || !m2.massai || parseNum(m2.massai)<=0){
-    out.innerHTML='<p>Massa de isolantes inválida para um dos transformadores.</p>'; 
+  if (!nome1 || !nome2) {
+    out.innerHTML = '<p>Introduz os dois subprojetos.</p>';
     return;
   }
 
-  const t1=calcTaxa(m1.id_secagenscore,m1.massai,m1);
-  const t2=calcTaxa(m2.id_secagenscore,m2.massai,m2);
+  // Buscar dados da API
+  const dados1Array = await buscarDados(nome1);
+  const dados2Array = await buscarDados(nome2);
 
-  if(!t1 || !t2){ out.innerHTML='<p>Erro ao calcular taxas.</p>'; return; }
+  if (!dados1Array?.length || !dados2Array?.length) {
+    out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>';
+    return;
+  }
 
-  const te1=maxTEfromSerie(m1);
-  const te2=maxTEfromSerie(m2);
-  const pe1_417=minPE(m1,'PE_4_17');
-  const pe2_417=minPE(m2,'PE_4_17');
-  const pe1_551=minPE(m1,'PE_5_5_1');
-  const pe2_551=minPE(m2,'PE_5_5_1');
+  const meta1 = dados1Array[0].meta || {};
+  const meta2 = dados2Array[0].meta || {};
+  const serie1 = dados1Array[0].serie || [];
+  const serie2 = dados2Array[0].serie || [];
 
-  const blocos1=calcTaxaPorHoraTodoPeriodo(m1,m1.massai);
-  const blocos2=calcTaxaPorHoraTodoPeriodo(m2,m2.massai);
+  // Validar massa
+  if (!meta1.massai || parseNum(meta1.massai) <= 0 || !meta2.massai || parseNum(meta2.massai) <= 0) {
+    out.innerHTML = '<p>Massa de isolantes inválida para um dos transformadores.</p>';
+    return;
+  }
 
-  // --- gráficos ---
-  const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
-  if(window.chartTaxas1) window.chartTaxas1.destroy();
-  window.chartTaxas1=new Chart(ctx1,{
-    type:'line',
-    data:{
-      labels:blocos1.map(b=>b.intervalo).reverse(),
-      datasets:[{label:nome1,data:blocos1.map(b=>parseNum(b.taxa)),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)'}]
+  // Calcular taxas
+  const taxas1 = calcTaxa(meta1, serie1);
+  const taxas2 = calcTaxa(meta2, serie2);
+
+  if (!taxas1 || !taxas2) {
+    out.innerHTML = '<p>Erro ao calcular taxas.</p>';
+    return;
+  }
+
+  // Máximos e mínimos
+  const te1 = maxTEfromSerie(serie1);
+  const te2 = maxTEfromSerie(serie2);
+  const pe1_417 = minPEfromSerie(serie1, 'PE_4_17');
+  const pe2_417 = minPEfromSerie(serie2, 'PE_4_17');
+  const pe1_551 = minPEfromSerie(serie1, 'PE_5_5_1');
+  const pe2_551 = minPEfromSerie(serie2, 'PE_5_5_1');
+
+  // Taxas por hora
+  const blocos1 = calcTaxaPorHora(serie1, meta1);
+  const blocos2 = calcTaxaPorHora(serie2, meta2);
+
+  // --- Gráficos ---
+  const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+  if (window.chartTaxas1) window.chartTaxas1.destroy();
+  window.chartTaxas1 = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: blocos1.map(b => b.intervalo).reverse(),
+      datasets: [{ label: nome1, data: blocos1.map(b => parseNum(b.taxa)), borderColor: 'rgba(41,128,185,1)', backgroundColor: 'rgba(41,128,185,0.2)' }]
     },
-    options:{responsive:true,plugins:{legend:{display:true}}}
+    options: { responsive: true, plugins: { legend: { display: true } } }
   });
 
-  const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
-  if(window.chartTaxas2) window.chartTaxas2.destroy();
-  window.chartTaxas2=new Chart(ctx2,{
-    type:'line',
-    data:{
-      labels:blocos2.map(b=>b.intervalo).reverse(),
-      datasets:[{label:nome2,data:blocos2.map(b=>parseNum(b.taxa)),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)'}]
+  const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+  if (window.chartTaxas2) window.chartTaxas2.destroy();
+  window.chartTaxas2 = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: blocos2.map(b => b.intervalo).reverse(),
+      datasets: [{ label: nome2, data: blocos2.map(b => parseNum(b.taxa)), borderColor: 'rgba(231,76,60,1)', backgroundColor: 'rgba(231,76,60,0.2)' }]
     },
-    options:{responsive:true,plugins:{legend:{display:true}}}
+    options: { responsive: true, plugins: { legend: { display: true } } }
   });
 
-  // --- HTML resultado ---
-  out.innerHTML=`
+  // --- HTML Resultado ---
+  out.innerHTML = `
   <div class="transformador-dados">
     <h3>${nome1}</h3>
-    <p>Delta 10h: ${t1.delta10h} | Taxa 10h: ${t1.taxa10h}</p>
-    <p>Delta Total: ${t1.deltaTotal} | Taxa Total: ${t1.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te1??'N/A'}</p>
-    <p>Mín PE_4_17: ${pe1_417??'N/A'} | Mín PE_5_5_1: ${pe1_551??'N/A'}</p>
+    <p>Delta 10h: ${taxas1.delta10h} | Taxa 10h: ${taxas1.taxa10h}</p>
+    <p>Delta Total: ${taxas1.deltaTotal} | Taxa Total: ${taxas1.taxaTotal}</p>
+    <p>Máx TE_5_4_X (≤140): ${te1 ?? 'N/A'}</p>
+    <p>Mín PE_4_17: ${pe1_417 ?? 'N/A'} | Mín PE_5_5_1: ${pe1_551 ?? 'N/A'}</p>
   </div>
   <div class="transformador-dados">
     <h3>${nome2}</h3>
-    <p>Delta 10h: ${t2.delta10h} | Taxa 10h: ${t2.taxa10h}</p>
-    <p>Delta Total: ${t2.deltaTotal} | Taxa Total: ${t2.taxaTotal}</p>
-    <p>Máx TE_5_4_X (≤140): ${te2??'N/A'}</p>
-    <p>Mín PE_4_17: ${pe2_417??'N/A'} | Mín PE_5_5_1: ${pe2_551??'N/A'}</p>
+    <p>Delta 10h: ${taxas2.delta10h} | Taxa 10h: ${taxas2.taxa10h}</p>
+    <p>Delta Total: ${taxas2.deltaTotal} | Taxa Total: ${taxas2.taxaTotal}</p>
+    <p>Máx TE_5_4_X (≤140): ${te2 ?? 'N/A'}</p>
+    <p>Mín PE_4_17: ${pe2_417 ?? 'N/A'} | Mín PE_5_5_1: ${pe2_551 ?? 'N/A'}</p>
   </div>
   <h3>Comparação</h3>
   <table>
     <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-    <tr><td>Taxa Total</td><td>${t1.taxaTotal}</td><td>${t2.taxaTotal}</td></tr>
-    <tr><td>Delta Total</td><td>${t1.deltaTotal}</td><td>${t2.deltaTotal}</td></tr>
-    <tr><td>Máx TE_5_4_X</td><td>${te1??'N/A'}</td><td>${te2??'N/A'}</td></tr>
-    <tr><td>Mín PE_4_17</td><td>${pe1_417??'N/A'}</td><td>${pe2_417??'N/A'}</td></tr>
-    <tr><td>Mín PE_5_5_1</td><td>${pe1_551??'N/A'}</td><td>${pe2_551??'N/A'}</td></tr>
+    <tr><td>Taxa Total</td><td>${taxas1.taxaTotal}</td><td>${taxas2.taxaTotal}</td></tr>
+    <tr><td>Delta Total</td><td>${taxas1.deltaTotal}</td><td>${taxas2.deltaTotal}</td></tr>
+    <tr><td>Máx TE_5_4_X</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
+    <tr><td>Mín PE_4_17</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
+    <tr><td>Mín PE_5_5_1</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
   </table>
   `;
-  document.getElementById("btnExportarPDF").style.display='block';
+  document.getElementById("btnExportarPDF").style.display = 'block';
 });
+
 
 // -------------------- Exportar PDF --------------------
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
