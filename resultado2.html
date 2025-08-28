@@ -137,7 +137,7 @@ async function buscarPorNome() {
       return; 
     }
 
-    const t = data[0];
+    data.forEach((t, index) => {
     const serieRef = t.referencia || [{}];
     const meta = t.meta || {};
     const serie = t.serie || [];
@@ -297,6 +297,7 @@ function criarGraficoTaxaHoraAHora(idCanvas, dadosSerie, meta) {
     }
   });
 }
+ 
 
 // --- Exportar PDF ---
 document.getElementById('btnExportarPDF').addEventListener('click',()=>{
