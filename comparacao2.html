@@ -70,27 +70,29 @@ async function buscarDados(subprojeto){
 // -------------------- Cálculos --------------------
 function getSerie(dados){ 
   return (dados.serie||[])
-          .map(r=>({ts:new Date(r.DataHora.replace(' ','T')).getTime(), lc:parseNum(r.LC_3_8)}))
-          .filter(r=>!isNaN(r.ts) && !isNaN(r.lc))
-          .sort((a,b)=>a.ts-b.ts);
+    .map(r => ({ ts: new Date(r.DataHora.replace(' ','T')).getTime(), lc: parseNum(r.LC_3_8) }))
+    .filter(r => !isNaN(r.ts) && !isNaN(r.lc)) // 0 é válido
+    .sort((a, b) => a.ts - b.ts);
 }
 
+// Retirar validação >=2, agora qualquer série com pelo menos 1 ponto é válida
 function hasSerieValida(dados){
   const serie = getSerie(dados);
-  console.log("Serie filtrada:", serie); // log para depurar
-  return serie.length >= 2; 
+  console.log("Serie filtrada:", serie); // log para depuração
+  return serie.length >= 1; 
 }
 
 function calcTaxa(id, massaKg, dados){
   const serie = getSerie(dados);
-  if(serie.length < 2) return null;
+  if(serie.length === 0) return null;
 
   const ton = parseNum(massaKg)/1000 || 1;
   const primeiro = serie[0];
   const ultimo = serie[serie.length - 1];
 
-  const deltaTotal = +(ultimo.lc - primeiro.lc).toFixed(3);
-  const duracao = (ultimo.ts - primeiro.ts) / 3600000;
+  // Se houver apenas 1 ponto, delta = 0 e taxa = 0
+  const deltaTotal = serie.length > 1 ? +(ultimo.lc - primeiro.lc).toFixed(3) : 0;
+  const duracao = serie.length > 1 ? (ultimo.ts - primeiro.ts) / 3600000 : 1; // evita divisão por 0
   const taxaTotal = +(deltaTotal / (duracao * ton)).toFixed(4);
 
   const alvo = ultimo.ts - 10*3600*1000;
@@ -100,6 +102,7 @@ function calcTaxa(id, massaKg, dados){
 
   return { delta10h, taxa10h, deltaTotal, taxaTotal, duracao };
 }
+
 
 function calcTaxaPorHoraTodoPeriodo(dados,massaKg){
   const serie = getSerie(dados);
