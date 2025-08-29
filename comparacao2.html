@@ -105,8 +105,25 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     const m1 = m1Array[0];
     const m2 = m2Array[0];
 
-    const blocos1 = calcTaxaPorHora(m1);
-    const blocos2 = calcTaxaPorHora(m2);
+    // Calcula a taxa hora a hora por tonelada de isolante
+const massa1 = (m1.meta?.massai || 0) / 1000; // em toneladas
+const massa2 = (m2.meta?.massai || 0) / 1000;
+
+const blocos1 = (m1.serie || []).slice(1).map((fim, i, arr) => {
+    const ini = arr[i];
+    return {
+        intervalo: new Date(fim.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa1>0 ? ((parseFloat(fim.LC_3_8||0) - parseFloat(ini.LC_3_8||0))/massa1).toFixed(3) : 0
+    };
+});
+
+const blocos2 = (m2.serie || []).slice(1).map((fim, i, arr) => {
+    const ini = arr[i];
+    return {
+        intervalo: new Date(fim.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa2>0 ? ((parseFloat(fim.LC_3_8||0) - parseFloat(ini.LC_3_8||0))/massa2).toFixed(3) : 0
+    };
+});
 
     const te1=maxTEfromSerie(m1);
     const te2=maxTEfromSerie(m2);
