@@ -1,1 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Filtragem de Transformadores com Índices</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+body { font-family:'Segoe UI', sans-serif; max-width:900px; margin:40px auto; background:#f7f7f7; padding:30px; border-radius:10px; }
+h1{text-align:center;color:#2c3e50;}
+label{display:block;margin-top:20px;font-weight:600;}
+input,select,button{padding:10px;width:100%;margin-top:8px;border-radius:5px;border:1px solid #bbb;}
+button{background:#2980b9;color:#fff;cursor:pointer;font-weight:bold;}
+button:hover:not(:disabled){background:#3498db;}
+button:disabled{background:#95a5a6;cursor:not-allowed;}
+#resultado{margin-top:30px;padding:20px;background:#fff;border:2px solid #ccc;border-radius:8px;overflow-x:auto;}
+.transformador-dados{margin-bottom:20px;padding:15px;background:#ecf0f1;border-radius:6px;}
+.transformador-dados h3{margin-top:0;color:#2980b9;}
+table{width:100%;border-collapse:collapse;margin-top:20px;}
+th,td{padding:10px;border-bottom:1px solid #ccc;text-align:center;}
+th{background:#2980b9;color:white;}
+</style>
+</head>
+<body>
+
+<h1>Filtragem de Transformadores com Índices PF/RF</h1>
+
+<label>Subprojeto:</label>
+<input type="text" id="nomeTransformador" placeholder="Nome do subprojeto">
+
+<label>ID Secagem:</label>
+<select id="selectIdSecagenscore" disabled></select>
+
+<button id="btnFiltrar" disabled>Procurar</button>
+
+<div id="resultado">Introduce o nome do subprojeto e seleciona o ID.</div>
+<button id="btnExportarPDF" style="display:none;margin-top:15px;">Exportar PDF</button>
+
+<script>
+let dadosMeta = [], dadosSerie = [], dadosPF = [];
+
+// Funções utilitárias
+function parseNum(v){ const n=parseFloat((v||'').toString().replace(',','.')); return isNaN(n)?NaN:n; }
+function formatNum(v,dec=2){ const n=parseFloat(v); if(isNaN(n)) return 'N/A'; return n.toFixed(dec); }
+
+// Índices PF/RF
+function calculaIndiceTemperatura(pf, rf){ if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5) return '100%'; if(diff<=-5) return '0%'; return Math.round((diff+5)/10*100)+'%'; }
+function calculaIndicePressao(pf, rf){ if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5) return '0%'; if(diff<=-5) return '100%'; if(diff===0) return '50%'; return Math.round((5-diff)/10*100)+'%'; }
+
+// Funções para LC, TE, PE
+function calcLC(id,massai){
+    const linhas=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id && r.LC_3_8 && r.DataHora);
+    const reg=linhas.map(r=>({valor:parseNum(r.LC_3_8),ts:new Date(r.DataHora.replace(' ','T')).getTime()})).filter(r=>!isNaN(r.valor)&&!isNaN(r.ts));
+    if(reg.length<2) return {difLC:0,dur:1,taxa:0,delta10h:0,taxa10h:0};
+    reg.sort((a,b)=>a.ts-b.ts);
+    const ultimo=reg[reg.length-1];
+    const alvoTS=ultimo.ts-10*3600000;
+    let anterior10h=reg[0];
+    for(let i=reg.length-1;i>=0;i--){ if(reg[i].ts<=alvoTS){anterior10h=reg[i];break;} }
+    const delta10h=+(ultimo.valor-anterior10h.valor).toFixed(3);
+    const dur=+((ultimo.ts-reg[0].ts)/36e5).toFixed(2)||1;
+    const ton=massai/1000||1;
+    const difLC=+ultimo.valor.toFixed(3);
+    const taxa=+(difLC/(dur*ton)).toFixed(2);
+    const taxa10h=+(delta10h/(10*ton)).toFixed(2);
+    return {difLC,dur,taxa,delta10h,taxa10h};
+}
+function maxTE(id){
+    const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+    const vals=[];
+    dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id).forEach(l=>cols.forEach(c=>{ const v=parseNum(l[c]); if(!isNaN(v)&&v>0&&v<=140) vals.push(v); }));
+    return vals.length?Math.max(...vals):'N/A';
+}
+function minPE(id,col){
+    const vals=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id).map(r=>parseNum(r[col])).filter(v=>!isNaN(v)&&v>0.1);
+    return vals.length?Math.min(...vals):'N/A';
+}
+
+// Pega dados PF/RF
+function pegaDadosPF(id){
+    const reg=dadosPF.find(r=>(r.id_secagenscore||'').trim()===id);
+    if(!reg) return null;
+    const PFxTAquec=[],RFxTAquec=[],PFxPRem=[],RFxPRem=[];
+    for(let n=1;n<=6;n++){
+        PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
+        RFxTAquec.push(parseNum(reg[`RF${n}TAquec`]));
+        PFxPRem.push(parseNum(reg[`PF${n}PRem`]));
+        RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
+    }
+    return {PFxTAquec,RFxTAquec,PFxPRem,RFxPRem};
+}
+
+// Gráficos hora a hora
+function calcularTaxasHoraAHora(id,massaKg,canvasId){
+    const linhas=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id && r.LC_3_8 && r.DataHora);
+    const registos=linhas.map(r=>({hora:new Date(r.DataHora.replace(' ','T')).getHours(),valor:parseNum(r.LC_3_8)})).filter(r=>!isNaN(r.valor));
+    const porHora={};
+    registos.forEach(r=>{ if(!porHora[r.hora]) porHora[r.hora]=[]; porHora[r.hora].push(r.valor); });
+    const horasOrdenadas=Object.keys(porHora).sort((a,b)=>a-b);
+    const labelsHoras=horasOrdenadas.map(h=>((parseInt(h)+1).toString().padStart(2,'0')));
+    const taxasHoraAHora=horasOrdenadas.map(h=>{
+        const arr=porHora[h];
+        if(arr.length>=2) return ((arr[arr.length-1]-arr[0])/(massaKg/1000)).toFixed(2);
+        return 0;
+    });
+    desenharGrafico(labelsHoras,taxasHoraAHora,canvasId);
+}
+function desenharGrafico(labels,data,canvasId){
+    const ctx=document.getElementById(canvasId).getContext("2d");
+    new Chart(ctx,{type:'line',data:{labels, datasets:[{label:"Taxa de Remoção de Água (L/h*t)",data,borderColor:"#2980b9",backgroundColor:"rgba(52,152,219,0.2)",fill:true,tension:0.2,pointRadius:3}]},
+    options:{scales:{y:{title:{display:true,text:'Taxa (L/h*t)'},beginAtZero:true},x:{title:{display:true,text:'Hora'}}},plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} L/h*t`}}}}});
+}
+
+// Ao escrever o nome do transformador
+document.getElementById('nomeTransformador').addEventListener('blur',async()=>{
+    const nome=document.getElementById('nomeTransformador').value.trim();
+    if(!nome) return;
+    try{
+        const resp=await fetch(`/api/transformador?nome=${encodeURIComponent(nome)}`);
+        if(!resp.ok){ document.getElementById('resultado').innerText='Transformador não encontrado.'; return; }
+        const data=await resp.json();
+        if(!Array.isArray(data)||data.length===0){ document.getElementById('resultado').innerText='Nenhum transformador.'; return; }
+
+        dadosMeta=data.map(d=>d.meta);
+        dadosSerie=data.map(d=>d.serie).flat();
+        dadosPF=data.map(d=>d.pf_rf||[]).flat();
+
+        const select=document.getElementById('selectIdSecagenscore');
+        select.innerHTML='';
+        data.forEach(d=>{
+            const opt=document.createElement('option'); opt.value=d.meta.id_secagenscore; opt.text=d.meta.id_secagenscore; select.add(opt);
+        });
+        select.disabled=false;
+        document.getElementById('btnFiltrar').disabled=false;
+    }catch(err){ console.error(err); document.getElementById('resultado').innerText='Erro ao buscar dados.'; }
+});
+
+// Quando clicar em Filtrar
+document.getElementById('btnFiltrar').addEventListener('click',()=>{
+    const id=document.getElementById('selectIdSecagenscore').value;
+    if(!id) return;
+    const meta=dadosMeta.find(m=>m.id_secagenscore===id);
+    if(!meta) return;
+    const stats=calcLC(id,meta.massai);
+    const teMax=maxTE(id), pe417=minPE(id,'PE_4_17'), pe551=minPE(id,'PE_5_5_1');
+    const dadosPFRF=pegaDadosPF(id);
+
+    let html=`<div class="transformador-dados"><h3>ID: ${id}</h3>
+    <p>Projecto: ${meta.subprojecto||'N/A'}</p>
+    <p>Massa isolantes: ${formatNum(meta.massai/1000,3)} t</p>
+    <p>Duração total: ${formatNum(stats.dur,2)} h</p>
+    <p>Água removida: ${formatNum(stats.difLC)} L</p>
+    <p>Taxa de remoção: ${formatNum(stats.taxa)} (L/h*t)</p>
+    <p>Taxa últimas 10h: ${formatNum(stats.taxa10h)} (L/h*t)</p>
+    <p>Maior TE: ${formatNum(teMax)} ºC</p>
+    <p>Menor PE_5_5_1: ${formatNum(pe551)} mbar</p>
+    <p>Menor PE_4_17: ${formatNum(pe417)} mbar</p>`;
+
+    if(dadosPFRF){
+        html+=`<h4>TAquec</h4><table><thead><tr><th>Nº</th><th>PF</th><th>RF</th><th>Índice</th></tr></thead><tbody>`;
+        for(let j=0;j<6;j++){ html+=`<tr><td>${j+1}</td><td>${formatNum(dadosPFRF.PFxTAquec[j])}</td><td>${formatNum(dadosPFRF.RFxTAquec[j])}</td><td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j],dadosPFRF.RFxTAquec[j])}</td></tr>`; }
+        html+=`</tbody></table>`;
+        html+=`<h4>PRem</h4><table><thead><tr><th>Nº</th><th>PF</th><th>RF</th><th>Índice</th></tr></thead><tbody>`;
+        for(let j=0;j<6;j++){ html+=`<tr><td>${j+1}</td><td>${formatNum(dadosPFRF.PFxPRem[j])}</td><td>${formatNum(dadosPFRF.RFxPRem[j])}</td><td>${calculaIndicePressao(dadosPFRF.PFxPRem[j],dadosPFRF.RFxPRem[j])}</td></tr>`; }
+        html+=`</tbody></table>`;
+    } else { html+=`<em>Dados PF/RF não encontrados.</em>`; }
+
+    const canvasId='grafico_remocao';
+    html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
+    document.getElementById('resultado').innerHTML=html;
+    document.getElementById('btnExportarPDF').style.display='inline-block';
+
+    setTimeout(()=>calcularTaxasHoraAHora(id,meta.massai,canvasId),0);
+});
+
+// Exportar PDF
+document.getElementById('btnExportarPDF').addEventListener('click', async()=>{
+    const { jsPDF } = window.jspdf;
+    const doc=new jsPDF({unit:'px',format:'a4',orientation:'portrait'});
+    const pageWidth=doc.internal.pageSize.getWidth();
+    const pageHeight=doc.internal.pageSize.getHeight();
+    let cursorY=20;
+    const transformadores=Array.from(document.querySelectorAll('.transformador-dados'));
+    for(let i=0;i<transformadores.length;i++){
+        const el=transformadores[i];
+        await html2canvas(el,{scale:2}).then(canvas=>{
+            const imgData=canvas.toDataURL('image/png');
+            const imgProps=doc.getImageProperties(imgData);
+            const imgWidth=pageWidth-40;
+            const imgHeight=(imgProps.height*imgWidth)/imgProps.width;
+            if(cursorY+imgHeight>pageHeight-20){ doc.addPage(); cursorY=20; }
+            doc.addImage(imgData,'PNG',20,cursorY,imgWidth,imgHeight);
+            cursorY+=imgHeight+10;
+        });
+    }
+    const nome=document.getElementById('nomeTransformador').value.trim().replace(/\s+/g,'_');
+    doc.save(`Transformador_${nome}.pdf`);
+});
+</script>
+
+</body>
+</html>
 
