@@ -106,21 +106,30 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     const m2 = m2Array[0];
 
     // Calcula a taxa hora a hora por tonelada de isolante
-// massa em toneladas
-const massa2 = Number(m2.meta?.massai || 0) / 1000;
+const massa1 = (m1.meta?.massai || 0) / 1000; // em toneladas
+const massa2 = (m2.meta?.massai || 0) / 1000;
 
-const blocos2 = [];
-for (let i = 1; i < (m2.serie || []).length; i++) {
-    const ini = m2.serie[i-1];
-    const fim = m2.serie[i];
-    const lcIni = Number(ini.LC_3_8 || 0);
-    const lcFim = Number(fim.LC_3_8 || 0);
-    const taxa = massa2 > 0 ? (lcFim - lcIni) / massa2 : 0;
-    blocos2.push({
-        intervalo: new Date(fim.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: taxa
-    });
-}
+const blocos1 = (m1.serie || []).map((ponto, i, arr) => {
+    if (i === 0) return null; // ignora o primeiro
+    const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
+    return {
+        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa1 > 0 ? delta / massa1 : 0  // **aqui é número**
+    };
+}).filter(x => x); // remove o null do primeiro ponto
+
+const blocos2 = (m2.serie || []).map((ponto, i, arr) => {
+    if (i === 0) return null;
+    const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
+    return {
+        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa2 > 0 ? delta / massa2 : 0
+    };
+}).filter(x => x);
+
+
 
     const te1=maxTEfromSerie(m1);
     const te2=maxTEfromSerie(m2);
@@ -259,23 +268,28 @@ preencherTAquec(m1, m2, nome1, nome2);
 preencherPRem(m1, m2, nome1, nome2);
 
 
-// Cria gráfico
-const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-if (window.chartTaxas2) window.chartTaxas2.destroy();
-window.chartTaxas2 = new Chart(ctx2, {
-    type: 'line',
-    data: {
-        labels: blocos2.map(b => b.intervalo),
-        datasets: [{
-            label: m2.meta?.subprojecto || 'Transformador 2',
-            data: blocos2.map(b => b.taxa),
-            borderColor: 'rgba(231,76,60,1)',
-            backgroundColor: 'rgba(231,76,60,0.2)',
-            fill: true
-        }]
-    },
-    options: { responsive: true }
-});
+const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+    if (window.chartTaxas1) window.chartTaxas1.destroy();
+    window.chartTaxas1 = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: blocos1.map(b => b.intervalo),
+            datasets: [{ label: nome1, data: blocos1.map(b => b.taxa), borderColor: 'rgba(41,128,185,1)', backgroundColor: 'rgba(41,128,185,0.2)', fill: true }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } } }
+    });
+
+    const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+    if (window.chartTaxas2) window.chartTaxas2.destroy();
+    window.chartTaxas2 = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: blocos2.map(b => b.intervalo),
+            datasets: [{ label: nome2, data: blocos2.map(b => b.taxa), borderColor: 'rgba(231,76,60,1)', backgroundColor: 'rgba(231,76,60,0.2)', fill: true }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } } }
+    });
+
     document.getElementById("btnExportarPDF").style.display = 'block';
 });
 
