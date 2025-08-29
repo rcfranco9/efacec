@@ -205,25 +205,31 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
     preencherTabela(m1,m2,'corpoPRem','indice_prem');
 
     // Gráficos
-    if(blocos1.length){
-        const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
-        if(window.chartTaxas1) window.chartTaxas1.destroy();
-        window.chartTaxas1 = new Chart(ctx1, {
-            type:'line',
-            data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:nome1,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)',fill:true}]},
-            options:{responsive:true,plugins:{legend:{display:true}}}
-        });
-    }
+ // Mostra os canvas antes de criar os gráficos
+const canvas1 = document.getElementById("graficoTaxas1");
+canvas1.style.display = 'block';
+const ctx1 = canvas1.getContext("2d");
 
-    if(blocos2.length){
-        const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-        if(window.chartTaxas2) window.chartTaxas2.destroy();
-        window.chartTaxas2 = new Chart(ctx2, {
-            type:'line',
-            data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:nome2,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)',fill:true}]},
-            options:{responsive:true,plugins:{legend:{display:true}}}
-        });
-    }
+const canvas2 = document.getElementById("graficoTaxas2");
+canvas2.style.display = 'block';
+const ctx2 = canvas2.getContext("2d");
+
+// Cria o gráfico 1
+if(window.chartTaxas1) window.chartTaxas1.destroy();
+window.chartTaxas1 = new Chart(ctx1, {
+    type:'line',
+    data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:nome1,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)',fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:true}}}
+});
+
+// Cria o gráfico 2
+if(window.chartTaxas2) window.chartTaxas2.destroy();
+window.chartTaxas2 = new Chart(ctx2, {
+    type:'line',
+    data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:nome2,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)',fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:true}}}
+});
+
     document.getElementById("btnExportarPDF").style.display='block';
 });
 </script>
