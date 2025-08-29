@@ -263,12 +263,12 @@ function preencherPRem(t1, t2, nome1, nome2) {
     document.getElementById('nome2Indice_PRem').textContent = `Índice ${nome2}`;
 }
 
-// Preenche tabelas
-preencherTAquec(m1, m2, nome1, nome2);
-preencherPRem(m1, m2, nome1, nome2);
+// Preenche tabelas de índices
+    preencherTAquec(m1, m2, nome1, nome2);
+    preencherPRem(m1, m2, nome1, nome2);
 
-
-const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+    
+    const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
     if (window.chartTaxas1) window.chartTaxas1.destroy();
     window.chartTaxas1 = new Chart(ctx1, {
         type: 'line',
@@ -292,7 +292,6 @@ const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
 
     document.getElementById("btnExportarPDF").style.display = 'block';
 });
-
 document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF('p','pt','a4');
