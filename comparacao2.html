@@ -105,34 +105,30 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
     const m1 = m1Array[0];
     const m2 = m2Array[0];
 
-   // Função para criar blocos de taxa hora a hora
-function criarBlocosTaxaHora(dados) {
-    const serie = (dados.serie || []).map(r => ({
-        ts: new Date(r.DataHora.replace(' ', 'T')).getTime(),
-        lc: parseFloat(r.LC_3_8) || 0
-    })).sort((a,b) => a.ts - b.ts);
+    // Calcula a taxa hora a hora por tonelada de isolante
+const massa1 = (m1.meta?.massai || 0) / 1000; // em toneladas
+const massa2 = (m2.meta?.massai || 0) / 1000;
 
-    if(serie.length < 2) return [];
+const blocos1 = (m1.serie || []).map((ponto, i, arr) => {
+    if (i === 0) return null; // ignora o primeiro
+    const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
+    return {
+        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa1 > 0 ? delta / massa1 : 0  // **aqui é número**
+    };
+}).filter(x => x); // remove o null do primeiro ponto
 
-    const massaIsol = (dados.meta?.massai || 0) / 1000; // toneladas
-    if(massaIsol <= 0) return [];
+const blocos2 = (m2.serie || []).map((ponto, i, arr) => {
+    if (i === 0) return null;
+    const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
+    return {
+        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+        taxa: massa2 > 0 ? delta / massa2 : 0
+    };
+}).filter(x => x);
 
-    const blocos = [];
-    let valorAnterior = serie[0].lc;
-
-    for(let i = 1; i < serie.length; i++) {
-        const delta = serie[i].lc - valorAnterior;
-        const taxa = +(delta / massaIsol).toFixed(6); // mais casas decimais
-        const intervalo = new Date(serie[i].ts).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-        blocos.push({ intervalo, taxa });
-        valorAnterior = serie[i].lc;
-    }
-    return blocos;
-}
-
-// Criar blocos para cada transformador
-const blocos1 = criarBlocosTaxaHora(m1);
-const blocos2 = criarBlocosTaxaHora(m2);
 
 
     const te1=maxTEfromSerie(m1);
@@ -272,39 +268,27 @@ preencherTAquec(m1, m2, nome1, nome2);
 preencherPRem(m1, m2, nome1, nome2);
 
 
-// Criar gráficos
-function criarGrafico(idCanvas, blocos, nome, corBorda, corFundo) {
-    const ctx = document.getElementById(idCanvas).getContext("2d");
-    if(window[idCanvas]) window[idCanvas].destroy();
-
-    window[idCanvas] = new Chart(ctx, {
+const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+    if (window.chartTaxas1) window.chartTaxas1.destroy();
+    window.chartTaxas1 = new Chart(ctx1, {
         type: 'line',
         data: {
-            labels: blocos.map(b => b.intervalo),
-            datasets: [{
-                label: nome,
-                data: blocos.map(b => b.taxa),
-                borderColor: corBorda,
-                backgroundColor: corFundo,
-                fill: true,
-                tension: 0.2,
-                pointRadius: 4
-            }]
+            labels: blocos1.map(b => b.intervalo),
+            datasets: [{ label: nome1, data: blocos1.map(b => b.taxa), borderColor: 'rgba(41,128,185,1)', backgroundColor: 'rgba(41,128,185,0.2)', fill: true }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: true }, title: { display: true, text: `Taxa LC por Hora: ${nome}` } },
-            scales: {
-                y: { title: { display: true, text: 'Taxa LC L/(h*t)' } },
-                x: { title: { display: true, text: 'Hora' } }
-            }
-        }
+        options: { responsive: true, plugins: { legend: { display: true } } }
     });
-}
 
-// Gerar gráficos para os dois transformadores
-criarGrafico("graficoTaxas1", blocos1, nome1, 'rgba(41,128,185,1)', 'rgba(41,128,185,0.2)');
-criarGrafico("graficoTaxas2", blocos2, nome2, 'rgba(231,76,60,1)', 'rgba(231,76,60,0.2)');
+    const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+    if (window.chartTaxas2) window.chartTaxas2.destroy();
+    window.chartTaxas2 = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: blocos2.map(b => b.intervalo),
+            datasets: [{ label: nome2, data: blocos2.map(b => b.taxa), borderColor: 'rgba(231,76,60,1)', backgroundColor: 'rgba(231,76,60,0.2)', fill: true }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } } }
+    });
 
     document.getElementById("btnExportarPDF").style.display = 'block';
 });
