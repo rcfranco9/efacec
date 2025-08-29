@@ -113,8 +113,34 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
     const m2= (await buscarDados(nome2))?.[0];
     if(!m1||!m2){out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return;}
 
-    const blocos1=calcularBlocos(m1);
-    const blocos2=calcularBlocos(m2);
+    // Calcula taxa hora a hora por tonelada de isolante
+function calcularBlocos(dados) {
+    const serie = (dados.serie || []).map(r => ({
+        ts: new Date(r.DataHora.replace(' ', 'T')).getTime(),
+        lc: safeNum(r.LC_3_8)
+    })).filter(r => !isNaN(r.ts) && !isNaN(r.lc)).sort((a,b)=>a.ts-b.ts);
+
+    const massa = (dados.meta?.massai || 0) / 1000; // toneladas
+    if (massa <= 0 || serie.length < 2) return [];
+
+    const blocos = [];
+    for (let i = 1; i < serie.length; i++) {
+        const ini = serie[i-1];
+        const fim = serie[i];
+        const delta = fim.lc - ini.lc;
+        const horas = (fim.ts - ini.ts) / (1000 * 3600); // horas decimais
+        const taxa = horas > 0 ? delta / (massa * horas) : 0;
+        blocos.push({
+            intervalo: new Date(fim.ts).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+            taxa: +taxa.toFixed(3)
+        });
+    }
+    return blocos;
+}
+
+const blocos1 = calcularBlocos(m1);
+const blocos2 = calcularBlocos(m2);
+
 
     const te1=maxTE(m1), te2=maxTE(m2);
     const pe1_417=minPE(m1,'PE_4_17'), pe2_417=minPE(m2,'PE_4_17');
