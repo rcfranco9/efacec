@@ -60,13 +60,20 @@ function getSerie(dados){
 }
 
 function calcTaxaPorHora(dados){
-    const serie=getSerie(dados);
-    if(serie.length<2) return [];
-    const blocos=[];
-    for(let i=1;i<serie.length;i++){
-        const ini=serie[i-1], fim=serie[i];
-        const delta=+(fim.lc-ini.lc).toFixed(3);
-        blocos.push({intervalo:new Date(fim.ts).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}), taxa:+delta.toFixed(4)});
+    const serie = getSerie(dados);
+    if(serie.length < 2) return [];
+    const massaIsol = (dados.meta?.massai || 0) / 1000; // massa em toneladas
+    if(massaIsol <= 0) return []; // evita divisão por zero
+
+    const blocos = [];
+    for(let i = 1; i < serie.length; i++){
+        const ini = serie[i-1], fim = serie[i];
+        const delta = fim.lc - ini.lc;
+        const taxa = +(delta / massaIsol).toFixed(3); // L/(h*t)
+        blocos.push({
+            intervalo: new Date(fim.ts).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
+            taxa: taxa
+        });
     }
     return blocos;
 }
