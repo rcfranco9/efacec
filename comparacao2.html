@@ -35,8 +35,8 @@ th{background:#2980b9;color:white;}
 
 <div id="resultado">Introduz os nomes dos transformadores e clica "Comparar".</div>
 
-<canvas id="graficoTaxas1" style="max-width:100%;margin-top:40px;"></canvas>
-<canvas id="graficoTaxas2" style="max-width:100%;margin-top:40px;"></canvas>
+<canvas id="graficoTaxas1" style="max-width:100%;margin-top:40px;display:none;"></canvas>
+<canvas id="graficoTaxas2" style="max-width:100%;margin-top:40px;display:none;"></canvas>
 <button id="btnExportarPDF" style="display:none;margin-top:15px;">Exportar PDF</button>
 
 <script>
@@ -53,100 +53,81 @@ async function buscarDados(subprojeto){
     }catch(err){ console.error(err); return null; }
 }
 
-function getSerie(dados){
-    return (dados.serie||[]).map(r => ({ ts:new Date(r.DataHora.replace(' ','T')).getTime(), lc:safeNum(r.LC_3_8) }))
-        .filter(r => !isNaN(r.ts) && !isNaN(r.lc))
-        .sort((a,b)=>a.ts-b.ts);
+// Calcula blocos hora a hora
+function calcularBlocos(dados){
+    const massa = (dados.meta?.massai || 0)/1000;
+    if(!massa || !dados.serie) return [];
+    return dados.serie.map((p, i, arr) => {
+        if(i===0) return null;
+        const ini = arr[i-1];
+        const delta = Number(p.LC_3_8||0)-Number(ini.LC_3_8||0);
+        return {
+            intervalo: new Date(p.DataHora.replace(' ','T')).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}),
+            taxa: delta/massa
+        };
+    }).filter(x=>x);
 }
 
-function calcTaxaPorHora(dados){
-    const serie = getSerie(dados);
-    if(serie.length < 2) return [];
-    const massaIsol = (dados.meta?.massai || 0) / 1000; // massa em toneladas
-    if(massaIsol <= 0) return []; // evita divisão por zero
-
-    const blocos = [];
-    for(let i = 1; i < serie.length; i++){
-        const ini = serie[i-1], fim = serie[i];
-        const delta = fim.lc - ini.lc;
-        const taxa = +(delta / massaIsol).toFixed(3); // L/(h*t)
-        blocos.push({
-            intervalo: new Date(fim.ts).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-            taxa: taxa
-        });
-    }
-    return blocos;
-}
-
-function maxTEfromSerie(dados){
+// Máximo TE
+function maxTE(dados){
     const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const valores=[];
-    (dados.serie||[]).forEach(linha=>cols.forEach(col=>{
-        const val=safeNum(linha[col]);
-        if(!isNaN(val)&&val>=0&&val<=140) valores.push(val);
-    }));
-    return valores.length?Math.max(...valores):null;
+    const vals = [];
+    (dados.serie||[]).forEach(l=>cols.forEach(c=>{const v=safeNum(l[c]); if(!isNaN(v)&&v>=0&&v<=140) vals.push(v)}));
+    return vals.length?Math.max(...vals):'N/A';
 }
 
-function minPE(dados,coluna){ 
-    const valores=(dados.serie||[]).map(r=>safeNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
-    return valores.length?Math.min(...valores):null;
+// Mínimo PE
+function minPE(dados,col){ 
+    const vals=(dados.serie||[]).map(r=>safeNum(r[col])).filter(v=>!isNaN(v)&&v>0.1);
+    return vals.length?Math.min(...vals):'N/A';
 }
-document.getElementById('btnComparar').addEventListener('click', async () => {
-    const nome1 = document.getElementById('nome1').value.trim();
-    const nome2 = document.getElementById('nome2').value.trim();
-    const out = document.getElementById('resultado');
-    if (!nome1 || !nome2) { out.innerHTML = '<p>Introduz os dois subprojetos.</p>'; return; }
 
-    const m1Array = await buscarDados(nome1);
-    const m2Array = await buscarDados(nome2);
-    if (!m1Array?.length || !m2Array?.length) { out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>'; return; }
+// Preencher tabelas de índices
+function preencherTabela(t1, t2, tbodyId, campoNome){
+    const corpo=document.getElementById(tbodyId);
+    corpo.innerHTML='';
+    const maxIndex=Math.max(t1.meta[campoNome].length, t2.meta[campoNome].length);
+    for(let i=0;i<maxIndex;i++){
+        const item1 = t1.meta[campoNome][i] || {PF:0,RF:0,indice:'N/A', TAquec:'', PRem:''};
+        const item2 = t2.meta[campoNome][i] || {PF:0,RF:0,indice:'N/A', TAquec:'', PRem:''};
+        const param = item1.TAquec || item1.PRem || `Item ${i+1}`;
+        corpo.innerHTML+=`<tr>
+            <td>${param}</td>
+            <td>${item1.PF}</td>
+            <td>${item1.RF}</td>
+            <td style="color:green;font-weight:bold;">${item1.indice==='N/A'? 'N/A': item1.indice+'%'}</td>
+            <td>${item2.PF}</td>
+            <td>${item2.RF}</td>
+            <td style="color:green;font-weight:bold;">${item2.indice==='N/A'? 'N/A': item2.indice+'%'}</td>
+        </tr>`;
+    }
+}
 
-    const m1 = m1Array[0];
-    const m2 = m2Array[0];
+document.getElementById('btnComparar').addEventListener('click',async()=>{
+    const nome1=document.getElementById('nome1').value.trim();
+    const nome2=document.getElementById('nome2').value.trim();
+    const out=document.getElementById('resultado');
+    if(!nome1||!nome2){out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return;}
+    
+    const m1= (await buscarDados(nome1))?.[0];
+    const m2= (await buscarDados(nome2))?.[0];
+    if(!m1||!m2){out.innerHTML='<p>Transformador(es) não encontrado(s).</p>'; return;}
 
-    // Calcula a taxa hora a hora por tonelada de isolante
-const massa1 = (m1.meta?.massai || 0) / 1000; // em toneladas
-const massa2 = (m2.meta?.massai || 0) / 1000;
+    const blocos1=calcularBlocos(m1);
+    const blocos2=calcularBlocos(m2);
 
-const blocos1 = (m1.serie || []).map((ponto, i, arr) => {
-    if (i === 0) return null; // ignora o primeiro
-    const ini = arr[i-1];
-    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
-    return {
-        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa1 > 0 ? delta / massa1 : 0  // **aqui é número**
-    };
-}).filter(x => x); // remove o null do primeiro ponto
+    const te1=maxTE(m1), te2=maxTE(m2);
+    const pe1_417=minPE(m1,'PE_4_17'), pe2_417=minPE(m2,'PE_4_17');
+    const pe1_551=minPE(m1,'PE_5_5_1'), pe2_551=minPE(m2,'PE_5_5_1');
 
-const blocos2 = (m2.serie || []).map((ponto, i, arr) => {
-    if (i === 0) return null;
-    const ini = arr[i-1];
-    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
-    return {
-        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa2 > 0 ? delta / massa2 : 0
-    };
-}).filter(x => x);
-
-
-
-    const te1=maxTEfromSerie(m1);
-    const te2=maxTEfromSerie(m2);
-
-    const pe1_417=minPE(m1,'PE_4_17');
-    const pe2_417=minPE(m2,'PE_4_17');
-    const pe1_551=minPE(m1,'PE_5_5_1');
-    const pe2_551=minPE(m2,'PE_5_5_1');
-
-out.innerHTML = `
+    out.innerHTML=`
 <div class="transformador-dados">
     <h3>${nome1}</h3>
     <p>ID: ${m1.meta?.id_secagenscore ?? 'N/A'}</p>
     <p>Tensão: ${m1.meta?.tensao ?? 'N/A'} kV</p>
     <p>Potência: ${m1.meta?.potencia ?? 'N/A'} kVA</p>
     <p>Massa transformador: ${m1.meta?.massat ?? 'N/A'} kg</p>
-    <p>Massa dos isolantes: ${m1.meta?.massai ?? 'N/A'} kg</p>
+    <p>Massa isolantes: ${m1.meta?.massai ?? 'N/A'} kg</p>
 </div>
 <div class="transformador-dados">
     <h3>${nome2}</h3>
@@ -154,159 +135,63 @@ out.innerHTML = `
     <p>Tensão: ${m2.meta?.tensao ?? 'N/A'} kV</p>
     <p>Potência: ${m2.meta?.potencia ?? 'N/A'} kVA</p>
     <p>Massa transformador: ${m2.meta?.massat ?? 'N/A'} kg</p>
-    <p>Massa dos isolantes: ${m2.meta?.massai ?? 'N/A'} kg</p>
+    <p>Massa isolantes: ${m2.meta?.massai ?? 'N/A'} kg</p>
 </div>
 
 <h3>Comparação</h3>
 <table>
-    <tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
-    <tr><td>Duração total (h)</td><td>${m1.meta?.duracao ?? 'N/A'}</td><td>${m2.meta?.duracao ?? 'N/A'}</td></tr>
-    <tr><td>Quantidade de água removida (L)</td><td>${m1.meta?.aguaRemovida ?? 'N/A'}</td><td>${m2.meta?.aguaRemovida ?? 'N/A'}</td></tr>
-    <tr><td>Taxa total (L/(h*t))</td><td>${m1.meta?.taxaTotal ?? 'N/A'}</td><td>${m2.meta?.taxaTotal ?? 'N/A'}</td></tr>
-    <tr><td>Maior temperatura (ºC)</td><td>${te1 ?? 'N/A'}</td><td>${te2 ?? 'N/A'}</td></tr>
-    <tr><td>Menor pressão PE_4_17 (mbar)</td><td>${pe1_417 ?? 'N/A'}</td><td>${pe2_417 ?? 'N/A'}</td></tr>
-    <tr><td>Menor pressão PE_5_5_1 (mbar)</td><td>${pe1_551 ?? 'N/A'}</td><td>${pe2_551 ?? 'N/A'}</td></tr>
+<tr><th>Indicador</th><th>${nome1}</th><th>${nome2}</th></tr>
+<tr><td>Duração total (h)</td><td>${m1.meta?.duracao ?? 'N/A'}</td><td>${m2.meta?.duracao ?? 'N/A'}</td></tr>
+<tr><td>Água removida (L)</td><td>${m1.meta?.aguaRemovida ?? 'N/A'}</td><td>${m2.meta?.aguaRemovida ?? 'N/A'}</td></tr>
+<tr><td>Taxa total (L/(h*t))</td><td>${m1.meta?.taxaTotal ?? 'N/A'}</td><td>${m2.meta?.taxaTotal ?? 'N/A'}</td></tr>
+<tr><td>Maior TE (ºC)</td><td>${te1}</td><td>${te2}</td></tr>
+<tr><td>Menor PE_4_17 (mbar)</td><td>${pe1_417}</td><td>${pe2_417}</td></tr>
+<tr><td>Menor PE_5_5_1 (mbar)</td><td>${pe1_551}</td><td>${pe2_551}</td></tr>
 </table>
 
-<h3>Comparação PF x TAquec e RF x TAquec</h3>
-<table id="tabelaTAquec" border="1" style="border-collapse:collapse; text-align:center;">
-    <thead style="background:#2980b9; color:white;">
-        <tr>
-            <th>Parâmetro</th>
-            <th id="nome1PF">Transformador 1 PF</th>
-            <th id="nome1RF">Transformador 1 RF</th>
-            <th id="nome1Indice">Índice Transformador 1</th>
-            <th id="nome2PF">Transformador 2 PF</th>
-            <th id="nome2RF">Transformador 2 RF</th>
-            <th id="nome2Indice">Índice Transformador 2</th>
-        </tr>
-    </thead>
-    <tbody id="corpoTAquec"></tbody>
+<h3>TAquec</h3>
+<table border="1" style="border-collapse:collapse; text-align:center;">
+<thead style="background:#2980b9; color:white;">
+<tr><th>Parâmetro</th><th>${nome1} PF</th><th>${nome1} RF</th><th>Índice ${nome1}</th>
+<th>${nome2} PF</th><th>${nome2} RF</th><th>Índice ${nome2}</th></tr>
+</thead>
+<tbody id="corpoTAquec"></tbody>
 </table>
 
-<h3>Comparação PF x PRem e RF x PRem</h3>
-<table id="tabelaPRem" border="1" style="border-collapse:collapse; text-align:center;">
-    <thead style="background:#2980b9; color:white;">
-        <tr>
-            <th>Parâmetro</th>
-            <th id="nome1PF_PRem">Transformador 1 PF</th>
-            <th id="nome1RF_PRem">Transformador 1 RF</th>
-            <th id="nome1Indice_PRem">Índice Transformador 1</th>
-            <th id="nome2PF_PRem">Transformador 2 PF</th>
-            <th id="nome2RF_PRem">Transformador 2 RF</th>
-            <th id="nome2Indice_PRem">Índice Transformador 2</th>
-        </tr>
-    </thead>
-    <tbody id="corpoPRem"></tbody>
+<h3>PRem</h3>
+<table border="1" style="border-collapse:collapse; text-align:center;">
+<thead style="background:#2980b9; color:white;">
+<tr><th>Parâmetro</th><th>${nome1} PF</th><th>${nome1} RF</th><th>Índice ${nome1}</th>
+<th>${nome2} PF</th><th>${nome2} RF</th><th>Índice ${nome2}</th></tr>
+</thead>
+<tbody id="corpoPRem"></tbody>
 </table>
 `;
 
-function preencherTAquec(t1, t2, nome1, nome2) {
-    const corpo = document.getElementById('corpoTAquec');
-    corpo.innerHTML = '';
-    const maxIndex = Math.max(t1.meta.indice_taquec.length, t2.meta.indice_taquec.length);
+    preencherTabela(m1,m2,'corpoTAquec','indice_taquec');
+    preencherTabela(m1,m2,'corpoPRem','indice_prem');
 
-    for(let i=0; i<maxIndex; i++){
-        const linha = document.createElement('tr');
+    // Gráficos
+    document.getElementById("graficoTaxas1").style.display='block';
+    document.getElementById("graficoTaxas2").style.display='block';
 
-        const t1Item = t1.meta.indice_taquec[i] || {TAquec:`TAquec ${i+1}`, PF:0, RF:0, indice:'N/A'};
-        const t2Item = t2.meta.indice_taquec[i] || {TAquec:`TAquec ${i+1}`, PF:0, RF:0, indice:'N/A'};
-
-        linha.innerHTML = `
-            <td>${t1Item.TAquec}</td>
-            <td>${t1Item.PF}</td>
-            <td>${t1Item.RF}</td>
-            <td style="color:green;font-weight:bold;">${t1Item.indice==='N/A'? 'N/A': t1Item.indice+'%'}</td>
-            <td>${t2Item.PF}</td>
-            <td>${t2Item.RF}</td>
-            <td style="color:green;font-weight:bold;">${t2Item.indice==='N/A'? 'N/A': t2Item.indice+'%'}</td>
-        `;
-        corpo.appendChild(linha);
-    }
-
-    document.getElementById('nome1PF').textContent = `${nome1} PF`;
-    document.getElementById('nome1RF').textContent = `${nome1} RF`;
-    document.getElementById('nome1Indice').textContent = `Índice ${nome1}`;
-    document.getElementById('nome2PF').textContent = `${nome2} PF`;
-    document.getElementById('nome2RF').textContent = `${nome2} RF`;
-    document.getElementById('nome2Indice').textContent = `Índice ${nome2}`;
-}
-
-function preencherPRem(t1, t2, nome1, nome2) {
-    const corpo = document.getElementById('corpoPRem');
-    corpo.innerHTML = '';
-    const maxIndex = Math.max(t1.meta.indice_prem.length, t2.meta.indice_prem.length);
-
-    for(let i=0; i<maxIndex; i++){
-        const linha = document.createElement('tr');
-
-        const t1Item = t1.meta.indice_prem[i] || {PRem:`PRem ${i+1}`, PF:0, RF:0, indice:'N/A'};
-        const t2Item = t2.meta.indice_prem[i] || {PRem:`PRem ${i+1}`, PF:0, RF:0, indice:'N/A'};
-
-        linha.innerHTML = `
-            <td>${t1Item.PRem}</td>
-            <td>${t1Item.PF}</td>
-            <td>${t1Item.RF}</td>
-            <td style="color:green;font-weight:bold;">${t1Item.indice==='N/A'? 'N/A': t1Item.indice+'%'}</td>
-            <td>${t2Item.PF}</td>
-            <td>${t2Item.RF}</td>
-            <td style="color:green;font-weight:bold;">${t2Item.indice==='N/A'? 'N/A': t2Item.indice+'%'}</td>
-        `;
-        corpo.appendChild(linha);
-    }
-
-    document.getElementById('nome1PF_PRem').textContent = `${nome1} PF`;
-    document.getElementById('nome1RF_PRem').textContent = `${nome1} RF`;
-    document.getElementById('nome1Indice_PRem').textContent = `Índice ${nome1}`;
-    document.getElementById('nome2PF_PRem').textContent = `${nome2} PF`;
-    document.getElementById('nome2RF_PRem').textContent = `${nome2} RF`;
-    document.getElementById('nome2Indice_PRem').textContent = `Índice ${nome2}`;
-}
-
-// Preenche tabelas de índices
-    preencherTAquec(m1, m2, nome1, nome2);
-    preencherPRem(m1, m2, nome1, nome2);
-
-    
-    const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
-    if (window.chartTaxas1) window.chartTaxas1.destroy();
-    window.chartTaxas1 = new Chart(ctx1, {
-        type: 'line',
-        data: {
-            labels: blocos1.map(b => b.intervalo),
-            datasets: [{ label: nome1, data: blocos1.map(b => b.taxa), borderColor: 'rgba(41,128,185,1)', backgroundColor: 'rgba(41,128,185,0.2)', fill: true }]
-        },
-        options: { responsive: true, plugins: { legend: { display: true } } }
+    const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
+    if(window.chartTaxas1) window.chartTaxas1.destroy();
+    window.chartTaxas1=new Chart(ctx1,{
+        type:'line',
+        data:{labels:blocos1.map(b=>b.intervalo),datasets:[{label:nome1,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)',fill:true}]},
+        options:{responsive:true,plugins:{legend:{display:true}}}
     });
 
-    const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
-    if (window.chartTaxas2) window.chartTaxas2.destroy();
-    window.chartTaxas2 = new Chart(ctx2, {
-        type: 'line',
-        data: {
-            labels: blocos2.map(b => b.intervalo),
-            datasets: [{ label: nome2, data: blocos2.map(b => b.taxa), borderColor: 'rgba(231,76,60,1)', backgroundColor: 'rgba(231,76,60,0.2)', fill: true }]
-        },
-        options: { responsive: true, plugins: { legend: { display: true } } }
+    const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
+    if(window.chartTaxas2) window.chartTaxas2.destroy();
+    window.chartTaxas2=new Chart(ctx2,{
+        type:'line',
+        data:{labels:blocos2.map(b=>b.intervalo),datasets:[{label:nome2,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)',fill:true}]},
+        options:{responsive:true,plugins:{legend:{display:true}}}
     });
 
-    document.getElementById("btnExportarPDF").style.display = 'block';
-});
-document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
-    const { jsPDF }=window.jspdf;
-    const doc=new jsPDF('p','pt','a4');
-    const elements=[document.getElementById("resultado"),document.getElementById("graficoTaxas1"),document.getElementById("graficoTaxas2")];
-    let y=20;
-    for(const el of elements){
-        const canvas=await html2canvas(el);
-        const img=canvas.toDataURL("image/png");
-        const w=doc.internal.pageSize.getWidth();
-        const h=(canvas.height*w)/canvas.width;
-        if(y+h>doc.internal.pageSize.getHeight()){ doc.addPage(); y=20; }
-        doc.addImage(img,'PNG',0,y,w,h);
-        y+=h+20;
-    }
-    doc.save("comparacao_transformadores.pdf");
+    document.getElementById("btnExportarPDF").style.display='block';
 });
 </script>
 </body>
