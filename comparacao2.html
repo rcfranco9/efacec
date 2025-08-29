@@ -10,7 +10,7 @@
 body { font-family:'Segoe UI', sans-serif; max-width:900px; margin:40px auto; background:#f7f7f7; padding:30px; border-radius:10px; }
 h1{text-align:center;color:#2c3e50;}
 label{display:block;margin-top:20px;font-weight:600;}
-input,button,select{padding:10px;width:100%;margin-top:8px;border-radius:5px;border:1px solid #bbb;}
+input,select,button{padding:10px;width:100%;margin-top:8px;border-radius:5px;border:1px solid #bbb;}
 button{background:#2980b9;color:#fff;cursor:pointer;font-weight:bold;}
 button:hover{background:#3498db;}
 #resultado{margin-top:30px;padding:20px;background:#fff;border:2px solid #ccc;border-radius:8px;overflow-x:auto;}
@@ -25,36 +25,82 @@ th{background:#2980b9;color:white;}
 
 <h1>Comparação de Transformadores</h1>
 
+<!-- Transformador 1 -->
 <label>Subprojeto/Transformador 1:</label>
 <input type="text" id="nome1" placeholder="Insere o primeiro subprojeto">
-<div id="selecionarID1"></div>
+<select id="selectID1" style="display:none; margin-top:8px;"></select>
 
+<!-- Transformador 2 -->
 <label>Subprojeto/Transformador 2:</label>
 <input type="text" id="nome2" placeholder="Insere o segundo subprojeto">
-<div id="selecionarID2"></div>
+<select id="selectID2" style="display:none; margin-top:8px;"></select>
 
-<button id="btnComparar" style="margin-top:20px;">Comparar</button>
+<button id="btnComparar">Comparar</button>
 
-<div id="resultado">Introduz os nomes dos subprojetos e clica "Comparar".</div>
+<div id="resultado">Introduz os nomes dos transformadores e escolhe os IDs.</div>
 
 <canvas id="graficoTaxas1" style="max-width:100%;margin-top:40px;display:none;"></canvas>
 <canvas id="graficoTaxas2" style="max-width:100%;margin-top:40px;display:none;"></canvas>
 <button id="btnExportarPDF" style="display:none;margin-top:15px;">Exportar PDF</button>
 
 <script>
-function safeNum(v, def=NaN){ 
-    return isNaN(v=parseFloat((v||'').toString().replace(',','.').trim())) ? def : v; 
-}
+function safeNum(v, def=NaN){ return isNaN(v=parseFloat((v||'').toString().replace(',','.').trim()))?def:v; }
 
+// Buscar IDs do subprojeto
 async function buscarIDs(subprojeto){
-    try{
+    try {
         const resp = await fetch(`/api/transformador?nome=${encodeURIComponent(subprojeto)}`);
         if(!resp.ok) throw new Error("Transformador não encontrado");
         const data = await resp.json();
         return Array.isArray(data)?data:null;
-    }catch(err){ console.error(err); return null; }
+    } catch(err) { console.error(err); return null; }
 }
 
+// Preencher select de IDs
+function preencherSelect(select, dados){
+    select.innerHTML='';
+    dados.forEach(item=>{
+        const opt=document.createElement('option');
+        opt.value=item.meta.id_secagenscore;
+        opt.textContent=`ID: ${item.meta.id_secagenscore}`;
+        select.appendChild(opt);
+    });
+    select.style.display='block';
+}
+
+// Ao digitar nomes, preencher selects
+document.getElementById('nome1').addEventListener('input', async()=>{
+    const nome=document.getElementById('nome1').value.trim();
+    const select=document.getElementById('selectID1');
+    if(!nome){ select.style.display='none'; return; }
+    const dados = await buscarIDs(nome);
+    if(!dados?.length){ select.style.display='none'; return; }
+    preencherSelect(select,dados);
+});
+
+document.getElementById('nome2').addEventListener('input', async()=>{
+    const nome=document.getElementById('nome2').value.trim();
+    const select=document.getElementById('selectID2');
+    if(!nome){ select.style.display='none'; return; }
+    const dados = await buscarIDs(nome);
+    if(!dados?.length){ select.style.display='none'; return; }
+    preencherSelect(select,dados);
+});
+
+// Funções auxiliares
+function maxTE(dados){
+    const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
+    const vals=[];
+    (dados.serie||[]).forEach(l=>cols.forEach(c=>{const v=safeNum(l[c]); if(!isNaN(v)&&v>=0&&v<=140) vals.push(v);}));
+    return vals.length?Math.max(...vals):'N/A';
+}
+
+function minPE(dados,col){
+    const vals=(dados.serie||[]).map(r=>safeNum(r[col])).filter(v=>!isNaN(v)&&v>0.1);
+    return vals.length?Math.min(...vals):'N/A';
+}
+
+// Agregar um ponto por hora
 function blocosPorHora(serie, massaIsol){
     if(!serie || serie.length<2 || massaIsol<=0) return [];
     const blocos=[];
@@ -66,105 +112,62 @@ function blocosPorHora(serie, massaIsol){
         const val=Number(ponto.LC_3_8||0);
         if(h!==iniHora){
             const delta=val-iniValor;
-            blocos.push({intervalo: iniHora+":00", taxa: +(delta/massaIsol).toFixed(3)});
+            blocos.push({intervalo:iniHora+":00", taxa:+(delta/massaIsol).toFixed(3)});
             iniHora=h; iniValor=val;
         }
     }
-    const lastVal = Number(serie[serie.length-1].LC_3_8||0);
-    const deltaLast = lastVal - iniValor;
-    blocos.push({intervalo: iniHora+":00", taxa: +(deltaLast/massaIsol).toFixed(3)});
+    const lastVal=Number(serie[serie.length-1].LC_3_8||0);
+    const deltaLast=lastVal-iniValor;
+    blocos.push({intervalo:iniHora+":00", taxa:+(deltaLast/massaIsol).toFixed(3)});
     return blocos;
 }
 
-function maxTE(dados){
-    const cols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
-    const vals=[];
-    (dados.serie||[]).forEach(l=>cols.forEach(c=>{const v=safeNum(l[c]); if(!isNaN(v)&&v>=0&&v<=140) vals.push(v)}));
-    return vals.length?Math.max(...vals):'N/A';
-}
-
-function minPE(dados,col){ 
-    const vals=(dados.serie||[]).map(r=>safeNum(r[col])).filter(v=>!isNaN(v)&&v>0.1);
-    return vals.length?Math.min(...vals):'N/A';
-}
-
-function preencherTabela(t, tbodyId, campoNome){
+// Preencher tabelas TAquec/PRem
+function preencherTabela(t1,t2,tbodyId,campoNome){
     const corpo=document.getElementById(tbodyId);
     corpo.innerHTML='';
-    const maxIndex=(t.meta[campoNome]||[]).length;
+    const maxIndex=Math.max(t1.meta[campoNome].length,t2.meta[campoNome].length);
     for(let i=0;i<maxIndex;i++){
-        const item = t.meta[campoNome][i] || {PF:0,RF:0,indice:'N/A', TAquec:'', PRem:''};
-        const param = item.TAquec || item.PRem || `Item ${i+1}`;
+        const item1=t1.meta[campoNome][i]||{PF:0,RF:0,indice:'N/A',TAquec:'',PRem:''};
+        const item2=t2.meta[campoNome][i]||{PF:0,RF:0,indice:'N/A',TAquec:'',PRem:''};
+        const param=item1.TAquec||item1.PRem||`Item ${i+1}`;
         corpo.innerHTML+=`<tr>
             <td>${param}</td>
-            <td>${item.PF}</td>
-            <td>${item.RF}</td>
-            <td style="color:green;font-weight:bold;">${item.indice==='N/A'? 'N/A': item.indice+'%'}</td>
+            <td>${item1.PF}</td>
+            <td>${item1.RF}</td>
+            <td style="color:green;font-weight:bold;">${item1.indice==='N/A'?'N/A':item1.indice+'%'}</td>
+            <td>${item2.PF}</td>
+            <td>${item2.RF}</td>
+            <td style="color:green;font-weight:bold;">${item2.indice==='N/A'?'N/A':item2.indice+'%'}</td>
         </tr>`;
     }
 }
 
-async function escolherID(subprojetoInput, divID){
-    const nome = subprojetoInput.value.trim();
-    if(!nome) return null;
-    const dados = await buscarIDs(nome);
-    const div = document.getElementById(divID);
-    div.innerHTML='';
-    if(!dados || !dados.length) { alert('Transformador não encontrado'); return null; }
-    if(dados.length===1) return dados[0];
-    const select = document.createElement('select');
-    select.id = divID+'_select';
-    dados.forEach(d=>{ 
-        const option = document.createElement('option'); 
-        option.value=d.meta.id_secagenscore;
-        option.textContent=`ID: ${d.meta.id_secagenscore}`; 
-        select.appendChild(option);
-    });
-    div.appendChild(select);
-    return {dados, select};
-}
+// Ao clicar Comparar
+document.getElementById('btnComparar').addEventListener('click', async()=>{
+    const id1=document.getElementById('selectID1').value;
+    const id2=document.getElementById('selectID2').value;
+    if(!id1 || !id2){ alert("Escolhe os IDs"); return; }
 
-document.getElementById('btnComparar').addEventListener('click', async ()=>{
-    const escolha1 = await escolherID(document.getElementById('nome1'),'selecionarID1');
-    const escolha2 = await escolherID(document.getElementById('nome2'),'selecionarID2');
+    const resp1=await fetch(`/api/transformador?id=${id1}`);
+    const resp2=await fetch(`/api/transformador?id=${id2}`);
+    const m1=(await resp1.json())[0];
+    const m2=(await resp2.json())[0];
 
-    async function processarEscolha(escolha){
-        if(!escolha) return null;
-        if(escolha.select){ // mais que 1 ID
-            return new Promise(resolve=>{
-                const btnEscolher = document.createElement('button');
-                btnEscolher.textContent='Escolher ID';
-                btnEscolher.style.marginTop='5px';
-                btnEscolher.addEventListener('click', ()=>{
-                    const id = escolha.select.value;
-                    resolve(escolha.dados.find(d=>d.meta.id_secagenscore==id));
-                });
-                escolha.select.parentElement.appendChild(btnEscolher);
-            });
-        } else return escolha;
-    }
-
-    const m1 = await processarEscolha(escolha1);
-    const m2 = await processarEscolha(escolha2);
-    if(!m1 || !m2) return;
-
-    // Depois disto, mostramos resultados como antes
-    mostrarResultadosComparacao(m1,m2);
-});
-
-function mostrarResultadosComparacao(m1,m2){
-    const out=document.getElementById('resultado');
     const massa1=(m1.meta?.massai||0)/1000;
     const massa2=(m2.meta?.massai||0)/1000;
-    const blocos1 = blocosPorHora(m1.serie, massa1);
-    const blocos2 = blocosPorHora(m2.serie, massa2);
+
+    const blocos1=blocosPorHora(m1.serie,massa1);
+    const blocos2=blocosPorHora(m2.serie,massa2);
+
     const te1=maxTE(m1), te2=maxTE(m2);
     const pe1_417=minPE(m1,'PE_4_17'), pe2_417=minPE(m2,'PE_4_17');
     const pe1_551=minPE(m1,'PE_5_5_1'), pe2_551=minPE(m2,'PE_5_5_1');
 
+    const out=document.getElementById('resultado');
     out.innerHTML=`
 <div class="transformador-dados">
-<h3>${m1.meta?.subprojecto || 'Subprojeto 1'}</h3>
+<h3>${m1.meta?.subprojecto}</h3>
 <p>ID: ${m1.meta?.id_secagenscore ?? 'N/A'}</p>
 <p>Tensão: ${m1.meta?.tensao ?? 'N/A'} kV</p>
 <p>Potência: ${m1.meta?.potencia ?? 'N/A'} kVA</p>
@@ -172,7 +175,7 @@ function mostrarResultadosComparacao(m1,m2){
 <p>Massa isolantes: ${m1.meta?.massai ?? 'N/A'} kg</p>
 </div>
 <div class="transformador-dados">
-<h3>${m2.meta?.subprojecto || 'Subprojeto 2'}</h3>
+<h3>${m2.meta?.subprojecto}</h3>
 <p>ID: ${m2.meta?.id_secagenscore ?? 'N/A'}</p>
 <p>Tensão: ${m2.meta?.tensao ?? 'N/A'} kV</p>
 <p>Potência: ${m2.meta?.potencia ?? 'N/A'} kVA</p>
@@ -182,7 +185,7 @@ function mostrarResultadosComparacao(m1,m2){
 
 <h3>Comparação</h3>
 <table>
-<tr><th>Indicador</th><th>${m1.meta?.subprojecto || '1'}</th><th>${m2.meta?.subprojecto || '2'}</th></tr>
+<tr><th>Indicador</th><th>${m1.meta?.subprojecto}</th><th>${m2.meta?.subprojecto}</th></tr>
 <tr><td>Duração total (h)</td><td>${m1.meta?.duracao ?? 'N/A'}</td><td>${m2.meta?.duracao ?? 'N/A'}</td></tr>
 <tr><td>Água removida (L)</td><td>${m1.meta?.aguaRemovida ?? 'N/A'}</td><td>${m2.meta?.aguaRemovida ?? 'N/A'}</td></tr>
 <tr><td>Taxa total (L/(h*t))</td><td>${m1.meta?.taxaTotal ?? 'N/A'}</td><td>${m2.meta?.taxaTotal ?? 'N/A'}</td></tr>
@@ -193,68 +196,49 @@ function mostrarResultadosComparacao(m1,m2){
 
 <h3>TAquec</h3>
 <table border="1" style="border-collapse:collapse; text-align:center;">
-<thead style="background:#2980b9; color:white;">
-<tr><th>Parâmetro</th><th>${m1.meta?.subprojecto || '1'} PF</th><th>${m1.meta?.subprojecto || '1'} RF</th><th>Índice</th>
-<th>${m2.meta?.subprojecto || '2'} PF</th><th>${m2.meta?.subprojecto || '2'} RF</th><th>Índice</th></tr>
+<thead style="background:#2980b9;color:white;">
+<tr><th>Parâmetro</th><th>${m1.meta?.subprojecto} PF</th><th>${m1.meta?.subprojecto} RF</th><th>Índice ${m1.meta?.subprojecto}</th>
+<th>${m2.meta?.subprojecto} PF</th><th>${m2.meta?.subprojecto} RF</th><th>Índice ${m2.meta?.subprojecto}</th></tr>
 </thead>
 <tbody id="corpoTAquec"></tbody>
 </table>
 
 <h3>PRem</h3>
 <table border="1" style="border-collapse:collapse; text-align:center;">
-<thead style="background:#2980b9; color:white;">
-<tr><th>Parâmetro</th><th>${m1.meta?.subprojecto || '1'} PF</th><th>${m1.meta?.subprojecto || '1'} RF</th><th>Índice</th>
-<th>${m2.meta?.subprojecto || '2'} PF</th><th>${m2.meta?.subprojecto || '2'} RF</th><th>Índice</th></tr>
+<thead style="background:#2980b9;color:white;">
+<tr><th>Parâmetro</th><th>${m1.meta?.subprojecto} PF</th><th>${m1.meta?.subprojecto} RF</th><th>Índice ${m1.meta?.subprojecto}</th>
+<th>${m2.meta?.subprojecto} PF</th><th>${m2.meta?.subprojecto} RF</th><th>Índice ${m2.meta?.subprojecto}</th></tr>
 </thead>
 <tbody id="corpoPRem"></tbody>
 </table>
 `;
 
-    preencherTabela(m1,'corpoTAquec','indice_taquec');
-    preencherTabela(m2,'corpoTAquec','indice_taquec');
-    preencherTabela(m1,'corpoPRem','indice_prem');
-    preencherTabela(m2,'corpoPRem','indice_prem');
+    preencherTabela(m1,m2,'corpoTAquec','indice_taquec');
+    preencherTabela(m1,m2,'corpoPRem','indice_prem');
 
-    // Gráficos
+    // Mostrar gráficos
     if(blocos1.length){
-        const ctx1 = document.getElementById("graficoTaxas1").getContext("2d");
+        document.getElementById("graficoTaxas1").style.display='block';
+        const ctx1=document.getElementById("graficoTaxas1").getContext("2d");
         if(window.chartTaxas1) window.chartTaxas1.destroy();
-        window.chartTaxas1 = new Chart(ctx1,{
+        window.chartTaxas1=new Chart(ctx1,{
             type:'line',
-            data:{labels:blocos1.map(b=>b.intervalo), datasets:[{label:m1.meta.subprojecto||'1',data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)',fill:true}]},
+            data:{labels:blocos1.map(b=>b.intervalo),datasets:[{label:m1.meta?.subprojecto,data:blocos1.map(b=>b.taxa),borderColor:'rgba(41,128,185,1)',backgroundColor:'rgba(41,128,185,0.2)',fill:true}]},
             options:{responsive:true,plugins:{legend:{display:true}}}
         });
-        document.getElementById('graficoTaxas1').style.display='block';
     }
     if(blocos2.length){
-        const ctx2 = document.getElementById("graficoTaxas2").getContext("2d");
+        document.getElementById("graficoTaxas2").style.display='block';
+        const ctx2=document.getElementById("graficoTaxas2").getContext("2d");
         if(window.chartTaxas2) window.chartTaxas2.destroy();
-        window.chartTaxas2 = new Chart(ctx2,{
+        window.chartTaxas2=new Chart(ctx2,{
             type:'line',
-            data:{labels:blocos2.map(b=>b.intervalo), datasets:[{label:m2.meta.subprojecto||'2',data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)',fill:true}]},
+            data:{labels:blocos2.map(b=>b.intervalo),datasets:[{label:m2.meta?.subprojecto,data:blocos2.map(b=>b.taxa),borderColor:'rgba(231,76,60,1)',backgroundColor:'rgba(231,76,60,0.2)',fill:true}]},
             options:{responsive:true,plugins:{legend:{display:true}}}
         });
-        document.getElementById('graficoTaxas2').style.display='block';
     }
-    document.getElementById("btnExportarPDF").style.display='block';
-}
 
-// PDF
-document.getElementById("btnExportarPDF").addEventListener("click", async()=>{
-    const { jsPDF }=window.jspdf;
-    const doc=new jsPDF('p','pt','a4');
-    const elements=[document.getElementById("resultado"),document.getElementById("graficoTaxas1"),document.getElementById("graficoTaxas2")];
-    let y=20;
-    for(const el of elements){
-        const canvas=await html2canvas(el);
-        const img=canvas.toDataURL("image/png");
-        const w=doc.internal.pageSize.getWidth();
-        const h=(canvas.height*w)/canvas.width;
-        if(y+h>doc.internal.pageSize.getHeight()){ doc.addPage(); y=20; }
-        doc.addImage(img,'PNG',0,y,w,h);
-        y+=h+20;
-    }
-    doc.save("comparacao_transformadores.pdf");
+    document.getElementById("btnExportarPDF").style.display='block';
 });
 </script>
 </body>
