@@ -109,25 +109,17 @@ document.getElementById('btnComparar').addEventListener('click', async () => {
 const massa1 = (m1.meta?.massai || 0) / 1000; // em toneladas
 const massa2 = (m2.meta?.massai || 0) / 1000;
 
-const blocos1 = (m1.serie || []).map((ponto, i, arr) => {
-    if (i === 0) return null; // ignora o primeiro
-    const ini = arr[i-1];
-    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
-    return {
-        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa1 > 0 ? delta / massa1 : 0  // **aqui é número**
-    };
-}).filter(x => x); // remove o null do primeiro ponto
+// Usa os blocos já calculados no Python
+const blocos1 = (m1.meta?.blocos || []).map(b => ({
+    intervalo: b.intervalo,
+    taxa: Number(b.taxa)  // garante que é número
+}));
 
-const blocos2 = (m2.serie || []).map((ponto, i, arr) => {
-    if (i === 0) return null;
-    const ini = arr[i-1];
-    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
-    return {
-        intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa2 > 0 ? delta / massa2 : 0
-    };
-}).filter(x => x);
+const blocos2 = (m2.meta?.blocos || []).map(b => ({
+    intervalo: b.intervalo,
+    taxa: Number(b.taxa)
+}));
+
 
 
 
