@@ -112,21 +112,23 @@ const massa2 = (m2.meta?.massai || 0) / 1000;
 const blocos1 = (m1.serie || []).map((ponto, i, arr) => {
     if (i === 0) return null; // ignora o primeiro
     const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
     return {
         intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa1 > 0 ? ((parseFloat(ponto.LC_3_8||0) - parseFloat(ini.LC_3_8||0))/massa1).toFixed(3) : 0
+        taxa: massa1 > 0 ? delta / massa1 : 0  // **aqui é número**
     };
 }).filter(x => x); // remove o null do primeiro ponto
-
 
 const blocos2 = (m2.serie || []).map((ponto, i, arr) => {
-    if (i === 0) return null; // ignora o primeiro ponto
+    if (i === 0) return null;
     const ini = arr[i-1];
+    const delta = Number(ponto.LC_3_8 || 0) - Number(ini.LC_3_8 || 0);
     return {
         intervalo: new Date(ponto.DataHora.replace(' ', 'T')).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}),
-        taxa: massa2 > 0 ? ((parseFloat(ponto.LC_3_8||0) - parseFloat(ini.LC_3_8||0))/massa2).toFixed(3) : 0
+        taxa: massa2 > 0 ? delta / massa2 : 0
     };
-}).filter(x => x); // remove o null do primeiro ponto
+}).filter(x => x);
+
 
 
     const te1=maxTEfromSerie(m1);
