@@ -142,7 +142,7 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
         // último ponto
         const lastVal = Number(serie[serie.length-1].LC_3_8 || 0);
         const deltaLast = lastVal - iniValor;
-        blocos.push({intervalo: iniHora+":00", taxa: +(deltaLast/massaIsol).toFixed(3)});
+        blocos.push({intervalo: ((iniHora+1) % 24) + ":00", taxa: +(deltaLast/massaIsol).toFixed(3)});
         return blocos;
     }
 
