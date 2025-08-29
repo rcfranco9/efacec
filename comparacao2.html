@@ -110,7 +110,7 @@ document.getElementById('btnComparar').addEventListener('click',async()=>{
     if(!nome1||!nome2){out.innerHTML='<p>Introduz os dois subprojetos.</p>'; return;}
   
     
-        1const m1Array = await buscarDados(nome1);
+    const m1Array = await buscarDados(nome1);
     const m2Array = await buscarDados(nome2);
     if (!m1Array?.length || !m2Array?.length) { out.innerHTML = '<p>Transformador(es) não encontrado(s).</p>'; return; }
 
