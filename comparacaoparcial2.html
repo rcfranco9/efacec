@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
-  <title>Filtragem de Transformadores com Índices</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1); padding: 30px; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 10px; }
-    h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
-    label { display: block; margin-top: 20px; font-weight: 600; color: #34495e; }
-    input, button { padding: 10px; width: 100%; margin-top: 8px; border-radius: 5px; border: 1px solid #bbb; font-size: 16px; box-sizing: border-box; }
-    button { margin-top: 20px; background-color: #2980b9; color: white; border: none; font-weight: bold; transition: background-color 0.3s ease; cursor: pointer; }
-    button:hover:not(:disabled) { background-color: #3498db; }
-    button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-    #resultado { margin-top: 30px; padding: 20px; background: #fff; border: 2px solid #ccc; border-radius: 8px; min-height: 100px; overflow-x: auto; }
-    .transformador-dados { background: #fdfdfd; border: 1px solid #ccc; padding: 15px 20px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: background 0.3s; }
-    .transformador-dados:hover { background: #f0f8ff; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: center; font-size: 14px; }
-    th { background-color: #2980b9; color: white; }
-    strong { color: #2c3e50; }
-  </style>
+<meta charset="UTF-8">
+<title>Comparação Parcial de Transformadores</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; background: linear-gradient(to bottom right, #f7f7f7, #e1e1e1); padding: 30px; box-shadow: 0 0 20px rgba(0,0,0,0.1); border-radius: 10px; }
+h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+label { display: block; margin-top: 20px; font-weight: 600; color: #34495e; }
+input, button { padding: 10px; width: 100%; margin-top: 8px; border-radius: 5px; border: 1px solid #bbb; font-size: 16px; box-sizing: border-box; }
+button { margin-top: 20px; background-color: #2980b9; color: white; border: none; font-weight: bold; transition: background-color 0.3s ease; cursor: pointer; }
+button:hover:not(:disabled) { background-color: #3498db; }
+button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+#resultado { margin-top: 30px; padding: 20px; background: #fff; border: 2px solid #ccc; border-radius: 8px; min-height: 100px; overflow-x: auto; }
+.transformador-dados { background: #fdfdfd; border: 1px solid #ccc; padding: 15px 20px; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: background 0.3s; }
+.transformador-dados:hover { background: #f0f8ff; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: center; font-size: 14px; }
+th { background-color: #2980b9; color: white; }
+strong { color: #2c3e50; }
+</style>
 </head>
 <body>
 
-<h1>Filtragem de Transformadores com Índices PF/RF</h1>
-<div id="taxas-remocao" style="margin-top: 20px; font-weight: bold;"></div>
+<h1>Comparação Parcial de Transformadores</h1>
 
 <label for="potenciaInput">Potência (ex: 140):</label>
 <input type="text" id="potenciaInput" placeholder="Potência" />
@@ -39,105 +38,91 @@
 <button id="btnExportarPDF" style="display:none">Exportar PDF</button>
 
 <script>
-let dadosMeta = [], dadosSerie = [], dadosPF = [];
+let dadosMeta=[], dadosSerie=[], dadosPF=[];
 
-// Funções auxiliares
-function formatNum(v, dec = 3) { const n = parseFloat(v); if (isNaN(n) || n === 0) return 'N/A'; return parseFloat(n.toFixed(dec)).toString(); }
-function parseNum(v) { const n = parseFloat((v||'').toString().replace(',', '.').trim()); return isNaN(n) ? NaN : n; }
-function checkReady() { const ok = dadosMeta.length && dadosSerie.length && dadosPF.length; document.getElementById('btnFiltrar').disabled = !ok; if(ok) document.getElementById('resultado').textContent = 'Dados carregados. Insere potência e tensão.'; }
+// Utilitários
+function formatNum(v, dec=3){ const n=parseFloat(v); if(isNaN(n)||n===0) return 'N/A'; return parseFloat(n.toFixed(dec)).toString(); }
+function parseNum(v){ const n=parseFloat((v||'').toString().replace(',', '.').trim()); return isNaN(n)?NaN:n; }
+function checkReady(){ const ok=dadosMeta.length && dadosSerie.length && dadosPF.length; document.getElementById('btnFiltrar').disabled=!ok; if(ok) document.getElementById('resultado').textContent='Dados carregados. Insere potência e tensão.'; }
 
-// Cálculos principais
-function calcLC(id, massaiKg) {
-  const linhas = dadosSerie.filter(r => (r.id_secagenscore||'').trim() === id && r.LC_3_8 && r.DataHora);
-  const registos = linhas.map(r => ({ valor: parseNum(r.LC_3_8), ts: new Date(r.DataHora).getTime() }))
-                        .filter(r => !isNaN(r.ts) && !isNaN(r.valor));
-  if (registos.length < 2) return { difLC: 0, dur: 1, taxa: 0, delta10h: 0, taxa10h: 0 };
-  registos.sort((a,b) => a.ts - b.ts);
-  const ultimo = registos[registos.length-1];
-  const alvoTS = ultimo.ts - 10*3600000;
-  let anterior10h = registos[0];
+// Funções de cálculo
+function calcLC(id,massaiKg){
+  const linhas=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id && r.LC_3_8 && r.DataHora);
+  const registos=linhas.map(r=>({valor:parseNum(r.LC_3_8),ts:new Date(r.DataHora).getTime()})).filter(r=>!isNaN(r.ts)&&!isNaN(r.valor));
+  if(registos.length<2) return {difLC:0,dur:1,taxa:0,delta10h:0,taxa10h:0};
+  registos.sort((a,b)=>a.ts-b.ts);
+  const ultimo=registos[registos.length-1];
+  const alvoTS=ultimo.ts-10*3600000;
+  let anterior10h=registos[0];
   for(let i=registos.length-1;i>=0;i--){ if(registos[i].ts<=alvoTS){anterior10h=registos[i];break;} }
-  const delta10h = +(ultimo.valor - anterior10h.valor).toFixed(3);
-  const dur = +(((ultimo.ts - registos[0].ts)/36e5)).toFixed(2)||1;
-  const ton = parseNum(massaiKg)/1000||1;
-  const difLC = +ultimo.valor.toFixed(3);
-  const taxa = +(difLC/(dur*ton)).toFixed(2);
-  const taxa10h = +(delta10h/(10*ton)).toFixed(2);
-  return { difLC, dur, taxa, delta10h, taxa10h };
+  const delta10h=+(ultimo.valor-anterior10h.valor).toFixed(3);
+  const dur=+(((ultimo.ts-registos[0].ts)/36e5)).toFixed(2)||1;
+  const ton=parseNum(massaiKg)/1000||1;
+  const difLC=+ultimo.valor.toFixed(3);
+  const taxa=+(difLC/(dur*ton)).toFixed(2);
+  const taxa10h=+(delta10h/(10*ton)).toFixed(2);
+  return {difLC,dur,taxa,delta10h,taxa10h};
 }
 function maxTEfromSerie(id){
   const colunas=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
   const valores=[];
-  dadosSerie.filter(r => (r.id_secagenscore||'').trim()===id).forEach(linha => colunas.forEach(col => { const val=parseNum(linha[col]); if(!isNaN(val)&&val>0&&val<=140) valores.push(val); }));
+  dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id).forEach(linha=>colunas.forEach(col=>{ const val=parseNum(linha[col]); if(!isNaN(val)&&val>0&&val<=140) valores.push(val); }));
   return valores.length>0?Math.max(...valores).toFixed(2):'N/A';
 }
 function minPE(id,coluna){
-  const valores=dadosSerie.filter(r => (r.id_secagenscore||'').trim()===id).map(r=>parseNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
+  const valores=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id).map(r=>parseNum(r[coluna])).filter(v=>!isNaN(v)&&v>0.1);
   return valores.length?Math.min(...valores).toFixed(3):'N/A';
 }
-function calculaIndiceTemperatura(pf, rf){if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5)return '100%'; if(diff<=-5)return '0%'; return `${Math.round((diff+5)/10*100)}%`;}
-function calculaIndicePressao(pf, rf){if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5)return '0%'; if(diff<=-5)return '100%'; if(diff===0)return '50%'; return `${Math.round((5-diff)/10*100)}%`;}
-function pegaDadosPF(id){
-  const reg = dadosPF.find(r=> (r.id_secagenscore||'').trim()===id);
-  if(!reg) return null;
-  const PFxTAquec=[], RFxTAquec=[], PFxPRem=[], RFxPRem=[];
-  for(let n=1;n<=6;n++){
-    PFxTAquec.push(parseNum(reg[`PF${n}TAquec`]));
-    RFxTAquec.push(parseNum(reg[`RF${n}TAquec`]));
-    PFxPRem.push(parseNum(reg[`PF${n}PRem`]));
-    RFxPRem.push(parseNum(reg[`RF${n}PRem`]));
-  }
-  return { PFxTAquec, RFxTAquec, PFxPRem, RFxPRem };
-}
+function calculaIndiceTemperatura(pf,rf){if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5) return '100%'; if(diff<=-5) return '0%'; return `${Math.round((diff+5)/10*100)}%`;}
+function calculaIndicePressao(pf,rf){if(isNaN(pf)||isNaN(rf)) return 'N/A'; const diff=rf-pf; if(diff>=5) return '0%'; if(diff<=-5) return '100%'; if(diff===0) return '50%'; return `${Math.round((5-diff)/10*100)}%`;}
+function pegaDadosPF(id){ const reg=dadosPF.find(r=>(r.id_secagenscore||'').trim()===id); if(!reg) return null; const PFxTAquec=[], RFxTAquec=[], PFxPRem=[], RFxPRem=[]; for(let n=1;n<=6;n++){ PFxTAquec.push(parseNum(reg[`PF${n}TAquec`])); RFxTAquec.push(parseNum(reg[`RF${n}TAquec`])); PFxPRem.push(parseNum(reg[`PF${n}PRem`])); RFxPRem.push(parseNum(reg[`RF${n}PRem`])); } return {PFxTAquec,RFxTAquec,PFxPRem,RFxPRem}; }
 
-// Funções para gráficos
-function calcularTaxasHoraAHora(id, massaKg, canvasId){
-  const linhas=dadosSerie.filter(r=> (r.id_secagenscore||'').trim()===id && r.LC_3_8 && r.DataHora);
+// Gráficos
+function calcularTaxasHoraAHora(id,massaKg,canvasId){
+  const linhas=dadosSerie.filter(r=>(r.id_secagenscore||'').trim()===id && r.LC_3_8 && r.DataHora);
   const registos=linhas.map(r=>({hora:new Date(r.DataHora).toISOString().substring(0,13),valor:parseNum(r.LC_3_8)})).filter(r=>!isNaN(r.valor));
   const porHora={};
   registos.forEach(({hora,valor})=>{ if(!porHora[hora]) porHora[hora]=[]; porHora[hora].push(valor); });
   const horasOrdenadas=Object.keys(porHora).sort();
-  const labelsHoras=horasOrdenadas.map(h=> { const hora=parseInt(h.substring(11,13),10); return (hora+1).toString().padStart(2,'0'); });
+  const labelsHoras=horasOrdenadas.map(h=>{ const hora=parseInt(h.substring(11,13),10); return (hora+1).toString().padStart(2,'0'); });
   const taxasHoraAHora=horasOrdenadas.map(h=>{ const arr=porHora[h]; return arr.length>=2?((arr[arr.length-1]-arr[0])/(massaKg/1000)).toFixed(2):0; });
   desenharGrafico(labelsHoras,taxasHoraAHora,canvasId);
 }
-function desenharGrafico(labelsHoras,taxasHoraAHora,canvasId){
+function desenharGrafico(labels,taxa,canvasId){
   const ctx=document.getElementById(canvasId).getContext("2d");
-  new Chart(ctx,{type:"line",data:{labels:labelsHoras,datasets:[{label:"Taxa de Remoção de Água (L/h*t)",data:taxasHoraAHora,borderColor:"#2980b9",backgroundColor:"rgba(52, 152, 219, 0.2)",fill:true,tension:0.2,pointRadius:3}]},options:{scales:{y:{title:{display:true,text:'Taxa (L/h*t)'},beginAtZero:true},x:{title:{display:true,text:'Hora'}}},plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} L/h*t`}}}}});
+  new Chart(ctx,{type:"line",data:{labels:labels,datasets:[{label:"Taxa de Remoção de Água (L/h*t)",data:taxa,borderColor:"#2980b9",backgroundColor:"rgba(52, 152, 219, 0.2)",fill:true,tension:0.2,pointRadius:3}]},options:{scales:{y:{title:{display:true,text:'Taxa (L/h*t)'},beginAtZero:true},x:{title:{display:true,text:'Hora'}}},plugins:{legend:{position:'top'},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y} L/h*t`}}}}});
 }
 
-// Carregar dados da base de dados via API
+// Carregar dados via API
 async function carregarDados(){
-  const resposta = await fetch('/api/transformadores'); // API do back-end
-  const dados = await resposta.json();
-  dadosMeta = dados.meta;
-  dadosSerie = dados.serie;
-  dadosPF = dados.pf;
+  const resposta=await fetch('/api/transformadores');
+  const dados=await resposta.json();
+  dadosMeta=dados.meta; dadosSerie=dados.serie; dadosPF=dados.pf;
   checkReady();
 }
 carregarDados();
 
-// Evento do botão filtrar
+// Filtrar transformadores
 document.getElementById('btnFiltrar').addEventListener('click',()=>{
   const pot=document.getElementById('potenciaInput').value.trim();
   const ten=document.getElementById('tensaoInput').value.trim();
   const out=document.getElementById('resultado');
   if(!pot||!ten){ out.textContent='Preenche ambos os campos.'; return; }
 
-  const encontrados = dadosMeta.filter(r => (r.potencia||'').trim()===pot && (r.tensao||'').trim()===ten);
+  const encontrados=dadosMeta.filter(r=>(r.potencia||'').trim()===pot && (r.tensao||'').trim()===ten);
   if(!encontrados.length){ out.textContent='Nenhum transformador encontrado.'; return; }
 
   let html=`<strong>${encontrados.length} transformador(es) encontrado(s):</strong>`;
 
   encontrados.forEach((m,i)=>{
-    const id = (m.id_secagenscore||'').trim();
-    const stats = calcLC(id,m.massai);
-    const mTon = (parseNum(m.massai)/1000).toFixed(3);
-    const teMax = maxTEfromSerie(id);
-    const pe417 = minPE(id,'PE_4_17');
-    const pe551 = minPE(id,'PE_5_5_1');
-    const dadosPFRF = pegaDadosPF(id);
-    
+    const id=(m.id_secagenscore||'').trim();
+    const stats=calcLC(id,m.massai);
+    const mTon=(parseNum(m.massai)/1000).toFixed(3);
+    const teMax=maxTEfromSerie(id);
+    const pe417=minPE(id,'PE_4_17');
+    const pe551=minPE(id,'PE_5_5_1');
+    const dadosPFRF=pegaDadosPF(id);
+
     html+=`<div class="transformador-dados">
       <strong>#${i+1} — ID:</strong> ${id}<br>
       <strong>Projecto:</strong> ${m.subprojecto||'N/A'}<br>
@@ -145,24 +130,22 @@ document.getElementById('btnFiltrar').addEventListener('click',()=>{
       <strong>Duração total:</strong> ${formatNum(stats.dur,2)} h<br>
       <strong>Quantidade de água removida:</strong> ${formatNum(stats.difLC)} L<br>
       <strong>Taxa de remoção de água:</strong> ${formatNum(stats.taxa)} (L/(h*t))<br>
-      <strong>Taxa de remoção de água nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
-      <strong>Maior valor de temperatura nas sondas:</strong> ${formatNum(teMax,2)} ºC<br>
-      <strong>Menor valor de pressão:</strong> ${formatNum(pe551,3)} mbar<br>
-      <strong>Menor valor de vácuo fino:</strong> ${formatNum(pe417,3)} mbar<br>`;
+      <strong>Taxa nas últimas 10h:</strong> ${formatNum(stats.taxa10h)} (L/(h*t))<br>
+      <strong>Maior valor TE:</strong> ${formatNum(teMax,2)} ºC<br>
+      <strong>Menor PE:</strong> ${formatNum(pe551,3)} mbar<br>
+      <strong>Menor Vácuo:</strong> ${formatNum(pe417,3)} mbar<br>`;
 
     if(dadosPFRF){
-      html+=`<h4>Valores e Índices PFxTAquec / RFxTAquec</h4><table><thead><tr><th>Nº</th><th>PFxTAquec</th><th>RFxTAquec</th><th>Índice</th></tr></thead><tbody>`;
+      html+=`<h4>PFxTAquec / RFxTAquec</h4><table><thead><tr><th>Nº</th><th>PFxTAquec</th><th>RFxTAquec</th><th>Índice</th></tr></thead><tbody>`;
       for(let j=0;j<6;j++){
         html+=`<tr><td>TAquec ${j+1}</td><td>${formatNum(dadosPFRF.PFxTAquec[j])}</td><td>${formatNum(dadosPFRF.RFxTAquec[j])}</td><td>${calculaIndiceTemperatura(dadosPFRF.PFxTAquec[j],dadosPFRF.RFxTAquec[j])}</td></tr>`;
       }
-      html+=`</tbody></table><h4>Valores e Índices PFxPRem / RFxPRem</h4><table><thead><tr><th>Nº</th><th>PFxPRem</th><th>RFxPRem</th><th>Índice</th></tr></thead><tbody>`;
+      html+=`</tbody></table><h4>PFxPRem / RFxPRem</h4><table><thead><tr><th>Nº</th><th>PFxPRem</th><th>RFxPRem</th><th>Índice</th></tr></thead><tbody>`;
       for(let j=0;j<6;j++){
         html+=`<tr><td>PRem ${j+1}</td><td>${formatNum(dadosPFRF.PFxPRem[j])}</td><td>${formatNum(dadosPFRF.RFxPRem[j])}</td><td>${calculaIndicePressao(dadosPFRF.PFxPRem[j],dadosPFRF.RFxPRem[j])}</td></tr>`;
       }
       html+=`</tbody></table>`;
-    } else {
-      html+=`<em>Dados PF/RF não encontrados para este transformador.</em>`;
-    }
+    } else { html+=`<em>Dados PF/RF não encontrados.</em>`; }
 
     const canvasId=`grafico_remocao_${i}`;
     html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
@@ -173,22 +156,22 @@ document.getElementById('btnFiltrar').addEventListener('click',()=>{
   document.getElementById('btnExportarPDF').style.display='inline-block';
 });
 
-// Exportar PDF (igual ao que já tens)
+// Exportar PDF
 document.getElementById("btnExportarPDF").addEventListener("click", async ()=>{
-  const { jsPDF } = window.jspdf || window.jspdf.jsPDF;
-  const doc = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  let cursorY = 20;
-  const transformadores = Array.from(document.querySelectorAll(".transformador-dados"));
+  const { jsPDF }=window.jspdf||window.jspdf.jsPDF;
+  const doc=new jsPDF({ unit:"px", format:"a4", orientation:"portrait" });
+  const pageWidth=doc.internal.pageSize.getWidth();
+  const pageHeight=doc.internal.pageSize.getHeight();
+  let cursorY=20;
+  const transformadores=Array.from(document.querySelectorAll(".transformador-dados"));
   for(let i=0;i<transformadores.length;i++){
-    const el = transformadores[i];
+    const el=transformadores[i];
     await html2canvas(el,{scale:2}).then(canvas=>{
-      const imgData = canvas.toDataURL("image/png");
-      const imgProps = doc.getImageProperties(imgData);
-      const imgWidth = pageWidth - 40;
-      const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-      if(cursorY + imgHeight > pageHeight-20){ doc.addPage(); cursorY=20; }
+      const imgData=canvas.toDataURL("image/png");
+      const imgProps=doc.getImageProperties(imgData);
+      const imgWidth=pageWidth-40;
+      const imgHeight=(imgProps.height*imgWidth)/imgProps.width;
+      if(cursorY+imgHeight>pageHeight-20){ doc.addPage(); cursorY=20; }
       doc.addImage(imgData,"PNG",20,cursorY,imgWidth,imgHeight);
       cursorY+=imgHeight+10;
     });
