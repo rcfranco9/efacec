@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>Comparar Transformadores</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <style>
 body { font-family:'Segoe UI', sans-serif; max-width:900px; margin:40px auto; background:#f7f7f7; padding:30px; border-radius:10px; }
 h1{text-align:center;color:#2c3e50;}
@@ -33,7 +36,7 @@ canvas{max-width:100%;margin-top:30px;display:block;}
 <select id="selectID2" style="display:none;"></select>
 
 <button id="btnComparar">Carregar IDs</button>
-
+<button id="btnExportarPDF" style="margin-top:20px;background:#27ae60;color:white;">Exportar para PDF</button>
 <div id="resultado">Introduz os nomes dos transformadores e clica "Carregar IDs".</div>
 
 <canvas id="graficoTaxas1"></canvas>
@@ -250,6 +253,51 @@ document.getElementById('selectID2').addEventListener('change',()=>{
             const m2Escolhido = escolherTransformador(m2Array,id2);
             atualizarComparacao(m1Escolhido,m2Escolhido);
         });
+    });
+});
+    document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const elemento = document.getElementById('resultado');
+
+    // Escala para maior resolução
+    const scale = 2;
+
+    await html2canvas(elemento, { scale: scale, scrollY: -window.scrollY }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+        // Tamanho da imagem em mm
+        const imgProps = canvas.width / canvas.height;
+        let alturaImagem = pdfWidth / imgProps;
+
+        if(alturaImagem <= pdfHeight){
+            // Cabe numa página
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaImagem);
+        } else {
+            // Divide em várias páginas
+            let posY = 0;
+            const pageHeight = pdfHeight * scale;
+            while(posY < canvas.height){
+                const canvasPage = document.createElement('canvas');
+                canvasPage.width = canvas.width;
+                canvasPage.height = Math.min(pageHeight, canvas.height - posY);
+                const ctx = canvasPage.getContext('2d');
+                ctx.drawImage(canvas, 0, posY, canvas.width, canvasPage.height, 0, 0, canvas.width, canvasPage.height);
+
+                const imgPageData = canvasPage.toDataURL('image/png');
+                const alturaPageMM = (canvasPage.height * pdfWidth) / canvas.width;
+
+                if(posY > 0) pdf.addPage();
+                pdf.addImage(imgPageData, 'PNG', 0, 0, pdfWidth, alturaPageMM);
+
+                posY += pageHeight;
+            }
+        }
+
+        pdf.save('comparacao_transformadores.pdf');
     });
 });
 </script>
