@@ -81,7 +81,19 @@ function desenharGrafico(labels, taxas, canvasId) {
 function gerarBlocosHora(serie, massa) {
   if(serie.length < 2 || massa <= 0) return [];
 
-  const blocos = [];
+ const blocos = [];
+if(serie.length>1 && massa>0){
+  for(let k=1;k<serie.length;k++){
+    const ini = serie[k-1], fim = serie[k];
+    const delta = parseFloat(fim.LC_3_8||0) - parseFloat(ini.LC_3_8||0);
+    const horas = (new Date(fim.DataHora)-new Date(ini.DataHora))/3600000 || 1e-6;
+    const taxa = (delta/horas)/massa;
+    
+    let horaFim = new Date(fim.DataHora).getHours() + 1; // hora final +1
+    blocos.push({intervalo: horaFim, taxa: parseFloat(taxa.toFixed(3))});
+  }
+}
+
   const inicio = new Date(serie[0].DataHora);
   const fim = new Date(serie[serie.length-1].DataHora);
   const horasTotais = Math.ceil((fim - inicio)/3600000);
