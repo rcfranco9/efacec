@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <title>Comparação Parcial de Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; background: #f7f7f7; padding: 30px; border-radius: 10px; }
     h1 { text-align:center; margin-bottom:30px; color:#2c3e50; }
@@ -30,6 +32,7 @@
 <input type="text" id="tensaoInput" placeholder="Tensão">
 
 <button id="btnFiltrar">Pesquisar</button>
+<button id="btnExportarPDF">Exportar para PDF</button>
 
 <div id="resultado">Resultados aparecerão aqui.</div>
 
@@ -212,6 +215,23 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
 
   out.innerHTML=html;
 });
+  document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'pt', 'a4');
+    const elemento = document.getElementById('resultado');
+
+    // Captura toda a div como imagem
+    await html2canvas(elemento, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = doc.getImageProperties(imgData);
+        const pdfWidth = doc.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        doc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        doc.save('comparacao_parcial.pdf');
+    });
+});
+
 </script>
 
 
