@@ -98,11 +98,12 @@ function gerarBlocosHora(serie, massa) {
     const fimVal = fimValObj ? parseFloat(fimValObj.LC_3_8 || iniVal) : iniVal;
 
     const delta = fimVal - iniVal;
-    const taxa = delta / massa; // L/(h*t)
-    blocos.push({
-      intervalo: `${t_ini.getHours()}:00 - ${t_fim.getHours()}:00`,
-      taxa: parseFloat(taxa.toFixed(3))
-    });
+ let taxa = delta / massa;       // L/(h*t)
+taxa = Math.ceil(taxa) + 1;    // arredonda para cima e soma 1
+blocos.push({
+  intervalo: `${t_ini.getHours()}:00 - ${t_fim.getHours()}:00`,
+  taxa: taxa
+});
   }
 
   return blocos;
