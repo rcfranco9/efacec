@@ -255,42 +255,39 @@ document.getElementById('selectID2').addEventListener('change',()=>{
         });
     });
 });
-document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+ddocument.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const elementos = document.querySelectorAll('#resultado .transformador-dados'); // cada transformador
-    let primeiraPagina = true;
+    const elemento = document.getElementById('resultado');
 
-    for(const el of elementos){
-        await html2canvas(el, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
-            const imgWidth = pdfWidth;
-            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+    await html2canvas(elemento, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(imgData);
 
-            if(!primeiraPagina) pdf.addPage();
-            primeiraPagina = false;
-
-            // Se a altura da imagem for maior que a página, redimensiona proporcionalmente
-            const scaleFactor = imgHeight > pdfHeight ? pdfHeight / imgHeight : 1;
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth * scaleFactor, imgHeight * scaleFactor);
-        });
-    }
-
-    // Captura também o conteúdo restante (tabelas, gráficos finais)
-    const restante = document.getElementById('resultado');
-    await html2canvas(restante, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
         const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        pdf.addPage();
-        const scaleFactor = imgHeight > pdfHeight ? pdfHeight / imgHeight : 1;
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth * scaleFactor, imgHeight * scaleFactor);
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        // Adiciona múltiplas páginas se necessário
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+
+        while(heightLeft > 0){
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+        }
     });
 
     pdf.save('comparacao_transformadores.pdf');
 });
+
 </script>
 </body>
 </html>
