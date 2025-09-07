@@ -202,8 +202,6 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
   out.innerHTML=html;
 });
 
-// Exportar PDF
-// Exportar PDF com 1 transformador por página
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
@@ -214,13 +212,20 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
 
     await html2canvas(elemento, { scale: 2 }).then(canvas => {
       const imgData = canvas.toDataURL('image/png');
-      const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Adiciona a imagem na página
-      if(i > 0) pdf.addPage(); // nova página a partir do 2º transformador
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // Ajustar largura da imagem ao PDF
+      const imgProps = canvas.width / canvas.height; // proporção
+      let alturaImagem = pdfWidth / imgProps;
+
+      // Se a altura for maior que a página, escala para caber
+      if(alturaImagem > pdfHeight) {
+        alturaImagem = pdfHeight;
+      }
+
+      if(i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaImagem);
     });
   }
 
