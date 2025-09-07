@@ -203,20 +203,30 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
 });
 
 // Exportar PDF
+// Exportar PDF com 1 transformador por página
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const elemento = document.getElementById('resultado');
+  const transformadores = document.querySelectorAll('.transformador-dados');
 
-  await html2canvas(elemento, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('comparacao_transformadores.pdf');
-  });
+  for (let i = 0; i < transformadores.length; i++) {
+    const elemento = transformadores[i];
+
+    await html2canvas(elemento, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      // Adiciona a imagem na página
+      if(i > 0) pdf.addPage(); // nova página a partir do 2º transformador
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    });
+  }
+
+  pdf.save('comparacao_transformadores.pdf');
 });
+
 </script>
 
 </body>
