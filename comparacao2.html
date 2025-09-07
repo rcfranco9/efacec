@@ -255,7 +255,7 @@ document.getElementById('selectID2').addEventListener('change',()=>{
         });
     });
 });
-    document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+document.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -263,7 +263,13 @@ document.getElementById('selectID2').addEventListener('change',()=>{
 
     const elemento = document.getElementById('resultado');
 
-    await html2canvas(elemento, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
+    // Garantir que os canvas estão atualizados
+    const charts = elemento.querySelectorAll('canvas');
+    charts.forEach(c => {
+        if(c.chart) c.chart.update();
+    });
+
+    await html2canvas(elemento, { scale: 2, scrollY: -window.scrollY, useCORS:true }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(imgData);
 
@@ -273,7 +279,6 @@ document.getElementById('selectID2').addEventListener('change',()=>{
         let heightLeft = imgHeight;
         let position = 0;
 
-        // Adiciona múltiplas páginas se necessário
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pdfHeight;
 
