@@ -260,41 +260,29 @@ document.getElementById('selectID2').addEventListener('change',()=>{
     const pdf = new jsPDF('p', 'mm', 'a4');
     const elemento = document.getElementById('resultado');
 
-    // Escala para maior resolução
-    const scale = 2;
+    const scale = 2; // aumenta resolução para melhor legibilidade
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
 
     await html2canvas(elemento, { scale: scale, scrollY: -window.scrollY }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
+        let posY = 0;
+        while(posY < canvas.height){
+            const canvasPage = document.createElement('canvas');
+            canvasPage.width = canvas.width;
+            canvasPage.height = Math.min(canvas.height - posY, canvas.height); // altura restante
+            const ctx = canvasPage.getContext('2d');
+            ctx.drawImage(canvas, 0, posY, canvas.width, canvasPage.height, 0, 0, canvas.width, canvasPage.height);
 
-        // Tamanho da imagem em mm
-        const imgProps = canvas.width / canvas.height;
-        let alturaImagem = pdfWidth / imgProps;
+            const imgData = canvasPage.toDataURL('image/png');
+            const alturaPageMM = (canvasPage.height * pdfWidth) / canvas.width;
 
-        if(alturaImagem <= pdfHeight){
-            // Cabe numa página
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaImagem);
-        } else {
-            // Divide em várias páginas
-            let posY = 0;
-            const pageHeight = pdfHeight * scale;
-            while(posY < canvas.height){
-                const canvasPage = document.createElement('canvas');
-                canvasPage.width = canvas.width;
-                canvasPage.height = Math.min(pageHeight, canvas.height - posY);
-                const ctx = canvasPage.getContext('2d');
-                ctx.drawImage(canvas, 0, posY, canvas.width, canvasPage.height, 0, 0, canvas.width, canvasPage.height);
+            if(posY > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaPageMM);
 
-                const imgPageData = canvasPage.toDataURL('image/png');
-                const alturaPageMM = (canvasPage.height * pdfWidth) / canvas.width;
-
-                if(posY > 0) pdf.addPage();
-                pdf.addImage(imgPageData, 'PNG', 0, 0, pdfWidth, alturaPageMM);
-
-                posY += pageHeight;
-            }
+            posY += canvasPage.height;
         }
 
         pdf.save('comparacao_transformadores.pdf');
