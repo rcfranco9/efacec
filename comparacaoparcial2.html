@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <title>Comparação Parcial de Transformadores</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; background: #f7f7f7; padding: 30px; border-radius: 10px; }
     h1 { text-align:center; margin-bottom:30px; color:#2c3e50; }
@@ -19,8 +17,6 @@
     table { width:100%; border-collapse:collapse; margin-top:10px; }
     th, td { border:1px solid #bbb; padding:6px 10px; text-align:center; font-size:14px; }
     th { background:#2980b9; color:white; }
-    #btnExportarPDF { margin-top: 20px; background:#27ae60; }
-    #btnExportarPDF:hover:not(:disabled) { background:#2ecc71; }
   </style>
 </head>
 <body>
@@ -34,7 +30,6 @@
 <input type="text" id="tensaoInput" placeholder="Tensão">
 
 <button id="btnFiltrar">Pesquisar</button>
-<button id="btnExportarPDF">Exportar para PDF</button>
 
 <div id="resultado">Resultados aparecerão aqui.</div>
 
@@ -85,6 +80,7 @@ function desenharGrafico(labels, taxas, canvasId) {
 // Calcula taxa de remoção hora a hora
 function gerarBlocosHora(serie, massa) {
   if(serie.length < 2 || massa <= 0) return [];
+
   const blocos = [];
   const inicio = new Date(serie[0].DataHora);
   const fim = new Date(serie[serie.length-1].DataHora);
@@ -94,6 +90,7 @@ function gerarBlocosHora(serie, massa) {
     const t_ini = new Date(inicio.getTime() + h*3600000);
     const t_fim = new Date(inicio.getTime() + (h+1)*3600000);
 
+    // Encontrar as amostras mais próximas
     const iniValObj = serie.filter(r=> new Date(r.DataHora) >= t_ini && new Date(r.DataHora) < t_fim)[0];
     const fimValObj = serie.filter(r=> new Date(r.DataHora) >= t_fim)[0];
 
@@ -101,12 +98,14 @@ function gerarBlocosHora(serie, massa) {
     const fimVal = fimValObj ? parseFloat(fimValObj.LC_3_8 || iniVal) : iniVal;
 
     const delta = fimVal - iniVal;
-    const taxa = delta / massa; // L/(h*t)
-    blocos.push({
-      horaFim: t_fim.getHours()+1, // hora final + 1
-      taxa: parseFloat(taxa.toFixed(3))
-    });
+const taxa = delta / massa; // L/(h*t)
+blocos.push({
+  intervalo: `${t_ini.getHours()}:00 - ${t_fim.getHours()}:00`,
+  taxa: parseFloat(taxa.toFixed(3))
+});
+
   }
+
   return blocos;
 }
 
@@ -128,6 +127,7 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
     const serie = item.serie || [];
     const massa = parseFloat(meta.massai||0)/1000;
 
+    // Duração total
     let duracao=0;
     if(serie.length>0){
       const inicio = new Date(serie[0].DataHora);
@@ -135,17 +135,21 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
       duracao = (fim-inicio)/3600000;
     }
 
+    // Água removida e taxa total
     const aguaRemovida = serie.length>0 ? parseFloat(serie[serie.length-1].LC_3_8||0) : 0;
     const taxaTotal = (duracao>0 && massa>0) ? aguaRemovida/(duracao*massa) : 0;
 
+    // Máximo TE
     const teCols=['TE_5_4_1','TE_5_4_2','TE_5_4_3','TE_5_4_4','TE_5_4_5','TE_5_4_6'];
     let maxTE=null;
     serie.forEach(r=>{ teCols.forEach(c=>{ const v=parseFloat(r[c]||0); if(v>0&&v<=140) maxTE=maxTE==null?v:Math.max(maxTE,v); }); });
 
+    // Mínimos PE
     function minVal(col){ let vals=serie.map(r=>parseFloat(r[col]||0)).filter(v=>v>0.1); return vals.length?Math.min(...vals):null; }
     const minPE_417 = minVal('PE_4_17');
     const minPE_551 = minVal('PE_5_5_1');
 
+    // Índices TAquec e PRem
     const indicesTA = [], indicesPR = [];
     if(item.referencia){
       item.referencia.forEach(r=>{
@@ -166,6 +170,7 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
       });
     }
 
+    // Blocos hora a hora
     const blocos = gerarBlocosHora(serie, massa);
     const canvasId=`grafico_${i}`;
 
@@ -194,30 +199,21 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
 
     html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
 
-    const labels = blocos.map(b=>b.horaFim);
+  const labels = blocos.map(b => {
+    // Pega só a hora final do intervalo
+    let partes = b.intervalo.split('-');
+    let horaFim = parseInt(partes[1]);  // '20' → 20
+    return horaFim + 1;                 // soma 1 → 21
+});
+
     const taxas = blocos.map(b=>b.taxa);
     setTimeout(()=>desenharGrafico(labels, taxas, canvasId),0);
   });
 
   out.innerHTML=html;
 });
-
-// Exportar PDF
-document.getElementById('btnExportarPDF').addEventListener('click', async () => {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const elemento = document.getElementById('resultado');
-
-  await html2canvas(elemento, { scale: 2 }).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save('comparacao_transformadores.pdf');
-  });
-});
 </script>
+
 
 </body>
 </html>
