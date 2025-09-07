@@ -255,7 +255,7 @@ document.getElementById('selectID2').addEventListener('change',()=>{
         });
     });
 });
-ddocument.getElementById('btnExportarPDF').addEventListener('click', async () => {
+    document.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
