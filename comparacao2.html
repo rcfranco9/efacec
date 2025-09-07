@@ -244,6 +244,7 @@ document.getElementById('selectID1').addEventListener('change',()=>{
     });
 });
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+document.getElementById('btnExportarPDF').addEventListener('click', async () => {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -252,29 +253,34 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
   const transformadores = document.querySelectorAll('.transformador-dados');
 
   for (let i = 0; i < transformadores.length; i++) {
-    const elemento = transformadores[i];
+    const original = transformadores[i];
 
-    // Substituir todos os canvas por imagens
-    const canvasList = Array.from(elemento.querySelectorAll('canvas'));
-    const backups = [];
-    canvasList.forEach(c => {
+    // Criar cópia do transformador em memória
+    const clone = original.cloneNode(true);
+
+    // Converter canvas para imagens na cópia
+    clone.querySelectorAll('canvas').forEach(c => {
       const img = document.createElement('img');
       img.src = c.toDataURL('image/png');
       img.style.width = c.style.width || c.width + 'px';
       img.style.height = c.style.height || c.height + 'px';
-      backups.push({canvas: c, parent: c.parentNode});
       c.parentNode.replaceChild(img, c);
     });
 
-    // Captura o transformador (texto + gráficos)
-    await html2canvas(elemento, { scale: 2 }).then(canvas => {
+    // Adicionar clone temporariamente ao body (fora da vista)
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    document.body.appendChild(clone);
+
+    await html2canvas(clone, { scale: 2 }).then(canvas => {
       const imgData = canvas.toDataURL('image/png');
-      const imgProps = canvas.width / canvas.height; // proporção
+      const imgProps = canvas.width / canvas.height;
       let alturaImagem = pdfWidth / imgProps;
 
-      // Se a altura for maior que a página, criar páginas adicionais
+      if(i > 0) pdf.addPage();
+
+      // Se a altura for maior que a página, divide em várias páginas
       if(alturaImagem <= pdfHeight){
-        if(i > 0) pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaImagem);
       } else {
         let remainingHeight = alturaImagem;
@@ -289,8 +295,8 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
       }
     });
 
-    // Restaurar os canvas originais
-    backups.forEach(b => b.parent.replaceChild(b.canvas, b.parent.querySelector('img')));
+    // Remover clone temporário
+    document.body.removeChild(clone);
   }
 
   pdf.save('comparacao_transformadores.pdf');
