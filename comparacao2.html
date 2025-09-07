@@ -251,50 +251,48 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
 
     const elemento = document.getElementById('resultado');
 
-    // Captura todos os gráficos <canvas>
-    const canvases = elemento.querySelectorAll('canvas');
-    const imagensGraficos = Array.from(canvases).map(c => c.toDataURL('image/png'));
+    // Transformar cada canvas em imagem temporária
+    const canvasList = Array.from(elemento.querySelectorAll('canvas'));
+    const backups = [];
+    canvasList.forEach((c, i) => {
+        const img = document.createElement('img');
+        img.src = c.toDataURL('image/png');
+        img.style.width = c.style.width || c.width + 'px';
+        img.style.height = c.style.height || c.height + 'px';
+        backups.push({canvas:c, parent:c.parentNode});
+        c.parentNode.replaceChild(img, c);
+    });
 
-    // Remove temporariamente os canvas para capturar apenas o texto
-    canvases.forEach(c => c.style.display = 'none');
+    // Captura todo o conteúdo da div
+    const canvas = await html2canvas(elemento, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
 
-    // Captura o restante conteúdo como imagem
-    await new Promise(res => setTimeout(res, 500)); // espera gráficos renderizarem
-    const canvasTexto = await html2canvas(elemento, { scale: 2, useCORS: true });
-    const imgTexto = canvasTexto.toDataURL('image/png');
-
-    // Volta a mostrar os canvas
-    canvases.forEach(c => c.style.display = 'block');
-
-    // Adiciona o texto ao PDF
-    const imgPropsTexto = pdf.getImageProperties(imgTexto);
-    let imgHeightTexto = (imgPropsTexto.height * pdfWidth) / imgPropsTexto.width;
-    let remainingHeight = imgHeightTexto;
-    let pos = 0;
-
-    while(remainingHeight > 0){
-        const heightToPrint = Math.min(remainingHeight, pdfHeight);
-        const canvasTemp = document.createElement('canvas');
-        canvasTemp.width = canvasTexto.width;
-        canvasTemp.height = canvasTexto.height * (heightToPrint / imgHeightTexto);
-        const ctx = canvasTemp.getContext('2d');
-        ctx.drawImage(canvasTexto, 0, (imgHeightTexto - remainingHeight)*(canvasTexto.height/imgHeightTexto), canvasTexto.width, canvasTexto.height*(heightToPrint/imgHeightTexto), 0,0,canvasTemp.width,canvasTemp.height);
-        pdf.addImage(canvasTemp.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, heightToPrint);
-        remainingHeight -= pdfHeight;
-        if(remainingHeight>0) pdf.addPage();
-    }
-
-    // Adiciona cada gráfico numa página própria
-    for(let i=0;i<imagensGraficos.length;i++){
-        if(i>0) pdf.addPage();
-        const img = imagensGraficos[i];
-        const imgProps = pdf.getImageProperties(img);
-        const h = (imgProps.height * pdfWidth) / imgProps.width;
-        pdf.addImage(img,'PNG',0,0,pdfWidth,h);
+    // Adiciona ao PDF e faz paginação automática
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    if(pdfImgHeight <= pdfHeight){
+        pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfImgHeight);
+    } else {
+        // Dividir em várias páginas se necessário
+        let remainingHeight = pdfImgHeight;
+        let yOffset = 0;
+        while(remainingHeight > 0){
+            const heightToPrint = Math.min(remainingHeight, pdfHeight);
+            pdf.addImage(imgData,'PNG',0,-yOffset,pdfWidth,pdfImgHeight);
+            remainingHeight -= pdfHeight;
+            yOffset += pdfHeight;
+            if(remainingHeight>0) pdf.addPage();
+        }
     }
 
     pdf.save('comparacao_transformadores.pdf');
+
+    // Restaurar os canvas originais
+    backups.forEach(b => {
+        b.parent.replaceChild(b.canvas, b.parent.querySelector('img'));
+    });
 });
+
 
 
 
