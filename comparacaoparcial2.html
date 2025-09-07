@@ -56,63 +56,15 @@ function desenharGrafico(labels, taxas, canvasId) {
   const ctx = document.getElementById(canvasId).getContext("2d");
   new Chart(ctx,{
     type:"line",
-    data:{
-      labels: labels,
-      datasets:[{
-        label:"Taxa de Remoção (L/h*t)",
-        data: taxas,
-        borderColor:"#2980b9",
-        backgroundColor:"rgba(52,152,219,0.2)",
-        fill:true,
-        tension:0.2,
-        pointRadius:3
-      }]
-    },
-    options:{
-      scales:{
-        y:{ beginAtZero:true },
-        x:{}
-      }
-    }
+    data:{ labels:labels, datasets:[{ label:"Taxa de Remoção (L/h*t)", data:taxas, borderColor:"#2980b9", backgroundColor:"rgba(52,152,219,0.2)", fill:true, tension:0.2, pointRadius:3 }]},
+    options:{ scales:{ y:{ beginAtZero:true }, x:{} } }
   });
-}
-
-// Calcula taxa de remoção hora a hora
-function gerarBlocosHora(serie, massa) {
-  if(serie.length < 2 || massa <= 0) return [];
-
-  const blocos = [];
-  const inicio = new Date(serie[0].DataHora);
-  const fim = new Date(serie[serie.length-1].DataHora);
-  const horasTotais = Math.ceil((fim - inicio)/3600000);
-
-  for(let h=0; h<horasTotais; h++){
-    const t_ini = new Date(inicio.getTime() + h*3600000);
-    const t_fim = new Date(inicio.getTime() + (h+1)*3600000);
-
-    // Encontrar as amostras mais próximas
-    const iniValObj = serie.filter(r=> new Date(r.DataHora) >= t_ini && new Date(r.DataHora) < t_fim)[0];
-    const fimValObj = serie.filter(r=> new Date(r.DataHora) >= t_fim)[0];
-
-    const iniVal = iniValObj ? parseFloat(iniValObj.LC_3_8 || 0) : 0;
-    const fimVal = fimValObj ? parseFloat(fimValObj.LC_3_8 || iniVal) : iniVal;
-
-    const delta = fimVal - iniVal;
-const taxa = delta / massa; // L/(h*t)
-blocos.push({
-  intervalo: `${t_ini.getHours()}:00 - ${t_fim.getHours()}:00`,
-  taxa: parseFloat(taxa.toFixed(3))
-});
-
-  }
-
-  return blocos;
 }
 
 document.getElementById('btnFiltrar').addEventListener('click', async()=>{
   const potencia = document.getElementById('potenciaInput').value.trim();
   const tensao = document.getElementById('tensaoInput').value.trim();
-  if(!potencia || !tensao){ alert('Preenche ambos os campos!'); return; }
+  if(!potencia||!tensao){ alert('Preenche ambos os campos!'); return; }
 
   const resp = await fetch(`/api/transformador_parcial?potencia=${encodeURIComponent(potencia)}&tensao=${encodeURIComponent(tensao)}`);
   const data = await resp.json();
@@ -121,12 +73,13 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
   if(!data.length){ out.textContent='Nenhum transformador encontrado'; return; }
 
   let html = `<strong>${data.length} transformador(es) encontrado(s)</strong>`;
-
+  
   data.forEach((item,i)=>{
     const meta = item.meta;
     const serie = item.serie || [];
+    const id_sec = meta.id_secagenscore;
     const massa = parseFloat(meta.massai||0)/1000;
-
+    
     // Duração total
     let duracao=0;
     if(serie.length>0){
@@ -135,8 +88,10 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
       duracao = (fim-inicio)/3600000;
     }
 
-    // Água removida e taxa total
+    // Água removida
     const aguaRemovida = serie.length>0 ? parseFloat(serie[serie.length-1].LC_3_8||0) : 0;
+
+    // Taxa total
     const taxaTotal = (duracao>0 && massa>0) ? aguaRemovida/(duracao*massa) : 0;
 
     // Máximo TE
@@ -154,26 +109,28 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
     if(item.referencia){
       item.referencia.forEach(r=>{
         for(let j=1;j<=6;j++){
-          indicesTA.push({
-            TAquec:`TAquec ${j}`,
-            PF:parseFloat(r[`PF${j}TAquec`]||0),
-            RF:parseFloat(r[`RF${j}TAquec`]||0),
-            indice:calculaIndiceTemperatura(parseFloat(r[`PF${j}TAquec`]||0),parseFloat(r[`RF${j}TAquec`]||0))
-          });
-          indicesPR.push({
-            PRem:`PRem ${j}`,
-            PF:parseFloat(r[`PF${j}PRem`]||0),
-            RF:parseFloat(r[`RF${j}PRem`]||0),
-            indice:calculaIndicePressao(parseFloat(r[`PF${j}PRem`]||0),parseFloat(r[`RF${j}PRem`]||0))
-          });
+          indicesTA.push({TAquec:`TAquec ${j}`, PF:parseFloat(r[`PF${j}TAquec`]||0), RF:parseFloat(r[`RF${j}TAquec`]||0), indice:calculaIndiceTemperatura(parseFloat(r[`PF${j}TAquec`]||0),parseFloat(r[`RF${j}TAquec`]||0))});
+          indicesPR.push({PRem:`PRem ${j}`, PF:parseFloat(r[`PF${j}PRem`]||0), RF:parseFloat(r[`RF${j}PRem`]||0), indice:calculaIndicePressao(parseFloat(r[`PF${j}PRem`]||0),parseFloat(r[`RF${j}PRem`]||0))});
         }
       });
     }
 
-    // Blocos hora a hora
-    const blocos = gerarBlocosHora(serie, massa);
-    const canvasId=`grafico_${i}`;
+    // Blocos hora a hora com hora final +1
+    const blocos = [];
+    if(serie.length>1 && massa>0){
+      for(let k=1;k<serie.length;k++){
+        const ini = serie[k-1];
+        const fim = serie[k];
+        const delta = parseFloat(fim.LC_3_8||0)-parseFloat(ini.LC_3_8||0);
+        const horas = (new Date(fim.DataHora)-new Date(ini.DataHora))/3600000||1e-6;
+        const taxa = (delta/horas)/massa;
+        let dataFim = new Date(fim.DataHora);
+        let horaX = dataFim.getHours() + 1;  // hora final +1
+        blocos.push({intervalo: horaX, taxa: parseFloat(taxa.toFixed(3))});
+      }
+    }
 
+    const canvasId=`grafico_${i}`;
     html+=`<div class="transformador-dados">
       <strong>#${i+1} — Subprojeto:</strong> ${meta.subprojecto}<br>
       <strong>Potência:</strong> ${meta.potencia}<br>
@@ -199,21 +156,14 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
 
     html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
 
-  const labels = blocos.map(b => {
-    // Pega só a hora final do intervalo
-    let partes = b.intervalo.split('-');
-    let horaFim = parseInt(partes[1]);  // '20' → 20
-    return horaFim + 1;                 // soma 1 → 21
-});
-
+    const labels = blocos.map(b=>b.intervalo);
     const taxas = blocos.map(b=>b.taxa);
-    setTimeout(()=>desenharGrafico(labels, taxas, canvasId),0);
+    setTimeout(()=>desenharGrafico(labels,taxas,canvasId),0);
   });
 
   out.innerHTML=html;
 });
 </script>
-
 
 </body>
 </html>
