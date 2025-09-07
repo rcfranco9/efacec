@@ -285,27 +285,33 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
   const pdfHeight = pdf.internal.pageSize.getHeight();
   const resultado = document.getElementById('resultado');
 
-  // Espera para garantir que todos os gráficos estão renderizados
-  await new Promise(res => setTimeout(res, 500));
-
-  // Clonar o conteúdo do resultado para não modificar a página original
+  // Clonar o resultado
   const clone = resultado.cloneNode(true);
-  clone.style.width = `${resultado.scrollWidth}px`;
-  document.body.appendChild(clone); // necessário para html2canvas renderizar corretamente
+  document.body.appendChild(clone);
 
+  // Substituir cada canvas por uma imagem
+  const canvases = clone.querySelectorAll('canvas');
+  canvases.forEach(c => {
+    const img = document.createElement('img');
+    img.src = c.toDataURL('image/png');
+    img.style.width = c.style.width || '100%';
+    img.style.height = c.style.height || 'auto';
+    c.parentNode.replaceChild(img, c);
+  });
+
+  // Capturar o clone inteiro
   await html2canvas(clone, { scale: 2, useCORS: true }).then(canvas => {
     const imgData = canvas.toDataURL('image/png');
-    const imgWidth = pdfWidth;
     const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
     if (imgHeight <= pdfHeight) {
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
     } else {
       // Paginação automática
       let heightLeft = imgHeight;
       let position = 0;
       while (heightLeft > 0) {
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
         heightLeft -= pdfHeight;
         position -= pdfHeight;
         if (heightLeft > 0) pdf.addPage();
@@ -313,9 +319,8 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     }
   });
 
-  // Remove o clone após capturar
+  // Limpar clone
   document.body.removeChild(clone);
-
   pdf.save('transformador.pdf');
 });
 
