@@ -261,30 +261,42 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const transformadores = document.querySelectorAll('.transformador-dados');
+    const elemento = document.getElementById('resultado');
 
-    for(let i=0;i<transformadores.length;i++){
-        const elemento = transformadores[i];
+    // Captura toda a div de resultados como imagem
+    await html2canvas(elemento, { scale: 2, useCORS: true }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const imgProps = pdf.getImageProperties(imgData);
 
-        // Forçar update de charts dentro desta div
-        const charts = elemento.querySelectorAll('canvas');
-        charts.forEach(c => { if(c.chart) c.chart.update(); });
+        const imgWidth = pdfWidth;
+        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        // Captura o canvas e o conteúdo da div
-        await html2canvas(elemento, { scale: 2, useCORS: true }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const imgProps = pdf.getImageProperties(imgData);
+        let position = 0; // posição vertical inicial no PDF
+        let remainingHeight = imgHeight;
 
-            // Escalar para caber na largura da página
-            const imgWidth = pdfWidth;
-            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        // Se a altura da imagem ultrapassar a página, divide em várias páginas
+        while(remainingHeight > 0){
+            const heightToPrint = Math.min(remainingHeight, pdfHeight);
+            const canvasTemp = document.createElement('canvas');
+            canvasTemp.width = canvas.width;
+            canvasTemp.height = canvas.height * (heightToPrint / imgHeight);
+            const ctx = canvasTemp.getContext('2d');
 
-            // Se não couber na página, adiciona uma página nova
-            if(i>0) pdf.addPage();
+            ctx.drawImage(
+                canvas,
+                0, (imgHeight - remainingHeight) * (canvas.height / imgHeight),
+                canvas.width, canvas.height * (heightToPrint / imgHeight),
+                0, 0,
+                canvasTemp.width, canvasTemp.height
+            );
 
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-        });
-    }
+            const imgPart = canvasTemp.toDataURL('image/png');
+            pdf.addImage(imgPart, 'PNG', 0, 0, imgWidth, heightToPrint);
+
+            remainingHeight -= pdfHeight;
+            if(remainingHeight > 0) pdf.addPage();
+        }
+    });
 
     pdf.save('comparacao_transformadores.pdf');
 });
