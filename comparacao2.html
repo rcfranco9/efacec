@@ -243,18 +243,6 @@ document.getElementById('selectID1').addEventListener('change',()=>{
         });
     });
 });
-document.getElementById('selectID2').addEventListener('change',()=>{
-    const id1 = document.getElementById('selectID1').value;
-    const id2 = document.getElementById('selectID2').value;
-    if(!id1 || !id2) return;
-    buscarDados(document.getElementById('nome1').value.trim()).then(m1Array=>{
-        buscarDados(document.getElementById('nome2').value.trim()).then(m2Array=>{
-            const m1Escolhido = escolherTransformador(m1Array,id1);
-            const m2Escolhido = escolherTransformador(m2Array,id2);
-            atualizarComparacao(m1Escolhido,m2Escolhido);
-        });
-    });
-});
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -263,7 +251,9 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
 
     const elemento = document.getElementById('resultado');
 
-    // Captura toda a div de resultados como imagem
+    // Espera um pouco para garantir que todos os gráficos <canvas> sejam renderizados
+    await new Promise(res => setTimeout(res, 500));
+
     await html2canvas(elemento, { scale: 2, useCORS: true }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         const imgProps = pdf.getImageProperties(imgData);
@@ -271,12 +261,13 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
         const imgWidth = pdfWidth;
         const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        let position = 0; // posição vertical inicial no PDF
         let remainingHeight = imgHeight;
 
-        // Se a altura da imagem ultrapassar a página, divide em várias páginas
+        // Dividir em múltiplas páginas se necessário
+        let position = 0;
         while(remainingHeight > 0){
             const heightToPrint = Math.min(remainingHeight, pdfHeight);
+
             const canvasTemp = document.createElement('canvas');
             canvasTemp.width = canvas.width;
             canvasTemp.height = canvas.height * (heightToPrint / imgHeight);
@@ -299,7 +290,7 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     });
 
     pdf.save('comparacao_transformadores.pdf');
-});
+})
 
 </script>
 </body>
