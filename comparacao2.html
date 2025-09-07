@@ -244,57 +244,57 @@ document.getElementById('selectID1').addEventListener('change',()=>{
     });
 });
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+  const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const elemento = document.getElementById('resultado');
+  const transformadores = document.querySelectorAll('.transformador-dados');
 
-    // Transformar cada canvas em imagem temporária
+  for (let i = 0; i < transformadores.length; i++) {
+    const elemento = transformadores[i];
+
+    // Substituir todos os canvas por imagens
     const canvasList = Array.from(elemento.querySelectorAll('canvas'));
     const backups = [];
-    canvasList.forEach((c, i) => {
-        const img = document.createElement('img');
-        img.src = c.toDataURL('image/png');
-        img.style.width = c.style.width || c.width + 'px';
-        img.style.height = c.style.height || c.height + 'px';
-        backups.push({canvas:c, parent:c.parentNode});
-        c.parentNode.replaceChild(img, c);
+    canvasList.forEach(c => {
+      const img = document.createElement('img');
+      img.src = c.toDataURL('image/png');
+      img.style.width = c.style.width || c.width + 'px';
+      img.style.height = c.style.height || c.height + 'px';
+      backups.push({canvas: c, parent: c.parentNode});
+      c.parentNode.replaceChild(img, c);
     });
 
-    // Captura todo o conteúdo da div
-    const canvas = await html2canvas(elemento, { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL('image/png');
+    // Captura o transformador (texto + gráficos)
+    await html2canvas(elemento, { scale: 2 }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = canvas.width / canvas.height; // proporção
+      let alturaImagem = pdfWidth / imgProps;
 
-    // Adiciona ao PDF e faz paginação automática
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    if(pdfImgHeight <= pdfHeight){
-        pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfImgHeight);
-    } else {
-        // Dividir em várias páginas se necessário
-        let remainingHeight = pdfImgHeight;
+      // Se a altura for maior que a página, criar páginas adicionais
+      if(alturaImagem <= pdfHeight){
+        if(i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaImagem);
+      } else {
+        let remainingHeight = alturaImagem;
         let yOffset = 0;
-        while(remainingHeight > 0){
-            const heightToPrint = Math.min(remainingHeight, pdfHeight);
-            pdf.addImage(imgData,'PNG',0,-yOffset,pdfWidth,pdfImgHeight);
-            remainingHeight -= pdfHeight;
-            yOffset += pdfHeight;
-            if(remainingHeight>0) pdf.addPage();
+        while(remainingHeight > 0) {
+          if(i > 0 || yOffset > 0) pdf.addPage();
+          const h = Math.min(remainingHeight, pdfHeight);
+          pdf.addImage(imgData, 'PNG', 0, -yOffset, pdfWidth, alturaImagem);
+          remainingHeight -= pdfHeight;
+          yOffset += pdfHeight;
         }
-    }
-
-    pdf.save('comparacao_transformadores.pdf');
+      }
+    });
 
     // Restaurar os canvas originais
-    backups.forEach(b => {
-        b.parent.replaceChild(b.canvas, b.parent.querySelector('img'));
-    });
+    backups.forEach(b => b.parent.replaceChild(b.canvas, b.parent.querySelector('img')));
+  }
+
+  pdf.save('comparacao_transformadores.pdf');
 });
-
-
-
 
 </script>
 </body>
