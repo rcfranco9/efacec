@@ -255,38 +255,41 @@ document.getElementById('selectID2').addEventListener('change',()=>{
         });
     });
 });
-    document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+document.getElementById('btnExportarPDF').addEventListener('click', async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const elemento = document.getElementById('resultado');
-
-    const scale = 2; // aumenta resolução para melhor legibilidade
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    await html2canvas(elemento, { scale: scale, scrollY: -window.scrollY }).then(canvas => {
+    const elementos = document.querySelectorAll('#resultado .transformador-dados'); // cada transformador
+    let primeiraPagina = true;
+
+    for(const el of elementos){
+        await html2canvas(el, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
+            const imgWidth = pdfWidth;
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            if(!primeiraPagina) pdf.addPage();
+            primeiraPagina = false;
+
+            // Se a altura da imagem for maior que a página, redimensiona proporcionalmente
+            const scaleFactor = imgHeight > pdfHeight ? pdfHeight / imgHeight : 1;
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth * scaleFactor, imgHeight * scaleFactor);
+        });
+    }
+
+    // Captura também o conteúdo restante (tabelas, gráficos finais)
+    const restante = document.getElementById('resultado');
+    await html2canvas(restante, { scale: 2, scrollY: -window.scrollY }).then(canvas => {
         const imgWidth = pdfWidth;
         const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-        let posY = 0;
-        while(posY < canvas.height){
-            const canvasPage = document.createElement('canvas');
-            canvasPage.width = canvas.width;
-            canvasPage.height = Math.min(canvas.height - posY, canvas.height); // altura restante
-            const ctx = canvasPage.getContext('2d');
-            ctx.drawImage(canvas, 0, posY, canvas.width, canvasPage.height, 0, 0, canvas.width, canvasPage.height);
-
-            const imgData = canvasPage.toDataURL('image/png');
-            const alturaPageMM = (canvasPage.height * pdfWidth) / canvas.width;
-
-            if(posY > 0) pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, alturaPageMM);
-
-            posY += canvasPage.height;
-        }
-
-        pdf.save('comparacao_transformadores.pdf');
+        pdf.addPage();
+        const scaleFactor = imgHeight > pdfHeight ? pdfHeight / imgHeight : 1;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth * scaleFactor, imgHeight * scaleFactor);
     });
+
+    pdf.save('comparacao_transformadores.pdf');
 });
 </script>
 </body>
