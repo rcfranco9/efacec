@@ -261,34 +261,30 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const elemento = document.getElementById('resultado');
+    const transformadores = document.querySelectorAll('.transformador-dados');
 
-    // Garantir que os canvas estão atualizados
-    const charts = elemento.querySelectorAll('canvas');
-    charts.forEach(c => {
-        if(c.chart) c.chart.update();
-    });
+    for(let i=0;i<transformadores.length;i++){
+        const elemento = transformadores[i];
 
-    await html2canvas(elemento, { scale: 2, scrollY: -window.scrollY, useCORS:true }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const imgProps = pdf.getImageProperties(imgData);
+        // Forçar update de charts dentro desta div
+        const charts = elemento.querySelectorAll('canvas');
+        charts.forEach(c => { if(c.chart) c.chart.update(); });
 
-        const imgWidth = pdfWidth;
-        const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        // Captura o canvas e o conteúdo da div
+        await html2canvas(elemento, { scale: 2, useCORS: true }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
 
-        let heightLeft = imgHeight;
-        let position = 0;
+            // Escalar para caber na largura da página
+            const imgWidth = pdfWidth;
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+            // Se não couber na página, adiciona uma página nova
+            if(i>0) pdf.addPage();
 
-        while(heightLeft > 0){
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-        }
-    });
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+        });
+    }
 
     pdf.save('comparacao_transformadores.pdf');
 });
