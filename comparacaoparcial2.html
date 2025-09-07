@@ -53,18 +53,19 @@ function calculaIndicePressao(PF, RF) {
 }
 
 function desenharGrafico(labels, taxas, canvasId) {
-  const ctx = document.getElementById(canvasId).getContext("2d");
+  const ctx = document.getElementById(canvasId)?.getContext("2d");
+  if(!ctx) return;
   new Chart(ctx,{
     type:"line",
     data:{ labels:labels, datasets:[{ label:"Taxa de Remoção (L/h*t)", data:taxas, borderColor:"#2980b9", backgroundColor:"rgba(52,152,219,0.2)", fill:true, tension:0.2, pointRadius:3 }]},
-    options:{ scales:{ y:{ beginAtZero:true }, x:{} } }
+    options:{ scales:{ y:{ beginAtZero:true } } }
   });
 }
 
-document.getElementById('btnFiltrar').addEventListener('click', async()=>{
+document.getElementById('btnFiltrar').addEventListener('click', async()=> {
   const potencia = document.getElementById('potenciaInput').value.trim();
   const tensao = document.getElementById('tensaoInput').value.trim();
-  if(!potencia||!tensao){ alert('Preenche ambos os campos!'); return; }
+  if(!potencia || !tensao){ alert('Preenche ambos os campos!'); return; }
 
   const resp = await fetch(`/api/transformador_parcial?potencia=${encodeURIComponent(potencia)}&tensao=${encodeURIComponent(tensao)}`);
   const data = await resp.json();
@@ -73,13 +74,12 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
   if(!data.length){ out.textContent='Nenhum transformador encontrado'; return; }
 
   let html = `<strong>${data.length} transformador(es) encontrado(s)</strong>`;
-  
+
   data.forEach((item,i)=>{
-    const meta = item.meta;
+    const meta = item.meta || item; // caso venha só meta
     const serie = item.serie || [];
-    const id_sec = meta.id_secagenscore;
     const massa = parseFloat(meta.massai||0)/1000;
-    
+
     // Duração total
     let duracao=0;
     if(serie.length>0){
@@ -152,14 +152,31 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
     }
 
     html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
-
-    // Desenhar gráfico
-    const labels = blocos.map(b=>b.intervalo);
-    const taxas = blocos.map(b=>b.taxa);
-    setTimeout(()=>desenharGrafico(labels,taxas,canvasId),0);
   });
 
-  out.innerHTML=html;
+  // Inserir HTML
+  out.innerHTML = html;
+
+  // Agora desenhar todos os gráficos
+  data.forEach((item,i)=>{
+    const serie = item.serie || [];
+    const massa = parseFloat(item.meta?.massai||0)/1000;
+    const blocos = [];
+    if(serie.length>1 && massa>0){
+      for(let k=1;k<serie.length;k++){
+        const ini=serie[k-1], fim=serie[k];
+        const delta=parseFloat(fim.LC_3_8||0)-parseFloat(ini.LC_3_8||0);
+        const horas=(new Date(fim.DataHora)-new Date(ini.DataHora))/3600000||1e-6;
+        const taxa=(delta/horas)/massa;
+        blocos.push({intervalo:fim.DataHora, taxa:parseFloat(taxa.toFixed(3))});
+      }
+    }
+    if(blocos.length>0){
+      const labels = blocos.map(b=>b.intervalo);
+      const taxas = blocos.map(b=>b.taxa);
+      desenharGrafico(labels, taxas, `grafico_${i}`);
+    }
+  });
 });
 </script>
 
