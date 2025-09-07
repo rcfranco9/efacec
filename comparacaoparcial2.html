@@ -98,12 +98,12 @@ function gerarBlocosHora(serie, massa) {
     const fimVal = fimValObj ? parseFloat(fimValObj.LC_3_8 || iniVal) : iniVal;
 
     const delta = fimVal - iniVal;
- let taxa = delta / massa;       // L/(h*t)
-taxa = Math.ceil(taxa) + 1;    // arredonda para cima e soma 1
+const taxa = delta / massa; // L/(h*t)
 blocos.push({
   intervalo: `${t_ini.getHours()}:00 - ${t_fim.getHours()}:00`,
-  taxa: taxa
+  taxa: parseFloat(taxa.toFixed(3))
 });
+
   }
 
   return blocos;
@@ -199,7 +199,13 @@ document.getElementById('btnFiltrar').addEventListener('click', async()=>{
 
     html+=`<canvas id="${canvasId}" height="200"></canvas></div>`;
 
-    const labels = blocos.map(b=>b.intervalo);
+  const labels = blocos.map(b => {
+    // Pega só a hora final do intervalo
+    let partes = b.intervalo.split('-');
+    let horaFim = parseInt(partes[1]);  // '20' → 20
+    return horaFim + 1;                 // soma 1 → 21
+});
+
     const taxas = blocos.map(b=>b.taxa);
     setTimeout(()=>desenharGrafico(labels, taxas, canvasId),0);
   });
